@@ -77,7 +77,10 @@ A **local** server is a program the engine starts and talks to over stdio:
 | `env` | Extra environment for it. |
 | `timeout_ms` | Longest a call may take (default 60000). |
 | `enabled_by` | A `toggle` setting that switches the server; without one it always runs. |
-| `agent_only` | Its tools are listed to the agent only, never to the chat's own tool loop. |
+| `agent_only` | Its tools are left out of the engine's `/tools`, so API clients and the chat's own tool loop never see them; the agent still does. |
+
+The engine's agent, ToshLLM's own or the one an extension brings, offers every server's tools to the
+model, so they work in the chat without further setup.
 
 A **remote** server has a `url` instead of `command` and is reached over Streamable HTTP, or the
 older HTTP+SSE transport (`"transport": "http"` or `"sse"` skips the detection). `header_env` maps

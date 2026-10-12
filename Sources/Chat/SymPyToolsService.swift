@@ -63,7 +63,8 @@ enum SymPyToolsService {
         // a turn can take minutes: it runs every round and tool call of the answer
         servers[agentName] = ["command": python, "args": ["-I", "-B", helper, agentName],
                               "timeout_ms": 900_000,
-                              "env": ["TOSH_TRUST_KEY": trustKey, "TOSH_AGENT_SERVERS": approved.joined(separator: ",")]]
+                              "env": ["TOSH_TRUST_KEY": trustKey,
+                                      "TOSH_AGENT_SERVERS": (approved + bundled.servers.keys.sorted()).joined(separator: ",")]]
         servers.merge(bundled.servers) { current, _ in current }
         if let replacement = bundled.agent { servers[agentName] = replacement }
         let agentOnly = approved + bundled.agentOnly

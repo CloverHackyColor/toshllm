@@ -189,6 +189,18 @@ final class EngineExtensionsTests: XCTestCase {
         XCTAssertTrue(found.problems.isEmpty)
     }
 
+    func testTheMathAgentOffersTheToolsOfAnExtensionWithoutAgent() throws {
+        let root = try folder()
+        try write(manifest(id()), in: root, as: "x")
+        let item = try XCTUnwrap(EngineExtensions.discover(in: root, bundled: true).extensions.first)
+        let args = SymPyToolsService.serverArguments(enabled: false, resources: try runtime(), extensions: [item])
+        let json = try XCTUnwrap(args.firstIndex(of: "--mcp-servers-json").map { args[$0 + 1] })
+        let servers = try XCTUnwrap((JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])?["mcpServers"]
+            as? [String: Any])
+        let env = (servers[SymPyToolsService.agentName] as? [String: Any])?["env"] as? [String: String]
+        XCTAssertEqual(env?["TOSH_AGENT_SERVERS"], "cloud,maps")
+    }
+
     func testWithoutExtensionsNothingChanges() throws {
         XCTAssertEqual(SymPyToolsService.serverArguments(enabled: false, resources: try runtime()), [])
     }

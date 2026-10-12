@@ -284,6 +284,15 @@ enum SettingsKeys {
         imagenAspect, imagenBaseSize, imagenSteps, imagenFormat, imagenOffloadCPU, imagenGPU,
     ]
 
+    /// The folder extensions are read from; empty means Application Support/<data folder>/Extensions.
+    static let extensionsFolder = "extensionsFolder"
+    /// A setting an extension declares, kept per extension.
+    static func extensionValue(_ id: String, _ key: String) -> String { "extension.\(id).value.\(key)" }
+    /// The extension.json digest the person approved, for an extension from the folder.
+    static func extensionApproval(_ id: String) -> String { "extension.\(id).approved" }
+    /// An extension inside the app that the person switched off.
+    static func extensionOff(_ id: String) -> String { "extension.\(id).off" }
+
     /// Clears every tunable option so they revert to defaults, keeping models intact.
     static func resetOptionsToDefaults() {
         let defaults = UserDefaults.standard
@@ -294,7 +303,7 @@ enum SettingsKeys {
 // MARK: - Logging
 
 enum AppLog {
-    private static let subsystem = "dev.engel.toshllm"
+    private static let subsystem = AppInfo.identifier
     static let server = Logger(subsystem: subsystem, category: "server")
     static let downloads = Logger(subsystem: subsystem, category: "downloads")
     static let speech = Logger(subsystem: subsystem, category: "speech")
@@ -306,7 +315,7 @@ enum AppLog {
 enum AppSupport {
     static var directory: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ToshLLM")
+            .appendingPathComponent(AppInfo.dataFolder)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
@@ -492,6 +501,7 @@ enum ShellWords {
 /// binaries) instead of pattern-killing by path.
 enum EngineLock {
     private static var url: URL { AppSupport.directory.appendingPathComponent("engine.pid") }
+    private static let engineMarker = AppInfo.name + ".app/Contents/Resources/bin"
 
     private static func read() -> [Int32] {
         (try? String(contentsOf: url, encoding: .utf8))?
@@ -531,8 +541,8 @@ enum EngineLock {
             guard length > 0 else { continue }
             let path = String(cString: buffer)
 
-            // Only processes from a ToshLLM bundle are ours to kill.
-            guard path.contains("ToshLLM.app/Contents/Resources/bin") else { continue }
+            // Only processes from our own bundle are ours to kill.
+            guard path.contains(engineMarker) else { continue }
 
             AppLog.app.warning("Reaping orphaned engine pid \(pid) at \(path)")
             kill(pid, SIGTERM)
@@ -560,7 +570,7 @@ enum EngineLock {
             var buffer = [CChar](repeating: 0, count: 4096)
             guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { continue }
             let path = String(cString: buffer)
-            guard path.contains("ToshLLM.app/Contents/Resources/bin"), path.hasSuffix("/llama-server") else { continue }
+            guard path.contains(engineMarker), path.hasSuffix("/llama-server") else { continue }
             AppLog.app.warning("Reaping stray engine pid \(pid) at \(path)")
             kill(pid, SIGTERM)
             DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 5) {
@@ -588,7 +598,7 @@ enum FileHash {
 // MARK: - Keychain (API key storage)
 
 enum Keychain {
-    private static let service = "dev.engel.toshllm"
+    private static let service = AppInfo.identifier
 
     static func get(_ account: String) -> String? {
         let query: [String: Any] = [

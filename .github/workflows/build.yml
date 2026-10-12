@@ -45,6 +45,7 @@ jobs:
           vendor/tosh-sympy/python/bin/python3 -I helpers/tosh-sympy/tests/test_helper.py
           vendor/tosh-sympy/python/bin/python3 -I helpers/tosh-scientific/tests/test_scientific.py
           vendor/tosh-sympy/python/bin/python3 -I helpers/tosh-sympy/tests/test_agent.py
+          vendor/tosh-sympy/python/bin/python3 -I helpers/tosh-sympy/tests/test_remote.py
 
   build:
     # PRs validate a single variant; tags and manual runs build BOTH CPU variants
@@ -103,6 +104,7 @@ jobs:
             "$PY" -I helpers/tosh-sympy/tests/test_helper.py
             "$PY" -I helpers/tosh-scientific/tests/test_scientific.py
             "$PY" -I helpers/tosh-sympy/tests/test_agent.py
+            "$PY" -I helpers/tosh-sympy/tests/test_remote.py
           else
             echo "x86_64 runtime cannot run on this runner; its tests ran in the unit test job"
           fi

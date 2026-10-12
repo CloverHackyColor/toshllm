@@ -8,7 +8,7 @@ import Charts
 // MARK: - Settings
 
 enum SettingsDestination: Hashable {
-    case general, models, inference, speech, advanced
+    case general, models, inference, speech, advanced, extensions
 }
 
 struct SettingsView: View {
@@ -231,7 +231,8 @@ struct SettingsView: View {
             .init(value: .models, title: loc.t("Modelos", "Models"), systemImage: "shippingbox"),
             .init(value: .inference, title: loc.t("Inferencia", "Inference"), systemImage: "point.3.connected.trianglepath.dotted"),
             .init(value: .speech, title: loc.t("Voz y audio", "Speech & Audio"), systemImage: "waveform"),
-            .init(value: .advanced, title: loc.t("Avanzado", "Advanced"), systemImage: "slider.horizontal.3")
+            .init(value: .advanced, title: loc.t("Avanzado", "Advanced"), systemImage: "slider.horizontal.3"),
+            .init(value: .extensions, title: loc.t("Extensiones", "Extensions"), systemImage: "puzzlepiece.extension")
         ])
     }
 
@@ -331,13 +332,18 @@ struct SettingsView: View {
                     loc.t("Servicios y motor", "Services & engine"),
                     loc.t("Motor, red, embeddings y opciones adicionales.",
                           "Engine, network, embeddings, and additional options."))
+        case .extensions:
+            return ("puzzlepiece.extension",
+                    loc.t("Extensiones", "Extensions"),
+                    loc.t("Herramientas y agentes que se añaden al motor desde una carpeta.",
+                          "Tools and agents added to the engine from a folder."))
         }
     }
 
     private func exportSettings() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "ToshLLM Settings.json"
+        panel.nameFieldStringValue = "\(AppInfo.name) Settings.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try SettingsArchive.exportData().write(to: url, options: .atomic)
@@ -365,6 +371,7 @@ struct SettingsView: View {
         switch settingsDestination {
         case .general: generalSettings
         case .advanced: advancedSettings
+        case .extensions: ExtensionsSettingsView()
         default: otherSettingsForm
         }
     }
@@ -504,11 +511,13 @@ struct SettingsView: View {
                                             "Automatically starts the last configured model when ToshLLM opens.")) {
                         SettingsToggle(isOn: $autoStart)
                     }
-                    SettingsRow(icon: "arrow.triangle.2.circlepath",
-                                title: loc.t("Buscar actualizaciones cada hora", "Check for updates hourly"),
-                                help: loc.t("Además del chequeo al abrir la app, revisa en silencio cada hora mientras esté abierta y enciende el aviso de actualización si hay versión nueva. No descarga ni instala nada solo.",
-                                            "Besides the launch check, silently re-checks every hour while the app is open and lights the update badge when a new version exists. Never downloads or installs on its own.")) {
-                        SettingsToggle(isOn: $updateAutoCheck)
+                    if AppInfo.updatesEnabled {
+                        SettingsRow(icon: "arrow.triangle.2.circlepath",
+                                    title: loc.t("Buscar actualizaciones cada hora", "Check for updates hourly"),
+                                    help: loc.t("Además del chequeo al abrir la app, revisa en silencio cada hora mientras esté abierta y enciende el aviso de actualización si hay versión nueva. No descarga ni instala nada solo.",
+                                                "Besides the launch check, silently re-checks every hour while the app is open and lights the update badge when a new version exists. Never downloads or installs on its own.")) {
+                            SettingsToggle(isOn: $updateAutoCheck)
+                        }
                     }
                     SettingsRow(icon: "key",
                                 title: loc.t("Proteger la API con clave", "Protect the API with a key"),

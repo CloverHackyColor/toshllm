@@ -217,6 +217,24 @@ below changes meaning or goes away; new fields may appear.
 the agent writes itself (a question back, the list of validated results) follow the language of
 the conversation, Spanish or English, and English when in doubt.
 
+### Another agent
+
+An extension can bring its own agent in place of this one (see
+[`docs/extensions.md`](../../docs/extensions.md#the-agent)). The engine calls its `run` tool with
+`request` (the client's request as sent), `base_url`, `api_key` and `agent_key`, and takes back a
+chat completion or `{"status": n, "error": {...}}`. The agent reaches the model and the tools
+through `base_url` with `X-Tosh-Agent: off`, so its passes never come back to it, and sends
+`X-Tosh-Agent-Key: <agent_key>` on `/tools`: without it the tools of servers started with
+`--mcp-agent-only` are neither listed nor run. Progress goes out as MCP progress notifications whose
+message is one event as above; for a `tool_call`, `state` is `completed` or `failed`, and an
+optional `summary` is one readable line about the result that the app shows on the call.
+
+When the app has tools of its own besides the math ones it sends `"tosh": {"client_tools": true}`.
+An agent may then hand back a turn that is outside its field: it answers with empty content,
+runs nothing and sets `"tosh": {"version": 1, "outcome": "declined"}`, and the app answers that
+turn with its own tools, as it would without the extension. Other clients never send the field,
+so they always get an answer.
+
 ### Direct calls
 
 `GET /tools` lists the ten tools with their schemas; `POST /tools`

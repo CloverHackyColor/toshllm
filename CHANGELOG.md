@@ -7,8 +7,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
-- **Extensions: tools and agents from a folder of extensions, each with its own settings page.** Settings → Extensions reads the folder you choose; an extension stays off until you approve the programs it runs. The format is in docs/extensions.md, with an example to copy.
+- **Extensions: tools and agents from a folder of extensions, each with its own settings page.** Settings → Extensions reads the folder you choose; an extension stays off until you approve the programs it runs. An extension with its own agent hands the messages outside its field back to the chat's tools. The format is in docs/extensions.md, with an example to copy.
 - **Chat: a remote MCP server can be made available to the server agent, like a local one.** It works with servers reached over HTTP or SSE, and its headers stay in the Keychain.
+
+### Improved
+
+- **Chat: the calls to an MCP server's tools show their arguments and result laid out line by line.** A call made by an agent also shows one line on what came back, so the card can be read without opening it.
 
 ## [0.87.23] - 2026-10-12
 

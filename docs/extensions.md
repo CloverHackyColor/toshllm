@@ -122,8 +122,10 @@ names that are unlikely to clash with other extensions.
 `agent` is a local server, declared like the others, that the engine runs as `--mcp-agent`: every
 agent turn of the chat, the web chat and API clients goes to its `run` tool, which answers it using
 the model and the tools through the engine. The contract is described in
-[`helpers/tosh-sympy/README.md`](../helpers/tosh-sympy/README.md#the-tosh-agent). Only one extension
-with an agent can be on at a time.
+[`helpers/tosh-sympy/README.md`](../helpers/tosh-sympy/README.md#the-tosh-agent), and what another
+agent has to send back, including how it hands a turn back to the chat's own tools, in
+[its next section](../helpers/tosh-sympy/README.md#another-agent). Only one extension with an agent
+can be on at a time.
 
 ## Without ToshLLM
 

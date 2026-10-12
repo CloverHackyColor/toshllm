@@ -141,7 +141,7 @@ final class SymPyToolsTests: XCTestCase {
         XCTAssertFalse(socket.sharedWithEngine, "the relay speaks http(s), not WebSocket")
 
         let servers = try mcpServers(SymPyToolsService.serverArguments(enabled: false, resources: resources,
-                                                                       shared: [remote, socket], extensions: nil))
+                                                                       shared: [remote, socket]))
         XCTAssertEqual(Set(servers.keys), ["agent", "cloud-gis"])
         let entry = try XCTUnwrap(servers["cloud-gis"] as? [String: Any])
         let runtime = resources.appendingPathComponent("tosh-sympy")

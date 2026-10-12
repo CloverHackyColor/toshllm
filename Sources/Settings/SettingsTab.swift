@@ -8,7 +8,7 @@ import Charts
 // MARK: - Settings
 
 enum SettingsDestination: Hashable {
-    case general, models, inference, speech, advanced, integrations
+    case general, models, inference, speech, advanced, extensions
 }
 
 struct SettingsView: View {
@@ -231,10 +231,9 @@ struct SettingsView: View {
             .init(value: .models, title: loc.t("Modelos", "Models"), systemImage: "shippingbox"),
             .init(value: .inference, title: loc.t("Inferencia", "Inference"), systemImage: "point.3.connected.trianglepath.dotted"),
             .init(value: .speech, title: loc.t("Voz y audio", "Speech & Audio"), systemImage: "waveform"),
-            .init(value: .advanced, title: loc.t("Avanzado", "Advanced"), systemImage: "slider.horizontal.3")
-        ] + (EngineExtensions.bundled?.settings == nil ? [] : [
-            .init(value: .integrations, title: loc.t("Integraciones", "Integrations"), systemImage: "puzzlepiece.extension")
-        ]))
+            .init(value: .advanced, title: loc.t("Avanzado", "Advanced"), systemImage: "slider.horizontal.3"),
+            .init(value: .extensions, title: loc.t("Extensiones", "Extensions"), systemImage: "puzzlepiece.extension")
+        ])
     }
 
     private var settingsActions: some View {
@@ -333,11 +332,11 @@ struct SettingsView: View {
                     loc.t("Servicios y motor", "Services & engine"),
                     loc.t("Motor, red, embeddings y opciones adicionales.",
                           "Engine, network, embeddings, and additional options."))
-        case .integrations:
+        case .extensions:
             return ("puzzlepiece.extension",
-                    loc.t("Integraciones", "Integrations"),
-                    loc.t("Servicios que esta compilación añade al motor.",
-                          "Services this build adds to the engine."))
+                    loc.t("Extensiones", "Extensions"),
+                    loc.t("Herramientas y agentes que se añaden al motor desde una carpeta.",
+                          "Tools and agents added to the engine from a folder."))
         }
     }
 
@@ -372,8 +371,7 @@ struct SettingsView: View {
         switch settingsDestination {
         case .general: generalSettings
         case .advanced: advancedSettings
-        case .integrations:
-            if let extensions = EngineExtensions.bundled { IntegrationsSettingsView(extensions: extensions) }
+        case .extensions: ExtensionsSettingsView()
         default: otherSettingsForm
         }
     }

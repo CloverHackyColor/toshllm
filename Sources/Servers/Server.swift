@@ -345,7 +345,8 @@ struct ServerSettings {
             if !toolsRuntime.isEmpty { args += ["--tools-runtime", toolsRuntime] }
         }
         let sympyArguments = SymPyToolsService.serverArguments(enabled: sympyEnabled, scientific: scientificEnabled,
-                                                                agent: mathAgentEnabled, shared: MCPServerStore.load())
+                                                                agent: mathAgentEnabled, shared: MCPServerStore.load(),
+                                                                extensions: EngineExtensions.active())
         if !sympyArguments.isEmpty {
             if !args.contains("--jinja") { args.append("--jinja") }
             args += sympyArguments
@@ -417,7 +418,8 @@ struct ServerSettings {
             if !toolsRuntime.isEmpty { args += ["--tools-runtime", toolsRuntime] }
         }
         let sympyArguments = SymPyToolsService.serverArguments(enabled: sympyEnabled, scientific: scientificEnabled,
-                                                                agent: mathAgentEnabled, shared: MCPServerStore.load())
+                                                                agent: mathAgentEnabled, shared: MCPServerStore.load(),
+                                                                extensions: EngineExtensions.active())
         if !sympyArguments.isEmpty {
             if !args.contains("--jinja") { args.append("--jinja") }
             args += sympyArguments
@@ -674,7 +676,7 @@ struct ServerSettings {
 
     var environment: [String: String] {
         var env = ProcessInfo.processInfo.environment
-        if let extensions = EngineExtensions.bundled { env.merge(extensions.environment()) { $1 } }
+        env.merge(EngineExtensions.environment()) { $1 }
         env.merge(SymPyToolsService.engineEnvironment(MCPServerStore.load())) { $1 }
         // Finder-launched apps inherit a minimal PATH. Video input is decoded by
         // llama.cpp through ffmpeg/ffprobe, so expose their standard macOS locations.

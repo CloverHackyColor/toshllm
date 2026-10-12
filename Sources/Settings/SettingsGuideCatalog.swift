@@ -50,9 +50,10 @@ extension SettingsDestination {
                 .init(icon: "point.3.connected.trianglepath.dotted", title: "Embeddings", detail: loc.t("Expone servicios para clientes RAG.", "Expose services for RAG clients.")),
                 .init(icon: "terminal", title: loc.t("Diagnóstico", "Diagnostics"), detail: loc.t("Argumentos adicionales y registro.", "Additional arguments and logs."))
             ]
-        case .integrations:
+        case .extensions:
             return [
-                .init(icon: "puzzlepiece.extension", title: loc.t("Servicios", "Services"), detail: loc.t("Lo que trae esta compilación.", "What this build carries.")),
+                .init(icon: "folder", title: loc.t("Carpeta", "Folder"), detail: loc.t("Cada subcarpeta con extension.json es una extensión.", "Every subfolder with an extension.json is one extension.")),
+                .init(icon: "checkmark.shield", title: loc.t("Aprobación", "Approval"), detail: loc.t("Apagadas hasta que las apruebas.", "Off until you approve them.")),
                 .init(icon: "key", title: loc.t("Secretos", "Secrets"), detail: loc.t("Guardados en el Llavero.", "Stored in the Keychain.")),
                 .init(icon: "arrow.clockwise", title: loc.t("Aplicar", "Apply"), detail: loc.t("Al reiniciar el servidor.", "When the server restarts."))
             ]
@@ -96,13 +97,13 @@ extension SettingsDestination {
                           "Control the port, external engine, embeddings, persistent cache, and extra arguments."),
                     loc.t("Usa argumentos adicionales solo cuando conozcas la opción de llama.cpp que necesitas.",
                           "Use extra arguments only when you know which llama.cpp option you need."))
-        case .integrations:
+        case .extensions:
             return ("puzzlepiece.extension",
-                    loc.t("Integraciones", "Integrations"),
-                    loc.t("Configura los servicios que esta compilación añade al motor.",
-                          "Configure the services this build adds to the engine."),
-                    loc.t("Los secretos se guardan en el Llavero y llegan al motor solo al arrancarlo.",
-                          "Secrets stay in the Keychain and reach the engine only when it starts."))
+                    loc.t("Extensiones", "Extensions"),
+                    loc.t("Añade al motor herramientas y agentes de una carpeta de extensiones, con sus propios ajustes.",
+                          "Add tools and agents to the engine from a folder of extensions, with their own settings."),
+                    loc.t("Una extensión ejecuta programas con tus permisos: activa solo las que conozcas.",
+                          "An extension runs programs with your permissions: only turn on the ones you know."))
         }
     }
 }

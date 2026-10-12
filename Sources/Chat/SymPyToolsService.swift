@@ -38,15 +38,18 @@ enum SymPyToolsService {
     /// do not ask, which otherwise get the model as it is.
     static func serverArguments(enabled: Bool, scientific: Bool = false, agent: Bool = false,
                                 resources: URL? = Bundle.main.resourceURL, shared: [MCPServer] = [],
-                                extensions: EngineExtensions? = .bundled) -> [String] {
+                                extensions: [EngineExtensions.Extension] = []) -> [String] {
         // approved servers exist only for the agent, so they need its runtime too
         var servers = engineServers(shared, runtime: runtimeDirectory(resources: resources))
         let approved = servers.keys.sorted()
-        guard enabled || scientific || !approved.isEmpty || extensions?.engine != nil,
+        guard enabled || scientific || !approved.isEmpty || !extensions.isEmpty,
               let runtime = runtimeDirectory(resources: resources)
         else { return [] }
         let python = runtime.appendingPathComponent("python/bin/python3").path
         let helper = runtime.appendingPathComponent("tosh_sympy/server.py").path
+        let bundled = EngineExtensions.engineEntries(extensions, runtime: runtime, trustKey: trustKey)
+        let enabled = enabled || bundled.mathTools
+        let scientific = scientific || bundled.mathTools
         if enabled {
             servers[serverName] = ["command": python, "args": ["-I", "-B", helper], "timeout_ms": 30_000,
                                    "env": ["TOSH_TRUST_KEY": trustKey]]
@@ -61,12 +64,9 @@ enum SymPyToolsService {
         servers[agentName] = ["command": python, "args": ["-I", "-B", helper, agentName],
                               "timeout_ms": 900_000,
                               "env": ["TOSH_TRUST_KEY": trustKey, "TOSH_AGENT_SERVERS": approved.joined(separator: ",")]]
-        var agentOnly = approved
-        if let bundled = extensions?.engineEntries(runtime: runtime, trustKey: trustKey) {
-            servers.merge(bundled.servers) { $1 }
-            agentOnly += bundled.agentOnly
-            if let replacement = bundled.agent { servers[agentName] = replacement }
-        }
+        servers.merge(bundled.servers) { current, _ in current }
+        if let replacement = bundled.agent { servers[agentName] = replacement }
+        let agentOnly = approved + bundled.agentOnly
         let arguments = mcpServersArguments(servers)
         guard !arguments.isEmpty else { return [] }
         return arguments + ["--mcp-agent", agentName] + (agent ? [] : ["--mcp-agent-explicit"])

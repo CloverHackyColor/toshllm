@@ -110,7 +110,7 @@ struct ToshLLMApp: App {
     var body: some Scene {
         // Main window: the chat. A single Window (not WindowGroup) keeps ⌘N
         // for "new conversation" instead of "new window".
-        Window("ToshLLM", id: "chat") {
+        Window(AppInfo.name, id: "chat") {
             ChatMainView()
                 .environmentObject(obj.server)
                 .environmentObject(obj.manager)

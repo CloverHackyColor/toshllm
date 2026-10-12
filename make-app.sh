@@ -43,7 +43,14 @@ else
     SWIFT_BIN=".build/release/ToshLLM"
 fi
 
-APP="dist/ToshLLM.app"
+# Another product can be packaged from this tree without editing it: these set its name, bundle id,
+# data folder, version, icon and updater, and a plain build keeps ToshLLM's.
+APP_NAME="${TOSH_APP_NAME:-ToshLLM}"
+BUNDLE_ID="${TOSH_BUNDLE_ID:-dev.engel.toshllm}"
+PRODUCT_VERSION="${TOSH_PRODUCT_VERSION:-$VERSION}"
+APP_ICON="${TOSH_APP_ICON:-AppIcon.icon}"
+
+APP="dist/$APP_NAME.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
@@ -182,12 +189,12 @@ cat > "$APP/Contents/Info.plist" <<EOF
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key>            <string>ToshLLM</string>
-    <key>CFBundleDisplayName</key>     <string>ToshLLM</string>
-    <key>CFBundleIdentifier</key>      <string>dev.engel.toshllm</string>
+    <key>CFBundleName</key>            <string>$APP_NAME</string>
+    <key>CFBundleDisplayName</key>     <string>$APP_NAME</string>
+    <key>CFBundleIdentifier</key>      <string>$BUNDLE_ID</string>
     <key>CFBundleExecutable</key>      <string>ToshLLM</string>
-    <key>CFBundleVersion</key>         <string>$VERSION</string>
-    <key>CFBundleShortVersionString</key> <string>$VERSION</string>
+    <key>CFBundleVersion</key>         <string>$PRODUCT_VERSION</string>
+    <key>CFBundleShortVersionString</key> <string>$PRODUCT_VERSION</string>
     <key>TOSHNoAVX2</key>              <$NOAVX2/>
     <key>CFBundlePackageType</key>     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>  <string>14.0</string>
@@ -198,11 +205,11 @@ cat > "$APP/Contents/Info.plist" <<EOF
         <key>NSAllowsLocalNetworking</key> <true/>
     </dict>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>ToshLLM can expose and advertise its local OpenAI-compatible API to devices on your trusted local network.</string>
+    <string>$APP_NAME can expose and advertise its local OpenAI-compatible API to devices on your trusted local network.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>ToshLLM records audio only when you press the microphone button, for local Whisper transcription or an audio-capable model.</string>
+    <string>$APP_NAME records audio only when you press the microphone button, for local Whisper transcription or an audio-capable model.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>ToshLLM uses Apple's on-device speech recognition only when you select Apple Dictation and press the microphone button.</string>
+    <string>$APP_NAME uses Apple's on-device speech recognition only when you select Apple Dictation and press the microphone button.</string>
     <key>NSBonjourServices</key>
     <array>
         <string>_http._tcp.</string>
@@ -210,6 +217,20 @@ cat > "$APP/Contents/Info.plist" <<EOF
 </dict>
 </plist>
 EOF
+
+# the app reads its identity from these keys; a plain build has none of them
+PLIST="$APP/Contents/Info.plist"
+if [ "$APP_NAME" != ToshLLM ]; then
+    /usr/libexec/PlistBuddy -c "Add :TOSHProductName string $APP_NAME" \
+        -c "Add :TOSHIdentifier string $BUNDLE_ID" \
+        -c "Add :TOSHDataFolder string ${TOSH_DATA_FOLDER:-$APP_NAME}" \
+        -c "Add :TOSHProductVersion string $PRODUCT_VERSION" "$PLIST"
+    echo "identity: $APP_NAME ($BUNDLE_ID) $PRODUCT_VERSION, built on ToshLLM $VERSION"
+fi
+if [ "$TOSH_UPDATES" = 0 ]; then
+    /usr/libexec/PlistBuddy -c "Add :TOSHUpdatesDisabled bool true" "$PLIST"
+    echo "in-app updates: off"
+fi
 
 # macOS 26 Liquid Glass icon: compile the layered AppIcon.icon when the
 # toolchain has actool 26+; ships Assets.car plus a freshly rendered legacy
@@ -220,9 +241,9 @@ if [ -z "$ACTOOL" ] && [ -x /Applications/Xcode.app/Contents/Developer/usr/bin/a
     ACTOOL=/Applications/Xcode.app/Contents/Developer/usr/bin/actool
     export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 fi
-if [ -d AppIcon.icon ] && [ -n "$ACTOOL" ]; then
+if [ -d "$APP_ICON" ] && [ -n "$ACTOOL" ]; then
     ICONTMP=$(mktemp -d)
-    if "$ACTOOL" AppIcon.icon --compile "$ICONTMP" --platform macosx \
+    if "$ACTOOL" "$APP_ICON" --compile "$ICONTMP" --platform macosx \
         --minimum-deployment-target 14.0 --app-icon AppIcon \
         --output-partial-info-plist "$ICONTMP/icon.plist" > /dev/null 2>&1 \
         && [ -f "$ICONTMP/Assets.car" ]; then

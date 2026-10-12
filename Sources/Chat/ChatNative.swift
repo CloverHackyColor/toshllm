@@ -490,8 +490,7 @@ final class ChatStore: ObservableObject {
     nonisolated let headless: Bool
 
     private var fileURL: URL {
-        let dir = storageDirectory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ToshLLM")
+        let dir = storageDirectory ?? AppSupport.directory
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("conversations.json")
     }
@@ -568,9 +567,7 @@ final class ChatStore: ObservableObject {
     /// Erases the stored conversations without a store: the settings window can
     /// outlive the chat window, and then nothing holds them in memory.
     static func eraseStoredConversations() {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ToshLLM")
-        try? FileManager.default.removeItem(at: dir.appendingPathComponent("conversations.json"))
+        try? FileManager.default.removeItem(at: AppSupport.directory.appendingPathComponent("conversations.json"))
         let slots = ServerSettings.primarySlotCacheDir
         guard let files = try? FileManager.default.contentsOfDirectory(at: slots,
                                                                       includingPropertiesForKeys: nil)
@@ -4787,7 +4784,7 @@ struct ConversationListView: View {
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
 
-            Text("ToshLLM · macOS")
+            Text("\(AppInfo.name) · macOS")
                 .font(.system(size: 10, weight: .medium))
                 .tracking(1.5)
                 .foregroundStyle(.tertiary)
@@ -4952,7 +4949,7 @@ struct ConversationListView: View {
     private func exportArchive() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "ToshLLM-conversations.json"
+        panel.nameFieldStringValue = "\(AppInfo.name)-conversations.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try chat.exportArchiveData().write(to: url, options: .atomic)
@@ -4966,7 +4963,7 @@ struct ConversationListView: View {
     private func exportJSONL() {
         let panel = NSSavePanel()
         if let jsonl = UTType(filenameExtension: "jsonl") { panel.allowedContentTypes = [jsonl] }
-        panel.nameFieldStringValue = "ToshLLM-conversations.jsonl"
+        panel.nameFieldStringValue = "\(AppInfo.name)-conversations.jsonl"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try chat.exportJSONLData().write(to: url, options: .atomic)

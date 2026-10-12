@@ -245,8 +245,7 @@ struct ServerSettings {
     /// by port so independent servers don't overwrite each other's slot 0 / prefix
     /// files in a shared folder.
     static func slotCacheDir(port: Int) -> URL {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ToshLLM/slots/\(port)/\(slotKVSignature())")
+        let dir = AppSupport.directory.appendingPathComponent("slots/\(port)/\(slotKVSignature())")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
@@ -433,13 +432,12 @@ struct ServerSettings {
     /// Same folder `ModelStore` scans (`~/models` or the custom override),
     /// resolved independently since `ServerController` has no `ModelStore`.
     static var modelsDirectory: URL {
-        let custom = UserDefaults.standard.string(forKey: SettingsKeys.modelsDir) ?? ""
+        let custom = ModelStore.customDirectoryPath
         return custom.isEmpty ? ModelStore.defaultDirectory : URL(fileURLWithPath: custom, isDirectory: true)
     }
 
     static func routerPresetPath(port: Int) -> URL {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ToshLLM/router")
+        let dir = AppSupport.directory.appendingPathComponent("router")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("preset-\(port).ini")
     }
@@ -2379,7 +2377,7 @@ final class ServerController: ObservableObject {
     private func startDiscoveryIfNeeded(port: Int) {
         guard discoveryEnabled else { return }
         stopDiscovery()
-        let service = NetService(domain: "local.", type: "_http._tcp.", name: "ToshLLM API", port: Int32(port))
+        let service = NetService(domain: "local.", type: "_http._tcp.", name: "\(AppInfo.name) API", port: Int32(port))
         let txt: [String: Data] = [
             "path": Data("/v1".utf8),
             "protocol": Data("openai-compatible".utf8),

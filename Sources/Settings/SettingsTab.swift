@@ -337,7 +337,7 @@ struct SettingsView: View {
     private func exportSettings() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "ToshLLM Settings.json"
+        panel.nameFieldStringValue = "\(AppInfo.name) Settings.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try SettingsArchive.exportData().write(to: url, options: .atomic)
@@ -504,11 +504,13 @@ struct SettingsView: View {
                                             "Automatically starts the last configured model when ToshLLM opens.")) {
                         SettingsToggle(isOn: $autoStart)
                     }
-                    SettingsRow(icon: "arrow.triangle.2.circlepath",
-                                title: loc.t("Buscar actualizaciones cada hora", "Check for updates hourly"),
-                                help: loc.t("Además del chequeo al abrir la app, revisa en silencio cada hora mientras esté abierta y enciende el aviso de actualización si hay versión nueva. No descarga ni instala nada solo.",
-                                            "Besides the launch check, silently re-checks every hour while the app is open and lights the update badge when a new version exists. Never downloads or installs on its own.")) {
-                        SettingsToggle(isOn: $updateAutoCheck)
+                    if AppInfo.updatesEnabled {
+                        SettingsRow(icon: "arrow.triangle.2.circlepath",
+                                    title: loc.t("Buscar actualizaciones cada hora", "Check for updates hourly"),
+                                    help: loc.t("Además del chequeo al abrir la app, revisa en silencio cada hora mientras esté abierta y enciende el aviso de actualización si hay versión nueva. No descarga ni instala nada solo.",
+                                                "Besides the launch check, silently re-checks every hour while the app is open and lights the update badge when a new version exists. Never downloads or installs on its own.")) {
+                            SettingsToggle(isOn: $updateAutoCheck)
+                        }
                     }
                     SettingsRow(icon: "key",
                                 title: loc.t("Proteger la API con clave", "Protect the API with a key"),

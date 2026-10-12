@@ -11,6 +11,7 @@
   "%@ GPUs": "%@ GPU",
   "%@ GPUs · %@ GB VRAM": "%@ GPU · %@ GB di VRAM",
   "%@ GPUs · %@ GB split": "%@ GPU · %@ GB di suddivisione",
+  "%@ answers every message with its own tools.": "",
   "%@ attachment(s)": "%@ allegati",
   "%@ available": "%@ disponibili",
   "%@ cores / %@ threads": "%@ core / %@ thread",

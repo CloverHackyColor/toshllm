@@ -216,6 +216,14 @@ enum EngineExtensions {
         }
     }
 
+    /// Tool name prefixes of the servers the chat's own tool loop may call: those of active extensions
+    /// that are not kept for the agent.
+    static func chatToolPrefixes(_ extensions: [Extension] = active()) -> [String] {
+        extensions.flatMap { item in
+            (item.manifest.servers ?? [:]).filter { $0.value.agentOnly != true }.map { $0.key + "_" }
+        }
+    }
+
     // MARK: values
 
     /// What a setting holds, or its declared default. Secrets live in the Keychain, the rest in defaults.

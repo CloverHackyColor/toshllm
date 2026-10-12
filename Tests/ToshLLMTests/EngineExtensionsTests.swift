@@ -181,6 +181,13 @@ final class EngineExtensionsTests: XCTestCase {
         XCTAssertEqual(args.firstIndex(of: "--mcp-agent-only").map { args[$0 + 1] }, "maps")
     }
 
+    func testTheChatCallsOnlyTheServersNotKeptForTheAgent() throws {
+        let root = try folder()
+        try write(manifest(id()), in: root, as: "x")
+        let found = EngineExtensions.discover(in: root, bundled: true).extensions
+        XCTAssertEqual(EngineExtensions.chatToolPrefixes(found), ["cloud_"])
+    }
+
     func testTheExampleExtensionLoads() throws {
         let examples = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().appendingPathComponent("examples/extensions")

@@ -11,6 +11,7 @@
   "%@ GPUs": "GPU %@ 台",
   "%@ GPUs · %@ GB VRAM": "GPU %@ 台 · VRAM %@ GB",
   "%@ GPUs · %@ GB split": "%@ GPU · 分割 %@ GB",
+  "%@ answers every message with its own tools.": "",
   "%@ attachment(s)": "添付 %@ 件",
   "%@ available": "%@ 利用可能",
   "%@ cores / %@ threads": "%@ コア / %@ スレッド",

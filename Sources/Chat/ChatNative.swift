@@ -814,6 +814,7 @@ final class ChatStore: ObservableObject {
         } ?? system)
         let toolsEnabled = UserDefaults.standard.bool(forKey: SettingsKeys.agentToolsEnabled)
             || SymPyToolsService.isEnabled || ScientificToolsService.isEnabled
+            || !EngineExtensions.chatToolPrefixes().isEmpty
         let javaScriptEnabled = UserDefaults.standard.bool(forKey: SettingsKeys.jsSandboxEnabled)
         let memoryToolsEnabled = ChatMemoryService.isEnabled
         let agentTurnLimit = Self.configuredAgentTurnLimit
@@ -995,12 +996,16 @@ final class ChatStore: ObservableObject {
                 // only math tools: the server agent runs the turn. A math tool the user still approves call by
                 // call keeps it in this loop, since the server cannot ask. MCP servers shared with the engine
                 // are only reached through that agent, like the servers a build bundles with its own agent.
-                let engineShared = !ToolSupport.isBlocked(ToolSupport.currentModelIdentity)
-                    && (MCPServerStore.load().contains(where: \.sharedWithEngine) || EngineExtensions.active().contains { $0.hasAgent || !($0.manifest.servers ?? [:]).isEmpty })
-                agentTurn = agentAllowed && (availableTools.isEmpty ? engineShared : availableTools.allSatisfy {
+                let toolsAllowed = !ToolSupport.isBlocked(ToolSupport.currentModelIdentity)
+                let active = EngineExtensions.active()
+                let engineShared = toolsAllowed
+                    && (MCPServerStore.load().contains(where: \.sharedWithEngine) || active.contains { !($0.manifest.servers ?? [:]).isEmpty })
+                // an extension that brings its own agent answers every turn, whatever tools the app has on
+                let extensionAgent = toolsAllowed && active.contains(where: \.hasAgent)
+                agentTurn = agentAllowed && (extensionAgent || (availableTools.isEmpty ? engineShared : availableTools.allSatisfy {
                     MathTranscriptionService.isMathTool($0.name)
                         && ChatToolsService.isAlwaysAllowed($0.name, bundled: $0.mcpServerID == nil)
-                })
+                }))
                 if agentTurn { hold = true }
 
                 var req = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/v1/chat/completions")!)
@@ -3988,6 +3993,14 @@ struct NativeChatView: View {
                     chat.enableAllTools()
                 }
                 .buttonStyle(.borderless)
+            }
+            if let agent = EngineExtensions.active().first(where: \.hasAgent) {
+                Label(loc.t("%@ responde a cada mensaje con sus propias herramientas.",
+                            "%@ answers every message with its own tools.",
+                            agent.manifest.name.pick(spanish: loc.isSpanish)),
+                      systemImage: "puzzlepiece.extension")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Divider()
             ForEach(availableTools) { tool in

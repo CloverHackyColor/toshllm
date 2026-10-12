@@ -11,6 +11,7 @@
   "%@ GPUs": "%@ 个 GPU",
   "%@ GPUs · %@ GB VRAM": "%@ 个 GPU · %@ GB 显存",
   "%@ GPUs · %@ GB split": "%@ 个 GPU · 拆分 %@ GB",
+  "%@ answers every message with its own tools.": "",
   "%@ attachment(s)": "%@ 个附件",
   "%@ available": "%@ 可用",
   "%@ cores / %@ threads": "%@ 核心 / %@ 线程",

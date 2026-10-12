@@ -3,6 +3,12 @@
 All notable changes to ToshLLM are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Fixed
+
+- **LLMs: turbo values in the key-value cache no longer close the engine on Radeon Vega, RX 400/500, FirePro and their Radeon Pro versions.** The suggested q8_0 keys with turbo4 values quit once a chat passed a few thousand tokens. Reported in [#119](https://github.com/engeldlgado/toshllm/issues/119).
+
 ## [0.87.22] - 2026-10-10
 
 ### Changed

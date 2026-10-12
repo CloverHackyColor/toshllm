@@ -284,6 +284,9 @@ enum SettingsKeys {
         imagenAspect, imagenBaseSize, imagenSteps, imagenFormat, imagenOffloadCPU, imagenGPU,
     ]
 
+    /// A setting declared by a bundled extension (Resources/extensions/settings.json), by its key.
+    static func extensionValue(_ key: String) -> String { "extension." + key }
+
     /// Clears every tunable option so they revert to defaults, keeping models intact.
     static func resetOptionsToDefaults() {
         let defaults = UserDefaults.standard

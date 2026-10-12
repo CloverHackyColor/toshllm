@@ -8,7 +8,7 @@ import Charts
 // MARK: - Settings
 
 enum SettingsDestination: Hashable {
-    case general, models, inference, speech, advanced
+    case general, models, inference, speech, advanced, integrations
 }
 
 struct SettingsView: View {
@@ -232,7 +232,9 @@ struct SettingsView: View {
             .init(value: .inference, title: loc.t("Inferencia", "Inference"), systemImage: "point.3.connected.trianglepath.dotted"),
             .init(value: .speech, title: loc.t("Voz y audio", "Speech & Audio"), systemImage: "waveform"),
             .init(value: .advanced, title: loc.t("Avanzado", "Advanced"), systemImage: "slider.horizontal.3")
-        ])
+        ] + (EngineExtensions.bundled?.settings == nil ? [] : [
+            .init(value: .integrations, title: loc.t("Integraciones", "Integrations"), systemImage: "puzzlepiece.extension")
+        ]))
     }
 
     private var settingsActions: some View {
@@ -331,6 +333,11 @@ struct SettingsView: View {
                     loc.t("Servicios y motor", "Services & engine"),
                     loc.t("Motor, red, embeddings y opciones adicionales.",
                           "Engine, network, embeddings, and additional options."))
+        case .integrations:
+            return ("puzzlepiece.extension",
+                    loc.t("Integraciones", "Integrations"),
+                    loc.t("Servicios que esta compilación añade al motor.",
+                          "Services this build adds to the engine."))
         }
     }
 
@@ -365,6 +372,8 @@ struct SettingsView: View {
         switch settingsDestination {
         case .general: generalSettings
         case .advanced: advancedSettings
+        case .integrations:
+            if let extensions = EngineExtensions.bundled { IntegrationsSettingsView(extensions: extensions) }
         default: otherSettingsForm
         }
     }

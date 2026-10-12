@@ -994,9 +994,9 @@ final class ChatStore: ObservableObject {
                 }
                 // only math tools: the server agent runs the turn. A math tool the user still approves call by
                 // call keeps it in this loop, since the server cannot ask. MCP servers shared with the engine
-                // are only reached through that agent.
+                // are only reached through that agent, like the servers a build bundles with its own agent.
                 let engineShared = !ToolSupport.isBlocked(ToolSupport.currentModelIdentity)
-                    && MCPServerStore.load().contains(where: \.sharedWithEngine)
+                    && (MCPServerStore.load().contains(where: \.sharedWithEngine) || EngineExtensions.bundled?.hasAgent == true)
                 agentTurn = agentAllowed && (availableTools.isEmpty ? engineShared : availableTools.allSatisfy {
                     MathTranscriptionService.isMathTool($0.name)
                         && ChatToolsService.isAlwaysAllowed($0.name, bundled: $0.mcpServerID == nil)

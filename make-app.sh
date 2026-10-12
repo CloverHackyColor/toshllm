@@ -231,6 +231,11 @@ if [ "$TOSH_UPDATES" = 0 ]; then
     /usr/libexec/PlistBuddy -c "Add :TOSHUpdatesDisabled bool true" "$PLIST"
     echo "in-app updates: off"
 fi
+# engine.json and settings.json with whatever they point at; see Sources/App/EngineExtensions.swift
+if [ -n "$TOSH_APP_EXTENSIONS" ]; then
+    cp -R "$TOSH_APP_EXTENSIONS" "$APP/Contents/Resources/extensions"
+    echo "bundled extensions from $TOSH_APP_EXTENSIONS"
+fi
 
 # macOS 26 Liquid Glass icon: compile the layered AppIcon.icon when the
 # toolchain has actool 26+; ships Assets.car plus a freshly rendered legacy

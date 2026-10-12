@@ -292,6 +292,15 @@ final class SymPyToolsTests: XCTestCase {
         XCTAssertEqual(shape, ["user", "tools 4", "assistant", "tool", "user"])
     }
 
+    func testAMessageThatEndsInToolCallsChangesRowIdentity() {
+        var message = ChatMessage(role: "assistant", content: "")
+        let streaming = TranscriptRow.rows([message]).map(\.id)
+        message.toolCalls = [call("c1", result: integral)]
+        let round = TranscriptRow.rows([message]).map(\.id)
+        XCTAssertEqual(streaming, [.message(message.id)])
+        XCTAssertEqual(round, [.tools(message.id)])
+    }
+
     private let refused = #"{"success": false, "operation": "limit", "error": {"code": "transcription_mismatch", "message": "Not computed."}}"#
     private let computed = #"{"success": true, "operation": "limit", "exact": "-1/6", "warnings": []}"#
 

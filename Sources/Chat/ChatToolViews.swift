@@ -295,10 +295,17 @@ enum TranscriptRow: Identifiable {
     case message(ChatMessage)
     case tools([ChatMessage])
 
-    var id: UUID {
+    enum ID: Hashable {
+        case message(UUID)
+        case tools(UUID)
+    }
+
+    /// A streaming message that ends in tool calls becomes a block; with the same identity SwiftUI
+    /// keeps its live bubble, which then mirrors the next pass.
+    var id: ID {
         switch self {
-        case .message(let message): message.id
-        case .tools(let rounds): rounds[0].id
+        case .message(let message): .message(message.id)
+        case .tools(let rounds): .tools(rounds[0].id)
         }
     }
 

@@ -2982,7 +2982,7 @@ struct NativeChatView: View {
                 case .message(let msg):
                     messageRow(msg, isNewest: msg.id == newestID)
                         .flippedUpsideDown()
-                        .id(msg.id)
+                        .id(row.id)
                 case .tools(let rounds):
                     toolsRow(rounds)
                         .flippedUpsideDown()

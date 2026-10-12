@@ -3,6 +3,13 @@
 All notable changes to ToshLLM are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.87.23] - 2026-10-12
+
+### Fixed
+
+- **LLMs: turbo values in the key-value cache no longer close the engine on Radeon Vega, RX 400/500, FirePro and their Radeon Pro versions.** The suggested q8_0 keys with turbo4 values quit once a chat passed a few thousand tokens. Reported in [#119](https://github.com/engeldlgado/toshllm/issues/119).
+- **Chat: an answer that calls a tool no longer shows up twice while the next step writes.** The step before the tool kept its bubble and repeated the new text word for word until the turn ended. Reported in [#117](https://github.com/engeldlgado/toshllm/issues/117).
+
 ## [0.87.22] - 2026-10-10
 
 ### Changed

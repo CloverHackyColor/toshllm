@@ -145,6 +145,25 @@ final class EngineExtensionsTests: XCTestCase {
         XCTAssertEqual(EngineExtensions.environment([item]), ["TEST_MAPS_URL": "https://maps.example"])
     }
 
+    func testChoicesKeepTheManifestsOrderAndReachTheEngineEvenWhenEmpty() throws {
+        let root = try folder()
+        let option = { (value: String) in #"{"value": "\#(value)", "title": {"es": "\#(value)", "en": "\#(value)"}}"# }
+        try write("""
+            {"format": 1, "id": "\(id())", "version": "1.0", "name": {"es": "Datos", "en": "Data"},
+             "settings": [{"id": "data", "title": {"es": "Datos", "en": "Data"}, "fields": [
+               {"key": "TEST_PICK", "kind": "choices", "default": "c,a", "options": [\(option("a")), \(option("b")), \(option("c"))],
+                "title": {"es": "Fuentes", "en": "Sources"}, "help": {"es": "d", "en": "d"}}]}]}
+            """, in: root, as: "x")
+        let item = try XCTUnwrap(EngineExtensions.discover(in: root, bundled: true).extensions.first)
+        let field = try XCTUnwrap(item.fields.first)
+        XCTAssertEqual(EngineExtensions.chosen(field, of: item), ["a", "c"])
+        XCTAssertEqual(EngineExtensions.environment([item]), ["TEST_PICK": "a,c"])
+        EngineExtensions.setValue("b, zz", for: field, of: item)
+        XCTAssertEqual(EngineExtensions.chosen(field, of: item), ["b"], "an option the manifest no longer lists is dropped")
+        EngineExtensions.setValue("", for: field, of: item)
+        XCTAssertEqual(EngineExtensions.environment([item]), ["TEST_PICK": ""])
+    }
+
     func testEntriesFillPlaceholdersFollowTheirSwitchAndRelayRemoteServers() throws {
         let root = try folder()
         try write(manifest(id(), agent: true), in: root, as: "x")

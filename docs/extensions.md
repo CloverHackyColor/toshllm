@@ -110,6 +110,7 @@ Each section has an `id`, a `title`, an optional `detail` and `fields`. An optio
 | `text` | The text as written. |
 | `secret` | Kept in the macOS Keychain, never shown again. |
 | `choice` | One of `options` (`[{"value", "title"}]`). |
+| `choices` | Any of `options`, as their values joined by commas in the order of `options`; `default` is such a list. It always reaches the engine, empty when none is ticked. |
 | `json` | A JSON object, saved once it parses. |
 | `paths` | A JSON object of short names to files or folders the person picks (`file_types`, `folder_types`). |
 

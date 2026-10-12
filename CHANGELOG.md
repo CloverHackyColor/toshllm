@@ -3,6 +3,12 @@
 All notable changes to ToshLLM are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+
+- **Chat: a remote MCP server can be made available to the server agent, like a local one.** It works with servers reached over HTTP or SSE, and its headers stay in the Keychain.
+
 ## [0.87.23] - 2026-10-12
 
 ### Fixed

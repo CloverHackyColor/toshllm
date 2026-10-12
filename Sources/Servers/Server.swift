@@ -675,6 +675,7 @@ struct ServerSettings {
     var environment: [String: String] {
         var env = ProcessInfo.processInfo.environment
         if let extensions = EngineExtensions.bundled { env.merge(extensions.environment()) { $1 } }
+        env.merge(SymPyToolsService.engineEnvironment(MCPServerStore.load())) { $1 }
         // Finder-launched apps inherit a minimal PATH. Video input is decoded by
         // llama.cpp through ffmpeg/ffprobe, so expose their standard macOS locations.
         env["PATH"] = VideoRuntimeAvailability.augmentedPath(env["PATH"])

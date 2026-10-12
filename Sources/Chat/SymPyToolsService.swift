@@ -40,7 +40,7 @@ enum SymPyToolsService {
                                 resources: URL? = Bundle.main.resourceURL, shared: [MCPServer] = [],
                                 extensions: EngineExtensions? = .bundled) -> [String] {
         // approved servers exist only for the agent, so they need its runtime too
-        var servers = engineServers(shared)
+        var servers = engineServers(shared, runtime: runtimeDirectory(resources: resources))
         let approved = servers.keys.sorted()
         guard enabled || scientific || !approved.isEmpty || extensions?.engine != nil,
               let runtime = runtimeDirectory(resources: resources)
@@ -62,7 +62,7 @@ enum SymPyToolsService {
                               "timeout_ms": 900_000,
                               "env": ["TOSH_TRUST_KEY": trustKey, "TOSH_AGENT_SERVERS": approved.joined(separator: ",")]]
         var agentOnly = approved
-        if let bundled = extensions?.engineEntries(python: python, runtime: runtime.path, trustKey: trustKey) {
+        if let bundled = extensions?.engineEntries(runtime: runtime, trustKey: trustKey) {
             servers.merge(bundled.servers) { $1 }
             agentOnly += bundled.agentOnly
             if let replacement = bundled.agent { servers[agentName] = replacement }
@@ -74,19 +74,60 @@ enum SymPyToolsService {
     }
 
     /// The MCP servers an administrator approved for the engine, by the name the engine gives them.
-    /// A name the engine's own servers use, or one already taken, is left out.
-    static func engineServers(_ shared: [MCPServer]) -> [String: Any] {
+    /// A name the engine's own servers use, or one already taken, is left out, and so is a remote
+    /// server when there is no runtime to run its relay.
+    static func engineServers(_ shared: [MCPServer], runtime: URL? = nil) -> [String: Any] {
         let reserved: Set = [serverName, ScientificToolsService.serverName, agentName]
         var servers: [String: Any] = [:]
         for server in shared where server.sharedWithEngine {
             let name = server.engineName
             guard !reserved.contains(name), servers[name] == nil else { continue }
+            if !server.transport.isLocal {
+                if let runtime { servers[name] = remoteEntry(server, runtime: runtime) }
+                continue
+            }
             var entry: [String: Any] = ["command": server.command, "args": server.arguments,
                                         "env": server.environment, "timeout_ms": server.timeoutSeconds * 1000]
             if !server.workingDirectory.isEmpty { entry["cwd"] = server.workingDirectory }
             servers[name] = entry
         }
         return servers
+    }
+
+    /// The bundled relay, run as a local server that forwards to the remote one.
+    static func relayEntry(runtime: URL, url: String, transport: String?, timeoutSeconds: Int,
+                           headerArguments: [String]) -> [String: Any] {
+        let python = runtime.appendingPathComponent("python/bin/python3").path
+        let relay = runtime.appendingPathComponent("tosh_sympy/remote.py").path
+        var args = ["-I", "-B", relay, "--url", url, "--timeout", String(timeoutSeconds)]
+        if let transport { args += ["--transport", transport] }
+        return ["command": python, "args": args + headerArguments, "timeout_ms": timeoutSeconds * 1000]
+    }
+
+    private static func remoteEntry(_ server: MCPServer, runtime: URL) -> [String: Any] {
+        let transport: String? = server.transport == .streamableHTTP ? "http"
+            : server.transport == .serverSentEvents ? "sse" : nil
+        let headers = (Keychain.get(server.credentialAccount) ?? "").isEmpty ? []
+            : ["--headers-env", headersVariable(server)]
+        return relayEntry(runtime: runtime, url: server.url, transport: transport,
+                          timeoutSeconds: server.timeoutSeconds, headerArguments: headers)
+    }
+
+    /// The relay reads a server's headers from this variable of the engine's environment, so a token
+    /// never shows on a command line.
+    static func headersVariable(_ server: MCPServer) -> String {
+        "TOSH_MCP_HEADERS_" + server.engineName.uppercased().replacingOccurrences(of: "-", with: "_")
+    }
+
+    /// The headers of every approved remote server, for the engine's environment.
+    static func engineEnvironment(_ shared: [MCPServer]) -> [String: String] {
+        var env: [String: String] = [:]
+        for server in shared where server.sharedWithEngine && !server.transport.isLocal {
+            if let headers = Keychain.get(server.credentialAccount), !headers.isEmpty {
+                env[headersVariable(server)] = headers
+            }
+        }
+        return env
     }
 
     private static func mcpServersArguments(_ servers: [String: Any]) -> [String] {

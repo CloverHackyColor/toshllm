@@ -813,6 +813,7 @@
   "Invalid JSON: it must be an object {…}. It will be ignored until fixed.": "",
   "Isolate tools in": "",
   "Isolation": "",
+  "It applies to the whole server, not to one chat or client: the engine reaches this remote server through a local relay and its agent calls the tools whenever a request needs them, whether it comes from this app, the web chat or any API client that reaches the agent. The headers stay in the Keychain and reach the relay through the engine's environment. Only approve servers you trust.": "",
   "It applies to the whole server, not to one chat or client: the engine starts this program with your user's permissions, without isolation, and its agent calls the tools whenever a request needs them, whether it comes from this app, the web chat or any API client that reaches the agent. No other path sees it. Only approve programs you trust.": "",
   "It is downloaded again from its repo and the current file is replaced once the checksum verifies. If the model is loaded, restart the server afterwards.": "",
   "It may have been copied into the models folder manually.": "",

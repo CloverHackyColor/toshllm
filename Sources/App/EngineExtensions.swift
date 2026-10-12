@@ -15,8 +15,14 @@ struct EngineExtensions: Sendable {
     }
 
     struct Server: Decodable, Sendable {
-        let command: String
-        let args: [String]
+        /// A local server: the executable and its arguments.
+        var command: String?
+        var args: [String]?
+        /// A remote one, reached through the bundled relay: its URL, "http" or "sse" to skip the
+        /// detection, and headers filled from settings (header name to setting key).
+        var url: String?
+        var transport: String?
+        var headerEnv: [String: String]?
         var env: [String: String]?
         var timeoutMs: Int?
         /// The setting that switches the server on; without one it always runs.
@@ -148,26 +154,39 @@ struct EngineExtensions: Sendable {
 
     /// The servers whose switch is on and the agent, with {python}, {runtime}, {extensions} and
     /// {trust_key} filled in, in the shape --mcp-servers-json takes.
-    func engineEntries(python: String, runtime: String, trustKey: String)
+    func engineEntries(runtime: URL, trustKey: String)
         -> (servers: [String: Any], agent: [String: Any]?, agentOnly: [String]) {
+        let python = runtime.appendingPathComponent("python/bin/python3").path
         let fill: (String) -> String = {
             $0.replacingOccurrences(of: "{python}", with: python)
-                .replacingOccurrences(of: "{runtime}", with: runtime)
+                .replacingOccurrences(of: "{runtime}", with: runtime.path)
                 .replacingOccurrences(of: "{extensions}", with: directory.path)
                 .replacingOccurrences(of: "{trust_key}", with: trustKey)
         }
-        func entry(_ server: Server) -> [String: Any] {
-            var entry: [String: Any] = ["command": fill(server.command), "args": server.args.map(fill)]
+        func entry(_ server: Server) -> [String: Any]? {
+            var entry: [String: Any]
+            if let url = server.url {
+                let headers = (server.headerEnv ?? [:]).sorted { $0.key < $1.key }
+                    .flatMap { ["--header-env", "\($0.key)=\($0.value)"] }
+                entry = SymPyToolsService.relayEntry(runtime: runtime, url: fill(url), transport: server.transport,
+                                                     timeoutSeconds: (server.timeoutMs ?? 60_000) / 1000,
+                                                     headerArguments: headers)
+            } else if let command = server.command {
+                entry = ["command": fill(command), "args": (server.args ?? []).map(fill)]
+                if let timeout = server.timeoutMs { entry["timeout_ms"] = timeout }
+            } else {
+                return nil
+            }
             if let env = server.env { entry["env"] = env.mapValues(fill) }
-            if let timeout = server.timeoutMs { entry["timeout_ms"] = timeout }
             return entry
         }
         var servers: [String: Any] = [:]
         var agentOnly: [String] = []
         for (name, server) in engine?.servers ?? [:] where server.enabledBy.map(isOn) ?? true {
-            servers[name] = entry(server)
+            guard let built = entry(server) else { continue }
+            servers[name] = built
             if server.agentOnly == true { agentOnly.append(name) }
         }
-        return (servers, engine?.agent.map(entry), agentOnly.sorted())
+        return (servers, engine?.agent.flatMap(entry), agentOnly.sorted())
     }
 }

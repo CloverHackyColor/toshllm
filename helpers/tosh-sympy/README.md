@@ -249,12 +249,21 @@ curl http://127.0.0.1:8080/tools -H 'Content-Type: application/json' \
 Any OpenAI client works with the base URL `http://host:8080/v1`; to send the header, use its
 extra-headers option, or start the engine without `--mcp-agent-explicit`.
 
+## Remote MCP servers
+
+`llama-server` only starts servers it talks to over stdio, so a remote one approved for the agent
+runs through `tosh_sympy/remote.py`, a local server that relays every message to its URL over
+Streamable HTTP, or the older HTTP+SSE transport when the server lacks it. Headers come from
+environment variables the app sets on the engine (`--headers-env`, `--header-env Name=VAR`),
+never from arguments.
+
 ## Tests
 
 ```sh
 ./scripts/build-sympy.sh
 vendor/tosh-sympy/python/bin/python3 -I helpers/tosh-sympy/tests/test_helper.py
 vendor/tosh-sympy/python/bin/python3 -I helpers/tosh-sympy/tests/test_agent.py
+vendor/tosh-sympy/python/bin/python3 -I helpers/tosh-sympy/tests/test_remote.py
 TOSH_ENGINE_URL=http://127.0.0.1:8080 TOSH_ENGINE_AGENT=1 python3 helpers/tosh-sympy/tests/test_engine_api.py
 TOSH_SYMPY_E2E_MODEL=~/models/Qwen3-4B-Q4_K_M.gguf ./scripts/test.sh --filter SymPyEngine
 ```

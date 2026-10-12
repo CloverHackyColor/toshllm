@@ -9,7 +9,9 @@ final class EngineExtensionsTests: XCTestCase {
     private let engine = """
     {"servers": {"maps": {"command": "{python}", "args": ["-I", "{extensions}/maps.py"],
                           "env": {"KEY": "{trust_key}"}, "timeout_ms": 60000,
-                          "enabled_by": "TEST_EXT_MAPS_ON", "agent_only": true}},
+                          "enabled_by": "TEST_EXT_MAPS_ON", "agent_only": true},
+                 "cloud": {"url": "https://mcp.example/mcp", "transport": "http", "timeout_ms": 30000,
+                           "header_env": {"Authorization": "TEST_EXT_MAPS_URL"}}},
      "agent": {"command": "{python}", "args": ["{extensions}/agent.py", "--runtime", "{runtime}"]}}
     """
     private let settings = """
@@ -78,18 +80,30 @@ final class EngineExtensionsTests: XCTestCase {
     func testEngineEntriesFillPlaceholdersAndFollowTheirSwitch() throws {
         let directory = try makeExtensions(engine: engine, settings: settings)
         let extensions = try XCTUnwrap(EngineExtensions(directory: directory))
-        let on = extensions.engineEntries(python: "/py", runtime: "/rt", trustKey: "k")
+        let runtime = URL(fileURLWithPath: "/rt")
+        let on = extensions.engineEntries(runtime: runtime, trustKey: "k")
         let maps = try XCTUnwrap(on.servers["maps"] as? [String: Any])
-        XCTAssertEqual(maps["command"] as? String, "/py")
+        XCTAssertEqual(maps["command"] as? String, "/rt/python/bin/python3")
         XCTAssertEqual(maps["args"] as? [String], ["-I", directory.path + "/maps.py"])
         XCTAssertEqual(maps["env"] as? [String: String], ["KEY": "k"])
         XCTAssertEqual(on.agentOnly, ["maps"])
         XCTAssertEqual(on.agent?["args"] as? [String], [directory.path + "/agent.py", "--runtime", "/rt"])
 
         EngineExtensions.setValue("0", for: extensions.fields[0])
-        let off = extensions.engineEntries(python: "/py", runtime: "/rt", trustKey: "k")
+        let off = extensions.engineEntries(runtime: runtime, trustKey: "k")
         XCTAssertNil(off.servers["maps"])
         XCTAssertNotNil(off.agent, "the agent has no switch of its own")
+    }
+
+    func testARemoteServerRunsThroughTheRelayWithHeadersFromSettings() throws {
+        let extensions = try XCTUnwrap(EngineExtensions(directory: try makeExtensions(engine: engine, settings: settings)))
+        let cloud = try XCTUnwrap(extensions.engineEntries(runtime: URL(fileURLWithPath: "/rt"), trustKey: "k")
+            .servers["cloud"] as? [String: Any])
+        XCTAssertEqual(cloud["command"] as? String, "/rt/python/bin/python3")
+        XCTAssertEqual(cloud["args"] as? [String], ["-I", "-B", "/rt/tosh_sympy/remote.py", "--url", "https://mcp.example/mcp",
+                                                    "--timeout", "30", "--transport", "http",
+                                                    "--header-env", "Authorization=TEST_EXT_MAPS_URL"])
+        XCTAssertEqual(cloud["timeout_ms"] as? Int, 30_000)
     }
 
     func testTheBundledAgentReplacesTheMathAgentAndItsServersStayAgentOnly() throws {
@@ -98,7 +112,7 @@ final class EngineExtensionsTests: XCTestCase {
         let json = try XCTUnwrap(args.firstIndex(of: "--mcp-servers-json").map { args[$0 + 1] })
         let servers = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])["mcpServers"]
             as? [String: Any]
-        XCTAssertEqual(Set((servers ?? [:]).keys), ["maps", SymPyToolsService.agentName])
+        XCTAssertEqual(Set((servers ?? [:]).keys), ["maps", "cloud", SymPyToolsService.agentName])
         let agent = try XCTUnwrap(servers?[SymPyToolsService.agentName] as? [String: Any])
         XCTAssertTrue((agent["args"] as? [String])?.first?.hasSuffix("/agent.py") == true)
         XCTAssertEqual(args.firstIndex(of: "--mcp-agent-only").map { args[$0 + 1] }, "maps")

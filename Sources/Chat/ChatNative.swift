@@ -90,6 +90,9 @@ struct ChatMessage: Identifiable, Codable, Equatable {
     /// What the model wrote before the tool calls of this round. It is not an answer, so it is never
     /// the body; it is dropped once a math call of the round does not succeed.
     var interim: String? = nil
+    /// An agent's request for the map of this answer, sent back as it came, and the map once fetched.
+    var mapRequest: String? = nil
+    var map: ChatMap? = nil
 
     var estimatedTokens: Int {
         let text = role == "assistant" ? parts.body + (settledInterim ?? "") : wireContent
@@ -396,6 +399,8 @@ final class ChatStore: ObservableObject {
     @Published var projects: [ChatProject] = []
     @Published var currentID: UUID?
     @Published var generating = false
+    @Published var mapLoading: Set<UUID> = []
+    @Published var mapFailed: Set<UUID> = []
     /// Conversation currently streaming, so its live bubble only shows there.
     @Published var generatingConvID: UUID?
     @Published var compacting = false
@@ -1303,6 +1308,9 @@ final class ChatStore: ObservableObject {
                 store?.finish(conversation: convID, text: shown, speed: finalSpeed,
                               mtpAccept: finalAccept, timings: finalTimings,
                               toolCalls: finalToolCalls, interim: round.interim)
+                if wasAgentTurn, followUp == nil, let request = finalMeta?["map_request"] as? [String: Any] {
+                    store?.attachMapRequest(request, conversation: convID, port: port)
+                }
                 if shouldDeliverQueued {
                     if !finalToolCalls.isEmpty { store?.interruptPendingToolCalls(conversation: convID) }
                 } else if !wasCancelled && !didReportError && !finalToolCalls.isEmpty {
@@ -3094,6 +3102,11 @@ struct NativeChatView: View {
                         chat.deleteMessageAndFollowing(msg.id)
                     })
                     .equatable()
+                if msg.role == "assistant", msg.map != nil || msg.mapRequest != nil {
+                    ChatMapSection(message: msg, loading: chat.mapLoading.contains(msg.id),
+                                   failed: chat.mapFailed.contains(msg.id),
+                                   onShow: { chat.loadMap(for: msg.id, port: port) })
+                }
             }
         }
     }

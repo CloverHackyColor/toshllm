@@ -235,6 +235,15 @@ runs nothing and sets `"tosh": {"version": 1, "outcome": "declined"}`, and the a
 turn with its own tools, as it would without the extension. Other clients never send the field,
 so they always get an answer.
 
+An agent can offer a map of an answer without delaying it: it adds `"map_request": {"show": bool, ...}`
+to the answer's `tosh`, without any geometry. A client sends that object back as
+`"tosh": {"map_request": {...}}` in a request of its own, and the agent answers it, with no model
+pass, with `"tosh": {"map": {"layers": [...]}}`: each layer a GeoJSON FeatureCollection in
+longitude/latitude with an optional `title`, `subtitle` (which of its features these are), `fields`
+(`[{"name", "alias"}]`, the order and names to show a clicked feature's attributes in), `complete` (false when not
+every feature fit) and `link` (`{"title", "url"}`, the layer in its own viewer). The app draws it at once when `show` is
+true, the request having asked for a map, and otherwise offers it under the answer.
+
 ### Direct calls
 
 `GET /tools` lists the ten tools with their schemas; `POST /tools`

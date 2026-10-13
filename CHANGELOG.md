@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Added
 
 - **Extensions: tools and agents from a folder of extensions, each with its own settings page.** Settings → Extensions reads the folder you choose; an extension stays off until you approve the programs it runs. An extension with its own agent hands the messages outside its field back to the chat's tools. The format is in docs/extensions.md, with an example to copy.
+- **Chat: an extension's agent can attach a map to an answer.** It is drawn under the answer when the question asks for one, and otherwise offered with a button; a click on a feature shows its attributes, a click on a group of markers zooms in, and the features can be exported as GeoJSON or opened in their own viewer.
+- **Extensions: a paths setting can take any folder**, with `"folder_types": ["*"]`, for an extension that reads everything in one.
 - **Chat: a remote MCP server can be made available to the server agent, like a local one.** It works with servers reached over HTTP or SSE, and its headers stay in the Keychain.
 
 ### Improved

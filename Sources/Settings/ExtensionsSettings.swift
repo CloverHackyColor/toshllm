@@ -294,7 +294,9 @@ struct ExtensionsSettingsView: View {
                 SettingsRow(icon: "folder", title: title, help: help) {
                     Button(loc.t("Añadir…", "Add…")) { addPath(field, item) }
                         .glassButton()
-                        .help(loc.t("Elige un archivo o una carpeta de datos.", "Pick a data file or folder."))
+                        .help(takesAnyFolder(field) && (field.fileTypes ?? []).isEmpty
+                              ? loc.t("Elige una carpeta de datos.", "Pick a data folder.")
+                              : loc.t("Elige un archivo o una carpeta de datos.", "Pick a data file or folder."))
                 }
                 ForEach(paths(field, item)) { entry in
                     HStack(spacing: 8) {
@@ -336,24 +338,31 @@ struct ExtensionsSettingsView: View {
         store(String(decoding: data, as: UTF8.self), field, item)
     }
 
+    /// A setting whose `folder_types` holds "*" takes any folder, for extensions that read everything in one.
+    private func takesAnyFolder(_ field: EngineExtensions.Field) -> Bool {
+        (field.folderTypes ?? []).contains("*")
+    }
+
     private func addPath(_ field: EngineExtensions.Field, _ item: EngineExtensions.Extension) {
         let panel = NSOpenPanel()
         let folders = Set((field.folderTypes ?? []).map { $0.lowercased() })
-        panel.canChooseFiles = true
+        let files = (field.fileTypes ?? []).map { $0.lowercased() }
+        panel.canChooseFiles = !(takesAnyFolder(field) && files.isEmpty)
         panel.canChooseDirectories = !folders.isEmpty
         panel.allowsMultipleSelection = false
-        let types = (field.fileTypes ?? []).compactMap { UTType(filenameExtension: $0) }
+        let types = files.compactMap { UTType(filenameExtension: $0) }
         if !types.isEmpty && folders.isEmpty { panel.allowedContentTypes = types }
         guard panel.runModal() == .OK, let url = panel.url else { return }
         var isFolder: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path, isDirectory: &isFolder)
         let ext = url.pathExtension.lowercased()
-        let allowed = isFolder.boolValue ? folders.contains(ext)
-            : (field.fileTypes ?? []).map { $0.lowercased() }.contains(ext)
+        let allowed = isFolder.boolValue ? takesAnyFolder(field) || folders.contains(ext) : files.contains(ext)
         guard allowed else {
             let alert = NSAlert()
             alert.messageText = loc.t("Ese tipo de dato no se puede leer aquí", "That kind of data cannot be read here")
-            alert.informativeText = ((field.fileTypes ?? []) + (field.folderTypes ?? [])).map { "." + $0 }.joined(separator: ", ")
+            alert.informativeText = (files.map { "." + $0 } + folders.map {
+                $0 == "*" ? loc.t("cualquier carpeta", "any folder") : "." + $0
+            }).joined(separator: ", ")
             alert.runModal()
             return
         }

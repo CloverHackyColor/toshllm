@@ -112,7 +112,7 @@ Each section has an `id`, a `title`, an optional `detail` and `fields`. An optio
 | `choice` | One of `options` (`[{"value", "title"}]`). |
 | `choices` | Any of `options`, as their values joined by commas in the order of `options`; `default` is such a list. It always reaches the engine, empty when none is ticked. |
 | `json` | A JSON object, saved once it parses. |
-| `paths` | A JSON object of short names to files or folders the person picks (`file_types`, `folder_types`). |
+| `paths` | A JSON object of short names to files or folders the person picks (`file_types`, `folder_types`; `"folder_types": ["*"]` takes any folder). |
 
 Every setting that holds a value reaches the engine as an environment variable named by its `key`,
 and every server the engine starts inherits it, so a secret never shows on a command line. Use
@@ -124,8 +124,8 @@ names that are unlikely to clash with other extensions.
 agent turn of the chat, the web chat and API clients goes to its `run` tool, which answers it using
 the model and the tools through the engine. The contract is described in
 [`helpers/tosh-sympy/README.md`](../helpers/tosh-sympy/README.md#the-tosh-agent), and what another
-agent has to send back, including how it hands a turn back to the chat's own tools, in
-[its next section](../helpers/tosh-sympy/README.md#another-agent). Only one extension with an agent
+agent has to send back, including how it hands a turn back to the chat's own tools and how it
+offers a map of an answer, in [its next section](../helpers/tosh-sympy/README.md#another-agent). Only one extension with an agent
 can be on at a time.
 
 ## Without ToshLLM

@@ -48,6 +48,7 @@ hand.
 | Turkish (Türkçe) | `tr` | not started |
 | Dutch (Nederlands) | `nl` | not started |
 | Polish (Polski) | `pl` | not started |
+| Ukrainian (Українська) | `uk` | 100% (1972/1972) |
 
 <!-- STATUS:END -->
 

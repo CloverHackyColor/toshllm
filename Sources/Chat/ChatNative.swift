@@ -1202,7 +1202,9 @@ final class ChatStore: ObservableObject {
             }
             let ttft: Double? = tFirst.map { $0.timeIntervalSince(tSent) * 1000 }
             let hasVisibleAnswer = !accumulator.visible.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            let streamedText = hasVisibleAnswer ? composed() : ""
+            // a turn that ended inside its reasoning keeps it, under the warning, instead of losing it
+            let keepsReasoning = !accumulator.reasoning.isEmpty && !cancelled && !reportedError
+            let streamedText = hasVisibleAnswer || keepsReasoning ? composed() : ""
             let finalUsage = accumulator.usage
             let finalAccept = accumulator.mtpAccept
             let finalTimings: ChatTimings? = {
@@ -2114,10 +2116,13 @@ final class ChatStore: ObservableObject {
     }
 
     nonisolated static func emptyResponseMessage(finishReason: String?) -> String {
+        let loc = Localizer()
         if finishReason == "length" {
-            return "El modelo agotó el máximo de tokens durante el razonamiento; aumenta Máx. o desactiva Razonamiento / the model used all max tokens while reasoning; raise Max or disable Reasoning"
+            return loc.t("El modelo agotó el máximo de tokens durante el razonamiento; aumenta Máx. o desactiva Razonamiento.",
+                         "The model used all max tokens while reasoning; raise Max or turn Reasoning off.")
         }
-        return "El modelo terminó el razonamiento sin producir una respuesta visible; intenta regenerar o desactiva Razonamiento / the model finished reasoning without a visible answer; regenerate or disable Reasoning"
+        return loc.t("El modelo terminó el razonamiento sin producir una respuesta visible; intenta regenerar o desactiva Razonamiento.",
+                     "The model finished reasoning without a visible answer; regenerate or turn Reasoning off.")
     }
 
     func stop() {

@@ -14,6 +14,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Improved
 
+- **Chat: an answer that ends inside its reasoning keeps that reasoning under the warning instead of disappearing, and the warning follows the interface language.**
 - **Chat: the calls to an MCP server's tools show their arguments and result laid out line by line.** A call made by an agent also shows one line on what came back, so the card can be read without opening it.
 
 ## [0.87.23] - 2026-10-12

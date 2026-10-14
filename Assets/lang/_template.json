@@ -1683,6 +1683,8 @@
   "The measurement runs on this Mac first. You will then review exactly what will be signed and uploaded.": "",
   "The model downloads on demand. Audio and video are transcribed locally on the GPU and passed to chat as text.": "",
   "The model drafts several tokens per step with its own head. On text it accepts rarely it can run slower than without it.": "",
+  "The model finished reasoning without a visible answer; regenerate or turn Reasoning off.": "",
+  "The model used all max tokens while reasoning; raise Max or turn Reasoning off.": "",
   "The new name will appear in the sidebar.": "",
   "The order Hugging Face returns repositories in, always limited to those publishing GGUF. “Recent” also requires a minimum number of downloads, so it doesn't fill up with freshly pushed repos nobody uses.": "",
   "The private key remains in this Mac's Keychain. This public fingerprint groups your submissions and verifies that they were not modified.": "",

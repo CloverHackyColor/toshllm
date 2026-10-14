@@ -1683,6 +1683,8 @@
   "The measurement runs on this Mac first. You will then review exactly what will be signed and uploaded.": "まずこのMacで計測します。そのあと、署名され送信される内容をそのまま確認できます。",
   "The model downloads on demand. Audio and video are transcribed locally on the GPU and passed to chat as text.": "モデルは必要に応じてダウンロードされます。音声と動画はGPUでローカルに文字起こしされ、テキストとしてチャットへ渡されます。",
   "The model drafts several tokens per step with its own head. On text it accepts rarely it can run slower than without it.": "モデルが自身のヘッドで1ステップに複数のトークンを先読みします。予測があまり採用されない文章では、使わない場合より遅くなることがあります。",
+  "The model finished reasoning without a visible answer; regenerate or turn Reasoning off.": "モデルは表示できる回答なしで推論を終えました。再生成するか、推論をオフにしてください。",
+  "The model used all max tokens while reasoning; raise Max or turn Reasoning off.": "モデルが推論中に最大トークンを使い切りました。最大値を上げるか、推論をオフにしてください。",
   "The new name will appear in the sidebar.": "新しい名前がサイドバーに表示されます。",
   "The order Hugging Face returns repositories in, always limited to those publishing GGUF. “Recent” also requires a minimum number of downloads, so it doesn't fill up with freshly pushed repos nobody uses.": "Hugging Faceがリポジトリを返す順序です。常にGGUFを公開しているものに限られます。「最近」は最低限のダウンロード数も条件にするので、誰も使っていない上げたてのリポジトリで埋まりません。",
   "The private key remains in this Mac's Keychain. This public fingerprint groups your submissions and verifies that they were not modified.": "秘密鍵はこのMacのキーチェーンに残ります。この公開フィンガープリントは、送信をまとめ、改ざんされていないことを検証します。",

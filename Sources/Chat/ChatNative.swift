@@ -93,6 +93,8 @@ struct ChatMessage: Identifiable, Codable, Equatable {
     /// An agent's request for the map of this answer, sent back as it came, and the map once fetched.
     var mapRequest: String? = nil
     var map: ChatMap? = nil
+    /// A figure the agent drew with the answer in a plane of its own, such as a tract from its deed's calls.
+    var sketch: ChatSketch? = nil
 
     var estimatedTokens: Int {
         let text = role == "assistant" ? parts.body + (settledInterim ?? "") : wireContent
@@ -1315,6 +1317,10 @@ final class ChatStore: ObservableObject {
                               toolCalls: finalToolCalls, interim: round.interim)
                 if wasAgentTurn, followUp == nil, let request = finalMeta?["map_request"] as? [String: Any] {
                     store?.attachMapRequest(request, conversation: convID, port: port)
+                }
+                if wasAgentTurn, followUp == nil,
+                   let sketch = (finalMeta?["sketch"] as? [String: Any]).flatMap(ChatSketch.init) {
+                    store?.attachSketch(sketch, conversation: convID)
                 }
                 if shouldDeliverQueued {
                     if !finalToolCalls.isEmpty { store?.interruptPendingToolCalls(conversation: convID) }
@@ -3161,6 +3167,9 @@ struct NativeChatView: View {
                         chat.deleteMessageAndFollowing(msg.id)
                     })
                     .equatable()
+                if msg.role == "assistant", let sketch = msg.sketch {
+                    ChatSketchSection(sketch: sketch)
+                }
                 if msg.role == "assistant", msg.map != nil || msg.mapRequest != nil {
                     ChatMapSection(message: msg, loading: chat.mapLoading.contains(msg.id),
                                    failed: chat.mapFailed.contains(msg.id),

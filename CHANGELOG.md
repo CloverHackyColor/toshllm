@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **Chat: an agent can draw a figure that no map places under its answer, such as a tract from a deed's calls.** Its corners are numbered from the start and, when it should close and does not, what it lacks shows in red.
+
 ### Fixed
 
 - **Chat: a photo or recording reaches the model when the math tools run the turn.** The turn went to the math agent with the text alone, so the answer ignored the attachment and a message with only a photo failed.

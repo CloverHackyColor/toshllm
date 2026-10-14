@@ -835,7 +835,8 @@ final class ChatStore: ObservableObject {
         let userTexts = conversations[i].messages.filter { $0.role == "user" }.map(\.wireContent)
         let request = agentRun == nil ? userTexts.last : nil
         let agentHistory = Self.agentHistory(system: systemWithCwd, summary: conversations[i].summary,
-                                             messages: conversations[i].messages, from: conversations[i].summarizedCount ?? 0)
+                                             messages: conversations[i].messages, from: conversations[i].summarizedCount ?? 0,
+                                             modalities: modalities)
         let agentAllowed = agentRun == nil && continuationInstruction == nil && !Self.serverAgentMissing && !agentDeclined
         var history = Self.requestHistory(system: systemWithCwd,
                                           summary: conversations[i].summary,
@@ -1766,17 +1767,20 @@ final class ChatStore: ObservableObject {
     // MARK: auto-compaction
 
     /// The conversation as the server agent takes it: what the user and the answers said. Tool calls
-    /// stay out, since the agent refuses them: the tools run on the server.
-    nonisolated static func agentHistory(system: String, summary: String?, messages: [ChatMessage], from start: Int)
-        -> [[String: Any]] {
+    /// stay out, since the agent refuses them: the tools run on the server. Only the last request carries
+    /// its images and audio; an agent that cannot use them hands the turn back.
+    nonisolated static func agentHistory(system: String, summary: String?, messages: [ChatMessage], from start: Int,
+                                         modalities: ModelModalities? = nil) -> [[String: Any]] {
         var sys = system.trimmingCharacters(in: .whitespaces)
         if let summary, !summary.isEmpty {
             sys += (sys.isEmpty ? "" : "\n\n") + "Summary of the earlier part of this conversation:\n" + summary
         }
         var history: [[String: Any]] = sys.isEmpty ? [] : [["role": "system", "content": sys]]
-        for message in messages[min(max(0, start), messages.count)...] {
+        let last = messages.lastIndex { $0.role == "user" }
+        for (index, message) in messages.enumerated() where index >= min(max(0, start), messages.count) {
             if message.role == "user" {
-                history.append(["role": "user", "content": message.wireContent])
+                let parts = index == last ? mediaParts(message, text: message.wireContent, modalities: modalities) : nil
+                history.append(["role": "user", "content": parts ?? message.wireContent])
             } else if message.role == "assistant", (message.toolCalls ?? []).isEmpty {
                 let body = message.parts.body.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !body.isEmpty { history.append(["role": "assistant", "content": body]) }
@@ -1820,33 +1824,38 @@ final class ChatStore: ObservableObject {
             }
             guard m.role != "assistant" || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             else { return nil }
-            // A user turn with images uses the OpenAI multimodal content array
-            // (text part + image_url parts); everything else stays a plain string.
-            let media = m.attachments?.filter { $0.mediaKind != nil && $0.base64Payload != nil } ?? []
-            if m.role == "user", !(m.imageURIs ?? []).isEmpty || !media.isEmpty {
-                var parts: [[String: Any]] = []
-                if !text.isEmpty { parts.append(["type": "text", "text": text]) }
-                if modalities?.vision != false {
-                    for uri in m.imageURIs ?? [] {
-                        parts.append(["type": "image_url", "image_url": ["url": uri]])
-                    }
-                }
-                for attachment in media {
-                    guard let data = attachment.base64Payload else { continue }
-                    if attachment.mediaKind == "audio" {
-                        guard modalities?.audio != false else { continue }
-                        parts.append(["type": "input_audio",
-                                      "input_audio": ["data": data, "format": attachment.audioInputFormat]])
-                    } else if modalities?.video != false {
-                        parts.append(["type": "input_video",
-                                      "input_video": ["data": data, "format": attachment.videoInputFormat]])
-                    }
-                }
+            if m.role == "user", let parts = mediaParts(m, text: text, modalities: modalities) {
                 return ["role": m.role, "content": parts]
             }
             return ["role": m.role, "content": text]
         }
         return history
+    }
+
+    /// A user turn with images, audio or video as the OpenAI multimodal content array (text part + media
+    /// parts), or nil when the model takes none of them and it stays a plain string.
+    nonisolated static func mediaParts(_ m: ChatMessage, text: String, modalities: ModelModalities?) -> [[String: Any]]? {
+        let media = m.attachments?.filter { $0.mediaKind != nil && $0.base64Payload != nil } ?? []
+        guard !(m.imageURIs ?? []).isEmpty || !media.isEmpty else { return nil }
+        var parts: [[String: Any]] = []
+        if !text.isEmpty { parts.append(["type": "text", "text": text]) }
+        if modalities?.vision != false {
+            for uri in m.imageURIs ?? [] {
+                parts.append(["type": "image_url", "image_url": ["url": uri]])
+            }
+        }
+        for attachment in media {
+            guard let data = attachment.base64Payload else { continue }
+            if attachment.mediaKind == "audio" {
+                guard modalities?.audio != false else { continue }
+                parts.append(["type": "input_audio",
+                              "input_audio": ["data": data, "format": attachment.audioInputFormat]])
+            } else if modalities?.video != false {
+                parts.append(["type": "input_video",
+                              "input_video": ["data": data, "format": attachment.videoInputFormat]])
+            }
+        }
+        return parts.contains { $0["type"] as? String != "text" } ? parts : nil
     }
 
     /// Plain text of a message's content, whether it's a string or the

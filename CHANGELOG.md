@@ -3,6 +3,12 @@
 All notable changes to ToshLLM are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Chat: a photo or recording reaches the model when the math tools run the turn.** The turn went to the math agent with the text alone, so the answer ignored the attachment and a message with only a photo failed.
+
 ## [0.87.24] - 2026-10-14
 
 ### Added

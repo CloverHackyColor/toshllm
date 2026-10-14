@@ -129,4 +129,20 @@ final class AgentClientTests: XCTestCase {
         XCTAssertEqual(history[2]["content"] as? String, "It is 6.49393940227.")
         XCTAssertFalse(history.contains { $0["tool_calls"] != nil })
     }
+
+    func testOnlyTheLastRequestTakesItsImagesToTheAgent() {
+        var earlier = ChatMessage(role: "user", content: "What is this?")
+        earlier.imageURIs = ["data:image/png;base64,AAAA"]
+        var last = ChatMessage(role: "user", content: "")
+        last.imageURIs = ["data:image/jpeg;base64,BBBB"]
+        let messages = [earlier, ChatMessage(role: "assistant", content: "A cat."), last]
+        let history = ChatStore.agentHistory(system: "", summary: nil, messages: messages, from: 0)
+        XCTAssertEqual(history[0]["content"] as? String, "What is this?")
+        let parts = history[2]["content"] as? [[String: Any]]
+        XCTAssertEqual(parts?.count, 1)
+        XCTAssertEqual((parts?.first?["image_url"] as? [String: Any])?["url"] as? String, "data:image/jpeg;base64,BBBB")
+        let blind = ChatStore.agentHistory(system: "", summary: nil, messages: messages, from: 0,
+                                           modalities: ModelModalities(vision: false, audio: false, video: false))
+        XCTAssertEqual(blind[2]["content"] as? String, "")
+    }
 }

@@ -109,10 +109,21 @@ struct ToolCallPresentation: Equatable {
                                             path: nil, code: query, language: "text", detail: nil,
                                             edits: [], result: result)
             }
-            return ToolCallPresentation(kind: .generic, title: call.name, path: nil,
-                                        code: call.arguments, language: "json", detail: nil,
-                                        edits: [], result: result)
+            let operation = (args["operation"] as? String).map { " (\($0))" } ?? ""
+            return ToolCallPresentation(kind: .generic, title: call.name + operation, path: nil,
+                                        code: indented(call.arguments) ?? call.arguments, language: "json", detail: nil,
+                                        edits: [], result: result.map { indented($0) ?? $0 })
         }
+    }
+
+    /// JSON laid out one key per line, or nil for text that is not JSON or too long to lay out.
+    static func indented(_ text: String) -> String? {
+        guard text.utf8.count <= 16_000, let first = text.first(where: { !$0.isWhitespace }), first == "{" || first == "[",
+              let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)),
+              let data = try? JSONSerialization.data(withJSONObject: object,
+                                                     options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+        else { return nil }
+        return String(decoding: data, as: UTF8.self)
     }
 
     private static func arguments(_ json: String) -> [String: Any] {

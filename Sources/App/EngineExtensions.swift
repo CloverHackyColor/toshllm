@@ -38,7 +38,7 @@ enum EngineExtensions {
     }
 
     struct Field: Decodable, Sendable, Identifiable {
-        enum Kind: String, Decodable, Sendable { case toggle, text, secret, choice, json, paths }
+        enum Kind: String, Decodable, Sendable { case toggle, text, secret, choice, choices, json, paths }
         let key: String
         let kind: Kind
         let title: Text
@@ -216,6 +216,14 @@ enum EngineExtensions {
         }
     }
 
+    /// Tool name prefixes of the servers the chat's own tool loop may call: those of active extensions
+    /// that are not kept for the agent.
+    static func chatToolPrefixes(_ extensions: [Extension] = active()) -> [String] {
+        extensions.flatMap { item in
+            (item.manifest.servers ?? [:]).filter { $0.value.agentOnly != true }.map { $0.key + "_" }
+        }
+    }
+
     // MARK: values
 
     /// What a setting holds, or its declared default. Secrets live in the Keychain, the rest in defaults.
@@ -235,6 +243,12 @@ enum EngineExtensions {
 
     private static func account(_ key: String, _ item: Extension) -> String { "extension.\(item.id).\(key)" }
 
+    /// The ticked options of a `choices` field, in the manifest's order.
+    static func chosen(_ field: Field, of item: Extension) -> [String] {
+        let ticked = Set(value(field, of: item).split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+        return (field.options ?? []).map(\.value).filter(ticked.contains)
+    }
+
     static func isOn(_ key: String, of item: Extension) -> Bool {
         guard let field = item.fields.first(where: { $0.key == key }) else { return false }
         return value(field, of: item) == "1"
@@ -249,6 +263,9 @@ enum EngineExtensions {
                 let value = value(field, of: item)
                 if field.kind == .toggle {
                     if value == "1" { env[field.key] = "1" }
+                } else if field.kind == .choices {
+                    // none ticked is a choice too, not the default
+                    env[field.key] = chosen(field, of: item).joined(separator: ",")
                 } else if !value.isEmpty {
                     env[field.key] = value
                 }

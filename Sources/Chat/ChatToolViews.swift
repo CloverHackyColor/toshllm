@@ -25,18 +25,27 @@ struct ToolCallCard: View {
             ToolCallDetailView(call: call, presentation: presentation)
                 .padding(.top, 8)
         } label: {
-            HStack(spacing: 7) {
-                Label(presentation.title, systemImage: icon)
-                    .lineLimit(1)
-                if let path = presentation.path {
-                    Text(URL(fileURLWithPath: path).lastPathComponent)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 7) {
+                    Label(presentation.title, systemImage: icon)
                         .lineLimit(1)
+                    if let path = presentation.path {
+                        Text(URL(fileURLWithPath: path).lastPathComponent)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    if call.state == .running { ProgressView().controlSize(.mini) }
                 }
-                if call.state == .running { ProgressView().controlSize(.mini) }
+                .font(.callout.weight(.medium))
+                if let summary = call.summary {
+                    Text(summary)
+                        .font(.caption)
+                        .lineLimit(2)
+                        .textSelection(.enabled)
+                        .padding(.leading, 22)
+                }
             }
-            .font(.callout.weight(.medium))
             .foregroundStyle(call.state == .failed || call.state == .denied ? .red : .secondary)
         }
         .padding(10)
@@ -107,8 +116,13 @@ private struct ToolCallDetailView: View {
             case .search:
                 SearchResultPanel(result: presentation.result)
             case .generic:
-                codePanel(call.arguments.isEmpty ? "{}" : call.arguments, language: "json")
-                resultText()
+                codePanel(presentation.code.flatMap { $0.isEmpty ? nil : $0 } ?? "{}", language: "json")
+                if let result = presentation.result, ToolCallPresentation.indented(result) != nil {
+                    Divider()
+                    codePanel(result, language: "json")
+                } else {
+                    resultText()
+                }
             }
         }
     }

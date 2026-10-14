@@ -110,6 +110,7 @@ Each section has an `id`, a `title`, an optional `detail` and `fields`. An optio
 | `text` | The text as written. |
 | `secret` | Kept in the macOS Keychain, never shown again. |
 | `choice` | One of `options` (`[{"value", "title"}]`). |
+| `choices` | Any of `options`, as their values joined by commas in the order of `options`; `default` is such a list. It always reaches the engine, empty when none is ticked. |
 | `json` | A JSON object, saved once it parses. |
 | `paths` | A JSON object of short names to files or folders the person picks (`file_types`, `folder_types`). |
 
@@ -122,8 +123,10 @@ names that are unlikely to clash with other extensions.
 `agent` is a local server, declared like the others, that the engine runs as `--mcp-agent`: every
 agent turn of the chat, the web chat and API clients goes to its `run` tool, which answers it using
 the model and the tools through the engine. The contract is described in
-[`helpers/tosh-sympy/README.md`](../helpers/tosh-sympy/README.md#the-tosh-agent). Only one extension
-with an agent can be on at a time.
+[`helpers/tosh-sympy/README.md`](../helpers/tosh-sympy/README.md#the-tosh-agent), and what another
+agent has to send back, including how it hands a turn back to the chat's own tools, in
+[its next section](../helpers/tosh-sympy/README.md#another-agent). Only one extension with an agent
+can be on at a time.
 
 ## Without ToshLLM
 

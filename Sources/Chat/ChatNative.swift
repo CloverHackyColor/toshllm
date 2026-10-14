@@ -443,16 +443,19 @@ final class ChatStore: ObservableObject {
             let arguments: String = {
                 if let text = call["arguments"] as? String { return text }
                 guard let value = call["arguments"], JSONSerialization.isValidJSONObject(value),
-                      let data = try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])
+                      let data = try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys, .withoutEscapingSlashes])
                 else { return "{}" }
                 return String(decoding: data, as: UTF8.self)
             }()
             let result = call["result"] as? String ?? ""
             let serverID = call["id"] as? String ?? UUID().uuidString
             let now = Date()
+            // an agent that only reports the call's status still shows its successful calls as such
+            let completed = (call["state"] as? String).map { $0 == "completed" } ?? (call["status"] as? String == "ok")
+            let summary = (call["summary"] as? String).map { String($0.prefix(400)) }
             let toolCall = ChatToolCall(serverID: serverID, name: call["tool"] as? String ?? "", arguments: arguments,
-                                        result: result, state: call["state"] as? String == "completed" ? .completed : .failed,
-                                        startedAt: now, finishedAt: now)
+                                        result: result, state: completed ? .completed : .failed,
+                                        startedAt: now, finishedAt: now, summary: summary?.isEmpty == false ? summary : nil)
             let reply = ChatMessage(role: "tool", content: ToolResultLimit.apply(result), toolCallID: serverID)
             if let current = agentPassMessage[id], current.pass == pass,
                let j = conversations[i].messages.firstIndex(where: { $0.id == current.messageID }) {
@@ -796,7 +799,8 @@ final class ChatStore: ObservableObject {
                         sampling: ChatSamplingSettings = ChatSamplingSettings(),
                         modalities: ModelModalities? = nil,
                         continuationInstruction: String? = nil,
-                        agentRun: AgentRunContext? = nil) {
+                        agentRun: AgentRunContext? = nil,
+                        agentDeclined: Bool = false) {
         generating = true
         generatingConvID = conversations[i].id
         live.reset()
@@ -814,6 +818,7 @@ final class ChatStore: ObservableObject {
         } ?? system)
         let toolsEnabled = UserDefaults.standard.bool(forKey: SettingsKeys.agentToolsEnabled)
             || SymPyToolsService.isEnabled || ScientificToolsService.isEnabled
+            || !EngineExtensions.chatToolPrefixes().isEmpty
         let javaScriptEnabled = UserDefaults.standard.bool(forKey: SettingsKeys.jsSandboxEnabled)
         let memoryToolsEnabled = ChatMemoryService.isEnabled
         let agentTurnLimit = Self.configuredAgentTurnLimit
@@ -826,7 +831,7 @@ final class ChatStore: ObservableObject {
         let request = agentRun == nil ? userTexts.last : nil
         let agentHistory = Self.agentHistory(system: systemWithCwd, summary: conversations[i].summary,
                                              messages: conversations[i].messages, from: conversations[i].summarizedCount ?? 0)
-        let agentAllowed = agentRun == nil && continuationInstruction == nil && !Self.serverAgentMissing
+        let agentAllowed = agentRun == nil && continuationInstruction == nil && !Self.serverAgentMissing && !agentDeclined
         var history = Self.requestHistory(system: systemWithCwd,
                                           summary: conversations[i].summary,
                                           messages: conversations[i].messages,
@@ -995,12 +1000,14 @@ final class ChatStore: ObservableObject {
                 // only math tools: the server agent runs the turn. A math tool the user still approves call by
                 // call keeps it in this loop, since the server cannot ask. MCP servers shared with the engine
                 // are only reached through that agent, like the servers a build bundles with its own agent.
-                let engineShared = !ToolSupport.isBlocked(ToolSupport.currentModelIdentity)
-                    && (MCPServerStore.load().contains(where: \.sharedWithEngine) || EngineExtensions.active().contains { $0.hasAgent || !($0.manifest.servers ?? [:]).isEmpty })
-                agentTurn = agentAllowed && (availableTools.isEmpty ? engineShared : availableTools.allSatisfy {
-                    MathTranscriptionService.isMathTool($0.name)
-                        && ChatToolsService.isAlwaysAllowed($0.name, bundled: $0.mcpServerID == nil)
-                })
+                let toolsAllowed = !ToolSupport.isBlocked(ToolSupport.currentModelIdentity)
+                let active = EngineExtensions.active()
+                let engineShared = toolsAllowed
+                    && (MCPServerStore.load().contains(where: \.sharedWithEngine) || active.contains { !($0.manifest.servers ?? [:]).isEmpty })
+                // an extension that brings its own agent gets every turn first; it may hand back those that are not its own
+                let extensionAgent = toolsAllowed && active.contains(where: \.hasAgent)
+                agentTurn = agentAllowed
+                    && (extensionAgent || (availableTools.isEmpty ? engineShared : !Self.hasOwnTools(availableTools)))
                 if agentTurn { hold = true }
 
                 var req = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/v1/chat/completions")!)
@@ -1055,7 +1062,9 @@ final class ChatStore: ObservableObject {
                 // a request for a computed result may not be answered before a math tool is called
                 if agentTurn {
                     body["messages"] = agentHistory
-                    body["tosh"] = ["max_rounds": agentTurnLimit]
+                    var tosh: [String: Any] = ["max_rounds": agentTurnLimit]
+                    if Self.hasOwnTools(availableTools) { tosh["client_tools"] = true }
+                    body["tosh"] = tosh
                 } else if let request, availableTools.contains(where: { MathTranscriptionService.isMathTool($0.name) }) {
                     let (intent, asked) = await MathIntent.decide(request, context: Array(userTexts.dropLast()), port: port)
                     AppLog.chat.notice("math intent \(intent.rawValue, privacy: .public)\(asked ? " (model)" : "", privacy: .public)")
@@ -1230,12 +1239,16 @@ final class ChatStore: ObservableObject {
             let wasAgentTurn = agentTurn
             let passTokens = agentPassTokens
             let finalMeta = agentMeta
+            let declined = wasAgentTurn && !wasCancelled && !didReportError && !hasVisibleAnswer
+                && finalToolCalls.isEmpty && Self.agentDeclined(finalMeta)
             let (shouldDeliverQueued, followed): (Bool, Bool) = await MainActor.run {
-                if retry, let index = store?.conversations.firstIndex(where: { $0.id == convID }) {
-                    Self.serverAgentMissing = true
+                if retry || declined, let index = store?.conversations.firstIndex(where: { $0.id == convID }) {
+                    if retry { Self.serverAgentMissing = true }
+                    else { AppLog.chat.notice("the agent left this turn to the chat's own tools") }
                     store?.finish(conversation: convID, text: "", speed: nil)
                     store?.stream(into: index, port: port, temperature: temperature, maxTokens: maxTokens,
-                                  system: system, thinking: thinking, sampling: sampling, modalities: modalities)
+                                  system: system, thinking: thinking, sampling: sampling, modalities: modalities,
+                                  agentDeclined: declined)
                     return (false, true)
                 }
                 if !wasCancelled && !didReportError && hadReasoning && !hasVisibleAnswer
@@ -1712,6 +1725,19 @@ final class ChatStore: ObservableObject {
 
     nonisolated static var stallMessage: String {
         "El motor dejó de responder y se detuvo para liberar memoria. Suele pasar con modelos MoE grandes en GPU AMD: usa un modelo denso (8B) o sube 'Expertos MoE en CPU'. / The engine stopped responding and was stopped to free memory. This happens with large MoE models on AMD GPUs: use a dense model (8B) or raise 'MoE experts on CPU'."
+    }
+
+    /// Tools the chat runs itself, beyond the math ones the agent covers: an extension's agent may then
+    /// hand back the turns that are not about its own data.
+    nonisolated static func hasOwnTools(_ tools: [BuiltinToolInfo]) -> Bool {
+        tools.contains {
+            !(MathTranscriptionService.isMathTool($0.name) && ChatToolsService.isAlwaysAllowed($0.name, bundled: $0.mcpServerID == nil))
+        }
+    }
+
+    /// The agent ran nothing and left the turn to the chat.
+    nonisolated static func agentDeclined(_ meta: [String: Any]?) -> Bool {
+        meta?["version"] as? Int == 1 && meta?["outcome"] as? String == "declined"
     }
 
     // MARK: auto-compaction
@@ -4011,6 +4037,14 @@ struct NativeChatView: View {
                     chat.enableAllTools()
                 }
                 .buttonStyle(.borderless)
+            }
+            if let agent = EngineExtensions.active().first(where: \.hasAgent) {
+                Label(loc.t("%@ recibe cada mensaje primero; los que no son de lo suyo pueden volver a estas herramientas.",
+                            "%@ gets every message first; the ones outside its own field can come back to these tools.",
+                            agent.manifest.name.pick(spanish: loc.isSpanish)),
+                      systemImage: "puzzlepiece.extension")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Divider()
             ForEach(availableTools) { tool in

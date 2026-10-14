@@ -147,12 +147,15 @@ enum ChatToolsService {
         let agent = UserDefaults.standard.bool(forKey: SettingsKeys.agentToolsEnabled)
         let sympy = SymPyToolsService.isEnabled
         let scientific = ScientificToolsService.isEnabled
-        guard agent || sympy || scientific else { return [] }
+        let extensions = EngineExtensions.chatToolPrefixes()
+        guard agent || sympy || scientific || !extensions.isEmpty else { return [] }
         // a server started before a math switch was turned on has no /tools: not worth failing the chat
         let tools = agent ? try await list(port: port) : ((try? await list(port: port)) ?? [])
         return tools.filter {
             if SymPyToolsService.isTool($0.name) { return sympy }
             if ScientificToolsService.isTool($0.name) { return scientific }
+            let name = $0.name
+            if extensions.contains(where: { name.hasPrefix($0) }) { return true }
             return agent
         }
     }

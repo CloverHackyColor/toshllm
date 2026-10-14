@@ -222,6 +222,10 @@ struct ExtensionsSettingsView: View {
         Binding(get: { values[item.id]?[field.key] ?? "" }, set: { store($0, field, item) })
     }
 
+    private func ticked(_ field: EngineExtensions.Field, _ item: EngineExtensions.Extension) -> Set<String> {
+        Set((values[item.id]?[field.key] ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+    }
+
     private func store(_ value: String, _ field: EngineExtensions.Field, _ item: EngineExtensions.Extension) {
         guard values[item.id]?[field.key] != value else { return }
         values[item.id, default: [:]][field.key] = value
@@ -257,6 +261,26 @@ struct ExtensionsSettingsView: View {
                 .labelsHidden()
                 .pickerStyle(.menu)
                 .frame(width: 200)
+            }
+        case .choices:
+            VStack(alignment: .leading, spacing: 6) {
+                SettingsRow(icon: "checklist", title: title, help: help) { EmptyView() }
+                LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)],
+                          alignment: .leading, spacing: 6) {
+                    ForEach(field.options ?? [], id: \.value) { option in
+                        Toggle(text(option.title), isOn: Binding(
+                            get: { ticked(field, item).contains(option.value) },
+                            set: { on in
+                                var selected = ticked(field, item)
+                                if on { selected.insert(option.value) } else { selected.remove(option.value) }
+                                store((field.options ?? []).map(\.value).filter(selected.contains).joined(separator: ","), field, item)
+                            }))
+                        .toggleStyle(.checkbox)
+                        .help(text(option.title))
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 10)
             }
         case .json:
             VStack(alignment: .leading, spacing: 6) {

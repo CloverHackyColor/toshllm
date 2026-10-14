@@ -4,7 +4,9 @@ An extension adds tools to ToshLLM's engine, and optionally its own agent, with 
 the app. It is a folder with an `extension.json` and whatever programs that file starts. The servers
 it declares are ordinary [MCP](https://modelcontextprotocol.io) servers, so anything that speaks MCP
 can write one, and they also run without ToshLLM. [`examples/extensions/clock`](../examples/extensions/clock)
-is a complete one in about seventy lines of standard-library Python.
+is a complete one in about seventy lines of standard-library Python, and
+[`examples/extensions/places`](../examples/extensions/places) uses every kind of setting and brings an agent
+that streams its answer, hands the turns outside its field back to the chat and offers a map.
 
 ## Where ToshLLM looks
 

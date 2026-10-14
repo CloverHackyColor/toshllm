@@ -207,12 +207,17 @@ final class EngineExtensionsTests: XCTestCase {
         XCTAssertEqual(EngineExtensions.chatToolPrefixes(found), ["cloud_"])
     }
 
-    func testTheExampleExtensionLoads() throws {
+    func testTheExampleExtensionsLoad() throws {
         let examples = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().appendingPathComponent("examples/extensions")
         let found = EngineExtensions.discover(in: examples, bundled: false)
-        XCTAssertEqual(found.extensions.map(\.id), ["clock"])
+        XCTAssertEqual(found.extensions.map(\.id).sorted(), ["clock", "places"])
         XCTAssertTrue(found.problems.isEmpty)
+        // the complete example shows every kind of setting and an agent
+        let places = try XCTUnwrap(found.extensions.first { $0.id == "places" })
+        XCTAssertEqual(Set(places.fields.map(\.kind.rawValue)),
+                       ["toggle", "text", "secret", "choice", "choices", "json", "paths"])
+        XCTAssertTrue(places.hasAgent)
     }
 
     func testTheMathAgentOffersTheToolsOfAnExtensionWithoutAgent() throws {

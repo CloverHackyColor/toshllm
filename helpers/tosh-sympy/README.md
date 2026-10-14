@@ -228,6 +228,10 @@ through `base_url` with `X-Tosh-Agent: off`, so its passes never come back to it
 `--mcp-agent-only` are neither listed nor run. Progress goes out as MCP progress notifications whose
 message is one event as above; for a `tool_call`, `state` is `completed` or `failed`, and an
 optional `summary` is one readable line about the result that the app shows on the call.
+A pass the agent streams goes out as `{"type": "delta", "content": "..."}` events (or
+`reasoning_content`), forwarded as the model writes; `{"type": "retract"}` after a pass that ended in tool
+calls tells the client to drop that text. The answer's content then starts with the text streamed since the
+last `retract`, and only the rest of it goes out at the end.
 
 When the app has tools of its own besides the math ones it sends `"tosh": {"client_tools": true}`.
 An agent may then hand back a turn that is outside its field: it answers with empty content,

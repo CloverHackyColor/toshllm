@@ -201,31 +201,69 @@ struct ChatMapSection: View {
             Spacer()
             Button(loc.t("Exportar GeoJSON", "Export GeoJSON")) { export(map) }
                 .buttonStyle(.link).font(.caption)
-                .help(loc.t("Guarda lo dibujado en un archivo que abren ArcGIS Pro, QGIS y otros.",
-                            "Saves what is drawn to a file that ArcGIS Pro, QGIS and others open."))
+                .help(loc.t("Guarda lo dibujado en archivos que abren ArcGIS Pro, QGIS y otros: uno por capa y tipo de geometría, como pide la herramienta JSON To Features de ArcGIS Pro.",
+                            "Saves what is drawn to files that ArcGIS Pro, QGIS and others open: one per layer and kind of geometry, as ArcGIS Pro's JSON To Features tool takes them."))
         }
     }
 
     private func export(_ map: ChatMap) {
-        var features: [Any] = []
-        for layer in map.layers {
+        let files = map.exportFiles()
+        guard !files.isEmpty else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = loc.t("Exportar aquí", "Export here")
+        panel.message = loc.t("Un archivo .geojson por capa y tipo de geometría: %@",
+                              "One .geojson file per layer and kind of geometry: %@",
+                              files.map(\.name).joined(separator: ", "))
+        guard panel.runModal() == .OK, let folder = panel.url else { return }
+        for file in files {
+            try? file.data.write(to: folder.appendingPathComponent(file.name))
+        }
+    }
+}
+
+extension ChatMap {
+    /// The drawn features as GeoJSON files with one kind of geometry each: a layer of ArcGIS Pro holds a single
+    /// kind, and its JSON To Features takes one kind per run.
+    func exportFiles() -> [(name: String, data: Data)] {
+        let kinds: [(suffix: String, types: Set<String>)] = [
+            ("polygons", ["Polygon", "MultiPolygon"]), ("lines", ["LineString", "MultiLineString"]),
+            ("points", ["Point"]), ("multipoints", ["MultiPoint"])]
+        var files: [(name: String, data: Data)] = []
+        var taken = Set<String>()
+        for (index, layer) in layers.enumerated() {
             guard let object = try? JSONSerialization.jsonObject(with: layer.geojson) as? [String: Any],
                   let items = object["features"] as? [[String: Any]] else { continue }
-            features += items.map { item in
-                var item = item
-                var properties = item["properties"] as? [String: Any] ?? [:]
-                if let title = layer.title { properties["layer"] = title }
-                item["properties"] = properties
-                return item
+            let title = layer.title ?? "map"
+            let groups = kinds.map { kind in
+                items.filter { kind.types.contains(($0["geometry"] as? [String: Any])?["type"] as? String ?? "") }
+            }
+            let used = groups.filter { !$0.isEmpty }.count
+            for (kind, group) in zip(kinds, groups) where !group.isEmpty {
+                let features = group.map { item -> [String: Any] in
+                    var item = item
+                    var properties = item["properties"] as? [String: Any] ?? [:]
+                    properties["layer"] = title
+                    item["properties"] = properties
+                    return item
+                }
+                let collection: [String: Any] = ["type": "FeatureCollection", "features": features]
+                guard let data = try? JSONSerialization.data(withJSONObject: collection, options: [.prettyPrinted]) else { continue }
+                var stem = Self.fileStem(title) + (used > 1 ? " - \(kind.suffix)" : "")
+                if taken.contains(stem) { stem += " \(index + 1)" }
+                taken.insert(stem)
+                files.append((stem + ".geojson", data))
             }
         }
-        let collection: [String: Any] = ["type": "FeatureCollection", "features": features]
-        guard let data = try? JSONSerialization.data(withJSONObject: collection, options: [.prettyPrinted]) else { return }
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = (map.layers.first?.title ?? "map") + ".geojson"
-        panel.allowedContentTypes = [UTType(filenameExtension: "geojson") ?? .json]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? data.write(to: url)
+        return files
+    }
+
+    static func fileStem(_ title: String) -> String {
+        let cleaned = title.replacingOccurrences(of: "[/:\\\\]", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+        return String((cleaned.isEmpty ? "map" : cleaned).prefix(80))
     }
 }
 

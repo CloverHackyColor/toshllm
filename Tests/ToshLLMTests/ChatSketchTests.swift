@@ -22,6 +22,37 @@ final class ChatSketchTests: XCTestCase {
         XCTAssertNil(ChatSketch(["points": Array(repeating: [0, 0], count: ChatSketch.maximumPoints + 1)]))
     }
 
+    func testAFigureExportsForCADAndAsCorners() {
+        let open = ChatSketch(title: nil, unit: "ft", points: [[0, 0], [100, 0], [100, 100], [1, 2]], closed: true)
+        let dxf = open.dxf().components(separatedBy: "\n")
+        XCTAssertEqual(dxf.filter { $0 == "VERTEX" }.count, 4)
+        XCTAssertEqual(dxf.filter { $0 == "TEXT" }.count, 3, "the end that does not close is not a corner")
+        XCTAssertTrue(dxf.contains("MISCLOSURE"))
+        XCTAssertEqual(Array(dxf.suffix(3)), ["0", "EOF", ""])
+        XCTAssertEqual(open.csv(), "point,east_ft,north_ft\n1,0.000,0.000\n2,100.000,0.000\n3,100.000,100.000\n")
+        let shut = ChatSketch(title: nil, unit: "ft", points: [[0, 0], [100, 0], [100, 100], [0, 0]], closed: true)
+        XCTAssertFalse(shut.dxf().contains("MISCLOSURE"))
+    }
+
+    func testAMapExportsOneFilePerKindOfGeometry() throws {
+        let collection: [String: Any] = ["type": "FeatureCollection", "features": [
+            ["type": "Feature", "geometry": ["type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]]], "properties": ["name": "tract"]],
+            ["type": "Feature", "geometry": ["type": "Point", "coordinates": [0, 0]], "properties": ["name": "corner 1"]],
+            ["type": "Feature", "geometry": ["type": "LineString", "coordinates": [[0, 0], [1, 1]]], "properties": [:]]]]
+        let points: [String: Any] = ["type": "FeatureCollection", "features": [
+            ["type": "Feature", "geometry": ["type": "Point", "coordinates": [2, 2]], "properties": [:]]]]
+        let map = ChatMap(layers: [
+            ChatMap.Layer(title: "Tract: 5 acres", geojson: try JSONSerialization.data(withJSONObject: collection), complete: true),
+            ChatMap.Layer(title: "Wells", geojson: try JSONSerialization.data(withJSONObject: points), complete: true)])
+        let files = map.exportFiles()
+        XCTAssertEqual(files.map(\.name), ["Tract- 5 acres - polygons.geojson", "Tract- 5 acres - lines.geojson",
+                                            "Tract- 5 acres - points.geojson", "Wells.geojson"])
+        let polygons = try XCTUnwrap(JSONSerialization.jsonObject(with: files[0].data) as? [String: Any])
+        let features = try XCTUnwrap(polygons["features"] as? [[String: Any]])
+        XCTAssertEqual(features.count, 1)
+        XCTAssertEqual((features[0]["properties"] as? [String: Any])?["layer"] as? String, "Tract: 5 acres")
+    }
+
     func testTheFigureStaysWithTheAnswerItCameWith() throws {
         var message = ChatMessage(role: "assistant", content: "It closes.")
         message.sketch = ChatSketch(title: nil, unit: "ft", points: [[0, 0], [10, 0], [10, 10], [0, 0]], closed: true)

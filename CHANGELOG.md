@@ -7,7 +7,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
-- **Chat: an agent can draw a figure that no map places under its answer, such as a tract from a deed's calls.** Its corners are numbered from the start and, when it should close and does not, what it lacks shows in red.
+- **Chat: an agent can draw a figure that no map places under its answer, such as a tract from a deed's calls.** Its corners are numbered from the start and, when it should close and does not, what it lacks shows in red; it exports as a PNG image, a DXF drawing for CAD and a CSV of its corners.
+
+### Improved
+
+- **Chat: a map exports one GeoJSON file per layer and kind of geometry.** ArcGIS Pro's JSON To Features tool reads one kind per run, so each file now goes in at once.
 
 ### Fixed
 

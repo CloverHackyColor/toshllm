@@ -2,7 +2,9 @@
 // Copyright (C) 2026 Engelbert Delgado <engeldlgado@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// A figure an agent attached to an answer in a plane of its own, such as a tract traced from its deed's calls:
 /// drawn without a map, since nothing in it places it on the ground.
@@ -67,6 +69,48 @@ struct ChatSketch: Codable, Equatable {
     }
 }
 
+extension ChatSketch {
+    private var cornerPoints: [[Double]] {
+        let corners = self.corners ?? points
+        return closed ? Array(corners.dropLast()) : corners
+    }
+
+    private static func number(_ value: Double) -> String { String(format: "%.3f", value) }
+
+    /// The figure as a CAD drawing in its own unit, with the first point at the origin: an R12 DXF, which AutoCAD and
+    /// ArcGIS Pro open. The path stays open as it was drawn, and what it lacks to close is a line of its own layer.
+    func dxf() -> String {
+        var out = ["0", "SECTION", "2", "HEADER", "9", "$ACADVER", "1", "AC1009",
+                   "9", "$INSUNITS", "70", unit.lowercased().hasPrefix("m") ? "6" : "2", "0", "ENDSEC",
+                   "0", "SECTION", "2", "ENTITIES",
+                   "0", "POLYLINE", "8", "FIGURE", "66", "1", "70", "0", "10", "0.0", "20", "0.0", "30", "0.0"]
+        for point in points {
+            out += ["0", "VERTEX", "8", "FIGURE", "10", Self.number(point[0]), "20", Self.number(point[1]), "30", "0.0"]
+        }
+        out += ["0", "SEQEND", "8", "FIGURE"]
+        if closed, let first = points.first, let last = points.last, gap > span * 1e-4 {
+            out += ["0", "LINE", "8", "MISCLOSURE", "10", Self.number(last[0]), "20", Self.number(last[1]), "30", "0.0",
+                    "11", Self.number(first[0]), "21", Self.number(first[1]), "31", "0.0"]
+        }
+        let height = max(span / 60, 1e-3)
+        for (index, corner) in cornerPoints.enumerated() {
+            out += ["0", "POINT", "8", "CORNERS", "10", Self.number(corner[0]), "20", Self.number(corner[1]), "30", "0.0",
+                    "0", "TEXT", "8", "LABELS", "10", Self.number(corner[0] + height / 2), "20", Self.number(corner[1] + height / 2),
+                    "30", "0.0", "40", Self.number(height), "1", "\(index + 1)"]
+        }
+        out += ["0", "ENDSEC", "0", "EOF"]
+        return out.joined(separator: "\n") + "\n"
+    }
+
+    /// The numbered corners, east and north of the first one.
+    func csv() -> String {
+        let suffix = unit.isEmpty ? "" : "_" + unit
+        return (["point,east\(suffix),north\(suffix)"] + cornerPoints.enumerated().map { index, corner in
+            "\(index + 1),\(Self.number(corner[0])),\(Self.number(corner[1]))"
+        }).joined(separator: "\n") + "\n"
+    }
+}
+
 extension ChatStore {
     /// Keeps a figure an agent sent with its answer on that answer.
     func attachSketch(_ sketch: ChatSketch, conversation id: UUID) {
@@ -92,8 +136,37 @@ struct ChatSketchSection: View {
                 .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
                 .help(loc.t("Croquis según los datos de la respuesta: el punto 1 es el inicio y cada tramo va al número siguiente.",
                             "Sketch from the answer's data: point 1 is the start and each leg runs to the next number."))
-            Text(caption).font(.caption2).foregroundStyle(.secondary)
+            HStack(alignment: .top) {
+                Text(caption).font(.caption2).foregroundStyle(.secondary)
+                Spacer()
+                Menu(loc.t("Exportar", "Export")) {
+                    Button(loc.t("Imagen PNG", "PNG image")) { save(png(), as: "png") }
+                    Button(loc.t("DXF (CAD)", "DXF (CAD)")) { save(Data(sketch.dxf().utf8), as: "dxf") }
+                    Button(loc.t("Esquinas en CSV", "Corners as CSV")) { save(Data(sketch.csv().utf8), as: "csv") }
+                }
+                .menuStyle(.borderlessButton).fixedSize().font(.caption)
+                .help(loc.t("PNG para un informe; DXF para AutoCAD o ArcGIS Pro, en %@ desde el punto 1; CSV con las esquinas numeradas.",
+                            "PNG for a report; DXF for AutoCAD or ArcGIS Pro, in %@ from point 1; CSV with the numbered corners.",
+                            sketch.unit))
+            }
         }
+    }
+
+    private func png() -> Data? {
+        let renderer = ImageRenderer(content: ChatSketchCanvas(sketch: sketch).frame(width: 1200, height: 800)
+            .background(Color.white).environment(\.colorScheme, .light))
+        renderer.scale = 2
+        guard let image = renderer.cgImage else { return nil }
+        return NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
+    }
+
+    private func save(_ data: Data?, as kind: String) {
+        guard let data else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = ChatMap.fileStem(sketch.title ?? loc.t("croquis", "sketch")) + "." + kind
+        panel.allowedContentTypes = [UTType(filenameExtension: kind) ?? .data]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? data.write(to: url)
     }
 
     private var caption: String {
@@ -143,7 +216,11 @@ struct ChatSketchCanvas: View {
             for (index, corner) in marked.enumerated() {
                 let point = place(corner)
                 let dot = CGRect(x: point.x - 3.5, y: point.y - 3.5, width: 7, height: 7)
-                context.fill(Path(ellipseIn: dot), with: .color(index == 0 ? .green : .accentColor))
+                context.fill(Path(ellipseIn: dot), with: .color(.accentColor))
+                if index == 0 {
+                    // the start is a ring, which no accent colour hides
+                    context.stroke(Path(ellipseIn: dot.insetBy(dx: -4, dy: -4)), with: .color(.primary), lineWidth: 1.5)
+                }
                 context.draw(Text("\(index + 1)").font(.caption2.weight(.semibold)).foregroundColor(.primary),
                              at: CGPoint(x: point.x + 9, y: point.y - 9))
             }

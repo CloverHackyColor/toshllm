@@ -14,7 +14,8 @@ that streams its answer, hands the turns outside its field back to the chat and 
   `~/Library/Application Support/ToshLLM/Extensions`. Every subfolder with an `extension.json` is
   one extension; a chosen folder that has an `extension.json` itself is a single extension.
 - **Inside the app** (`Contents/Resources/extensions`), for builds that bring their own
-  (`TOSH_APP_EXTENSIONS=<folder>` in `make-app.sh`).
+  (`TOSH_APP_EXTENSIONS=<folder>` in `make-app.sh`). Such a build can also set its own defaults for
+  ToshLLM's settings with `TOSH_APP_DEFAULTS=<plist>`, keyed like `SettingsKeys`; what a user changes still wins.
 
 An extension found in the folder starts switched off. Switching it on shows the programs it will run;
 they run with your user's permissions, so only approve extensions you trust. The approval belongs to

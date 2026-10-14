@@ -7,6 +7,24 @@ import CryptoKit
 import os
 import Security
 
+/// Defaults a product packaged from this tree sets differently (`TOSH_APP_DEFAULTS` in make-app.sh), registered
+/// at launch so that every `@AppStorage` falls back to them until the user changes the setting.
+enum ProductDefaults {
+    static func values(in bundle: Bundle = .main) -> [String: Any] {
+        bundle.url(forResource: "AppDefaults", withExtension: "plist")
+            .flatMap { NSDictionary(contentsOf: $0) as? [String: Any] } ?? [:]
+    }
+
+    static func register() {
+        let values = values()
+        if !values.isEmpty { UserDefaults.standard.register(defaults: values) }
+    }
+
+    static func double(_ key: String, or fallback: Double) -> Double {
+        (values()[key] as? NSNumber)?.doubleValue ?? fallback
+    }
+}
+
 // MARK: - Settings keys (single source of truth)
 
 /// Every persisted setting key lives here. Views, `ServerSettings.fromDefaults`

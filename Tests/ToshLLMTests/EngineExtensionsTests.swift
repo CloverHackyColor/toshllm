@@ -235,4 +235,16 @@ final class EngineExtensionsTests: XCTestCase {
     func testWithoutExtensionsNothingChanges() throws {
         XCTAssertEqual(SymPyToolsService.serverArguments(enabled: false, resources: try runtime()), [])
     }
+
+    func testAProductBringsItsOwnDefaults() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let defaults: NSDictionary = [SettingsKeys.chatMaxImageMegapixels: 4.0]
+        XCTAssertTrue(defaults.write(to: folder.appendingPathComponent("AppDefaults.plist"), atomically: true))
+        let values = ProductDefaults.values(in: try XCTUnwrap(Bundle(url: folder)))
+        XCTAssertEqual((values[SettingsKeys.chatMaxImageMegapixels] as? NSNumber)?.doubleValue, 4)
+        XCTAssertTrue(ProductDefaults.values().isEmpty, "a plain build keeps ToshLLM's defaults")
+        XCTAssertEqual(ProductDefaults.double(SettingsKeys.chatMaxImageMegapixels, or: 1), 1)
+    }
 }

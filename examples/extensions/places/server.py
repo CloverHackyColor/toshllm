@@ -1,9 +1,8 @@
 # ToshLLM - run LLMs locally on Intel Macs with AMD GPUs
 # Copyright (C) 2026 Engelbert Delgado <engeldlgado@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""MCP server over stdio, standard library only: well-known places, the person's own (from a JSON setting and
-from GeoJSON or CSV files), and distances between them. Every setting of the extension reaches it as an
-environment variable; the `about` tool reports what it sees."""
+"""MCP server over stdio, standard library only: well-known places, the person's own (a JSON setting, GeoJSON or
+CSV files) and distances between them. The `about` tool reports the settings it sees."""
 
 import csv
 import json

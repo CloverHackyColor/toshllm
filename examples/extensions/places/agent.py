@@ -1,10 +1,8 @@
 # ToshLLM - run LLMs locally on Intel Macs with AMD GPUs
 # Copyright (C) 2026 Engelbert Delgado <engeldlgado@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""The agent of the places example, an MCP server over stdio with one tool, `run`, that the engine calls for every
-agent turn. It answers questions about places with the places tools, streams each model pass as it is written,
-hands other turns back to the chat when the app has tools of its own, and offers a map of the places it used.
-Standard library only; the contract is in helpers/tosh-sympy/README.md ("Another agent")."""
+"""The agent of the places example: answers questions about places with its tools, streams its passes, hands
+other turns back to the chat and offers a map. Contract in helpers/tosh-sympy/README.md ("Another agent")."""
 
 import http.client
 import json

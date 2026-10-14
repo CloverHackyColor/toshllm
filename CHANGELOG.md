@@ -3,20 +3,20 @@
 All notable changes to ToshLLM are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [0.87.24] - 2026-10-14
 
 ### Added
 
-- **Extensions: tools and agents from a folder of extensions, each with its own settings page.** Settings → Extensions reads the folder you choose; an extension stays off until you approve the programs it runs. An extension with its own agent hands the messages outside its field back to the chat's tools. The format is in docs/extensions.md, with two examples to copy: a minimal one and a complete one with every kind of setting and an agent of its own.
-- **Chat: the model can draw a map in any conversation.** Places, routes and areas from coordinates it knows or the user gives appear under the answer, dashed and marked as approximate positions; maps of data an agent returns, such as ArcGIS's, are unchanged. A route by road comes from Apple Maps with its distance and time, only after you allow sending the points over the internet; otherwise the model draws a straight line and says so. Both can be turned off in the chat settings.
-- **Chat: an extension's agent can attach a map to an answer.** It is drawn under the answer when the question asks for one, and otherwise offered with a button; a click on a feature shows its attributes, a click on a group of markers zooms in, and the features can be exported as GeoJSON or opened in their own viewer.
-- **Extensions: a paths setting can take any folder**, with `"folder_types": ["*"]`, for an extension that reads everything in one.
-- **Chat: a remote MCP server can be made available to the server agent, like a local one.** It works with servers reached over HTTP or SSE, and its headers stay in the Keychain.
+- **Chat: the model can draw places, routes and areas on a map under its answer.** What it draws is dashed and marked as approximate; a route by road comes from Apple Maps, with its distance and time, only after you allow the internet.
+- **Chat: an extension's agent can attach a map of its data to an answer.** A click on a feature shows its attributes, and the features export as GeoJSON.
+- **Chat: a remote MCP server can be offered to the server agent, like a local one.** It works over HTTP or SSE, with its headers kept in the Keychain.
+- **Tools and agents from a folder of extensions, each with its own settings page.** An extension stays off until you approve it; docs/extensions.md has the format and two examples to copy.
+- **Ukrainian interface.** Contributed by [andruwa13](https://github.com/andruwa13) in [#121](https://github.com/engeldlgado/toshllm/pull/121).
 
 ### Improved
 
-- **Chat: an answer that ends inside its reasoning keeps that reasoning under the warning instead of disappearing, and the warning follows the interface language.**
-- **Chat: the calls to an MCP server's tools show their arguments and result laid out line by line.** A call made by an agent also shows one line on what came back, so the card can be read without opening it.
+- **Chat: an answer that ends inside its reasoning keeps that reasoning under the warning instead of disappearing.** Reported in [#122](https://github.com/engeldlgado/toshllm/issues/122).
+- **Chat: the cards of MCP tool calls lay out their arguments and result line by line, with one line on what came back.**
 
 ## [0.87.23] - 2026-10-12
 

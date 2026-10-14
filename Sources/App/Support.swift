@@ -103,6 +103,10 @@ enum SettingsKeys {
     /// memory_list / memory_archive / memory_recall. Off for setups where an
     /// external memory server already covers the job and the model mixes the two.
     static let memoryToolsEnabled = "memoryToolsEnabled"
+    /// show_map: the model draws points, lines and areas on a map under its answer.
+    static let chatMapToolEnabled = "chatMapToolEnabled"
+    /// show_road_route: Apple Maps routes by road, each call approved by the user since it uses the internet.
+    static let chatRoadRouteEnabled = "chatRoadRouteEnabled"
 
     /// Models whose template accepts tools but that write the call in the wrong shape: the
     /// engine rejects it and the turn dies, so they stop being offered any tool.
@@ -264,7 +268,7 @@ enum SettingsKeys {
         audioVADProfile, audioVADThreshold, audioVADMinSpeechMS,
         audioVADMinSilenceMS, audioVADMaxSpeechSeconds, audioVADSpeechPadMS,
         extraArgs, embeddings, agentToolsEnabled, toolsRuntime, jsSandboxEnabled, sympyEnabled, scientificEnabled, mathAgentEnabled, mathToolsAllowed, toolResultLimit,
-        memoryToolsEnabled, toolsUnsupportedModels, mcpServers, uiMcpProxy,
+        memoryToolsEnabled, chatMapToolEnabled, chatRoadRouteEnabled, toolsUnsupportedModels, mcpServers, uiMcpProxy,
         cacheTypeK, cacheTypeV, mlock, cacheRAM,
         parallelSlots, reasoningInline, serverDefaultReasoning, serverDefaultMaxTokens, specMTP, mtpDisabledModels, faAmd, prefetchExperts, ubatch,
         dynamicMoeEnabled, dynamicMoeLeanRAM, routerMode, routerModelsMax,

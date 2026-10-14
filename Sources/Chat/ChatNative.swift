@@ -995,6 +995,8 @@ final class ChatStore: ObservableObject {
                     }
                     if javaScriptEnabled { availableTools.append(JavaScriptSandboxService.tool) }
                     if memoryToolsEnabled { availableTools.append(contentsOf: ChatMemoryService.tools) }
+                    if ChatMapTool.isEnabled { availableTools.append(ChatMapTool.tool) }
+                    if ChatMapTool.isEnabled && ChatRoadRoute.isEnabled { availableTools.append(ChatRoadRoute.tool) }
                     availableTools += await ToshMCPService.shared.discoverTools()
                     if ToolSupport.isBlocked(ToolSupport.currentModelIdentity) { availableTools = [] }
                     if let enabledToolNames {
@@ -1359,6 +1361,7 @@ final class ChatStore: ObservableObject {
                     conversations[i].messages[j].timings = timings
                     conversations[i].messages[j].toolCalls = toolCalls.isEmpty ? nil : toolCalls
                     conversations[i].messages[j].model = ServerSettings.activeRouterModel()
+                    if toolCalls.isEmpty { Self.carryDrawnMap(&conversations[i], to: j) }
                 }
             }
             conversations[i].updated = Date()
@@ -1524,7 +1527,7 @@ final class ChatStore: ObservableObject {
         guard let request = pendingToolPermission else { return }
         pendingToolPermission = nil
         if decision == .deny {
-            let result = "Tool execution was denied by the user."
+            let result = request.name == ChatRoadRoute.toolName ? ChatRoadRoute.declined : "Tool execution was denied by the user."
             completeToolCall(request, result: result, state: .denied)
             advanceToolPermissions(conversation: request.conversationID)
             return
@@ -1554,6 +1557,15 @@ final class ChatStore: ObservableObject {
                         self?.runMemoryTool(request.name, arguments: arguments)
                             ?? ToolExecutionResult(content: "No open conversation.", isError: true)
                     }
+                } else if request.name == ChatMapTool.toolName {
+                    result = await MainActor.run {
+                        self?.drawMap(arguments: arguments, for: request)
+                            ?? ToolExecutionResult(content: "No open conversation.", isError: true)
+                    }
+                } else if request.name == ChatRoadRoute.toolName {
+                    let routed = await ChatRoadRoute.route(arguments: arguments, loc: Localizer())
+                    await MainActor.run { self?.attachMap(routed.map, for: request) }
+                    result = routed.result
                 } else if request.name == "exec_shell_command" {
                     result = try await ChatToolsService.executeStreaming(
                         name: request.name, arguments: arguments, port: context.port,
@@ -1737,11 +1749,12 @@ final class ChatStore: ObservableObject {
         "El motor dejó de responder y se detuvo para liberar memoria. Suele pasar con modelos MoE grandes en GPU AMD: usa un modelo denso (8B) o sube 'Expertos MoE en CPU'. / The engine stopped responding and was stopped to free memory. This happens with large MoE models on AMD GPUs: use a dense model (8B) or raise 'MoE experts on CPU'."
     }
 
-    /// Tools the chat runs itself, beyond the math ones the agent covers: an extension's agent may then
-    /// hand back the turns that are not about its own data.
+    /// Tools the chat runs itself, beyond the math ones the agent covers; the map tools never count, so turning
+    /// them on takes no turn away from the server agent.
     nonisolated static func hasOwnTools(_ tools: [BuiltinToolInfo]) -> Bool {
         tools.contains {
-            !(MathTranscriptionService.isMathTool($0.name) && ChatToolsService.isAlwaysAllowed($0.name, bundled: $0.mcpServerID == nil))
+            ![ChatMapTool.toolName, ChatRoadRoute.toolName].contains($0.name)
+                && !(MathTranscriptionService.isMathTool($0.name) && ChatToolsService.isAlwaysAllowed($0.name, bundled: $0.mcpServerID == nil))
         }
     }
 
@@ -1863,6 +1876,38 @@ final class ChatStore: ObservableObject {
         return cutoff
     }
 
+
+    /// A map a tool call of this turn drew goes under the answer: the call itself is shown in a block of tools,
+    /// which draws no map.
+    nonisolated static func carryDrawnMap(_ conversation: inout Conversation, to answer: Int) {
+        let start = (conversation.messages[..<answer].lastIndex { $0.role == "user" } ?? -1) + 1
+        var layers: [ChatMap.Layer] = []
+        for k in start..<answer where conversation.messages[k].role == "assistant" {
+            if let map = conversation.messages[k].map {
+                layers += map.layers
+                conversation.messages[k].map = nil
+            }
+        }
+        guard !layers.isEmpty else { return }
+        conversation.messages[answer].map = ChatMap(layers: (conversation.messages[answer].map?.layers ?? []) + layers)
+    }
+
+    /// Draws the map the model asked for on the message that asked for it; the answer takes it when it ends.
+    private func drawMap(arguments: [String: Any], for request: PendingToolPermission) -> ToolExecutionResult {
+        let conversation = conversations.first(where: { $0.id == request.conversationID })
+        let asked = conversation?.messages.last(where: { $0.role == "user" })?.content ?? ""
+        let drawn = ChatMapTool.draw(arguments: arguments, loc: Localizer(), request: asked)
+        attachMap(drawn.map, for: request)
+        return drawn.result
+    }
+
+    /// Adds a tool's layers to the message that called it, beside those of another call of the same message.
+    private func attachMap(_ map: ChatMap?, for request: PendingToolPermission) {
+        guard let map, let i = conversations.firstIndex(where: { $0.id == request.conversationID }),
+              let j = conversations[i].messages.firstIndex(where: { $0.id == request.messageID }) else { return }
+        conversations[i].messages[j].map = ChatMap(layers: (conversations[i].messages[j].map?.layers ?? []) + map.layers)
+        save()
+    }
 
     func runMemoryTool(_ name: String, arguments: [String: Any]) -> ToolExecutionResult {
         guard ChatMemoryService.isEnabled else {

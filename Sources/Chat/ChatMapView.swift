@@ -23,6 +23,9 @@ struct ChatMap: Codable, Equatable {
         /// The attributes in the layer's own order, with the names ArcGIS shows for them.
         var fields: [Field]? = nil
         var count: Int? = nil
+        /// Drawn by the model from coordinates it gave, not read from data: shown dashed. Optional so that maps
+        /// saved before it still load.
+        var drawn: Bool? = nil
     }
 
     var layers: [Layer]
@@ -299,6 +302,7 @@ struct ChatMapCanvas: NSViewRepresentable {
         coordinator.drawn = map
         coordinator.colors = [:]
         coordinator.features = [:]
+        coordinator.dashed = []
         var frame = MKMapRect.null
         for (index, layer) in map.layers.enumerated() {
             guard let objects = try? MKGeoJSONDecoder().decode(layer.geojson) else { continue }
@@ -309,6 +313,7 @@ struct ChatMapCanvas: NSViewRepresentable {
                     if let overlay = shape as? MKOverlay {
                         coordinator.colors[ObjectIdentifier(overlay)] = Self.color(index)
                         coordinator.features[ObjectIdentifier(overlay)] = info
+                        if layer.drawn == true { coordinator.dashed.insert(ObjectIdentifier(overlay)) }
                         view.addOverlay(overlay)
                         frame = frame.union(overlay.boundingMapRect)
                     } else if let point = shape as? MKPointAnnotation {
@@ -386,6 +391,7 @@ struct ChatMapCanvas: NSViewRepresentable {
         var drawn: ChatMap?
         var colors: [ObjectIdentifier: NSColor] = [:]
         var features: [ObjectIdentifier: ChatMapFeature] = [:]
+        var dashed: Set<ObjectIdentifier> = []
         var onSelect: (ChatMapFeature?) -> Void = { _ in }
         private weak var highlighted: MKOverlayPathRenderer?
 
@@ -401,6 +407,7 @@ struct ChatMapCanvas: NSViewRepresentable {
             }
             renderer.strokeColor = color
             renderer.lineWidth = 1.5
+            if dashed.contains(ObjectIdentifier(overlay)) { renderer.lineDashPattern = [6, 4] }
             if overlay is MKPolygon || overlay is MKMultiPolygon {
                 renderer.fillColor = color.withAlphaComponent(0.2)
             }

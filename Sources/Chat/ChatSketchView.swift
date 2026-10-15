@@ -264,6 +264,7 @@ struct ChatSketchCanvas: View {
             }
             // the last point of a closed figure is its first one again, or the red end of what it lacks
             let marked = sketch.closed ? Array(corners.dropLast()) : corners
+            var labelled: [CGPoint] = []
             for (index, corner) in marked.enumerated() {
                 let point = place(corner)
                 let dot = CGRect(x: point.x - 3.5, y: point.y - 3.5, width: 7, height: 7)
@@ -272,6 +273,9 @@ struct ChatSketchCanvas: View {
                     // the start is a ring, which no accent colour hides
                     context.stroke(Path(ellipseIn: dot.insetBy(dx: -4, dy: -4)), with: .color(.primary), lineWidth: 1.5)
                 }
+                // a number that would cover another is left out; the figure enlarged has room for more
+                guard index == 0 || labelled.allSatisfy({ hypot($0.x - point.x, $0.y - point.y) >= 16 }) else { continue }
+                labelled.append(point)
                 context.draw(Text("\(index + 1)").font(.caption2.weight(.semibold)).foregroundColor(.primary),
                              at: CGPoint(x: point.x + 9, y: point.y - 9))
             }

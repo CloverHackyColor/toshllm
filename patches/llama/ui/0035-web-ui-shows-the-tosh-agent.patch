@@ -467,10 +467,10 @@ index 000000000..b24544c89
 +</button>
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte
 new file mode 100644
-index 000000000..8f33654db
+index 000000000..aba2ce4ae
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,80 @@
 +<script lang="ts">
 +	import ToshResize from './ToshResize.svelte';
 +	import { download, fileStem } from '$lib/tosh/download';
@@ -486,7 +486,13 @@ index 000000000..8f33654db
 +
 +	let { enlarged, onResize, sketch }: Props = $props();
 +
-+	let drawing = $derived(svg(sketch, 640, 300, { line: '#3b82f6', text: 'currentColor' }));
++	// drawn at about the size it shows, so its numbers keep their size
++	let drawing = $derived(
++		svg(sketch, enlarged ? 640 : 320, enlarged ? 360 : 220, {
++			line: '#3b82f6',
++			text: 'currentColor'
++		})
++	);
 +	let stem = $derived(fileStem(sketch.title, t('croquis', 'sketch')));
 +
 +	async function savePng() {
@@ -1043,10 +1049,10 @@ index 000000000..b131c780c
 +}
 diff --git a/tools/ui/src/lib/tosh/sketch.ts b/tools/ui/src/lib/tosh/sketch.ts
 new file mode 100644
-index 000000000..9fe057484
+index 000000000..0c575d4a8
 --- /dev/null
 +++ b/tools/ui/src/lib/tosh/sketch.ts
-@@ -0,0 +1,263 @@
+@@ -0,0 +1,269 @@
 +import type { ToshSketch } from '$lib/types';
 +
 +/** How far the last point ends from the first, in the sketch's unit. */
@@ -1138,6 +1144,8 @@ index 000000000..9fe057484
 +		);
 +	}
 +
++	const labelled: number[][] = [];
++
 +	corners(sketch).forEach((corner, index) => {
 +		const [x, y] = place(corner);
 +
@@ -1149,6 +1157,10 @@ index 000000000..9fe057484
 +			);
 +		}
 +
++		// a number that would cover another is left out; the figure enlarged has room for more
++		if (index > 0 && labelled.some(([lx, ly]) => Math.hypot(lx - x, ly - y) < 16)) return;
++
++		labelled.push([x, y]);
 +		parts.push(
 +			`<text x="${x + 9}" y="${y - 6}" font-size="11" font-weight="600" fill="${colors.text}">${index + 1}</text>`
 +		);

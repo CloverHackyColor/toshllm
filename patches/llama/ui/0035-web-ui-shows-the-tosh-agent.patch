@@ -165,15 +165,14 @@ index dac55caff..5fa2dc082 100644
  		<div class="info my-6 grid gap-4 tabular-nums">
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte
 new file mode 100644
-index 000000000..9504bee22
+index 000000000..82ef80c3c
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,146 @@
 +<script lang="ts">
 +	import 'leaflet/dist/leaflet.css';
 +	import ToshResize from './ToshResize.svelte';
 +	import { download } from '$lib/tosh/download';
-+	import { t } from '$lib/tosh/i18n';
 +	import { bundle, geojsonFiles } from '$lib/tosh/map';
 +	import type { ToshMapLayer } from '$lib/types';
 +	import type { Map as LeafletMap } from 'leaflet';
@@ -293,13 +292,13 @@ index 000000000..9504bee22
 +							class="underline-offset-2 hover:underline"
 +							href={layer.link.url}
 +							rel="noopener noreferrer"
-+							target="_blank">{layer.title ?? layer.link.title ?? t('Capa', 'Layer')}</a
++							target="_blank">{layer.title ?? layer.link.title ?? 'Layer'}</a
 +						>
 +					{:else}
-+						{layer.title ?? t('Capa', 'Layer')}
++						{layer.title ?? 'Layer'}
 +					{/if}{#if layer.complete === false}
-+						({t('parcial', 'partial')}){/if}{#if layer.drawn}
-+						({t('aproximado', 'approximate')}){/if}
++						(partial){/if}{#if layer.drawn}
++						(approximate){/if}
 +				</span>
 +			{/each}
 +		</span>
@@ -310,20 +309,18 @@ index 000000000..9504bee22
 +			<button
 +				class="hover:text-foreground"
 +				onclick={exportGeojson}
-+				title={t(
-+					'Un archivo .geojson por capa y tipo de geometría, para ArcGIS Pro (JSON To Features)',
-+					'One .geojson file per layer and kind of geometry, for ArcGIS Pro (JSON To Features)'
-+				)}>GeoJSON</button
++				title="One .geojson file per layer and kind of geometry, for ArcGIS Pro (JSON To Features)"
++				>GeoJSON</button
 +			>
 +		</span>
 +	</div>
 +</div>
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshPanel.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshPanel.svelte
 new file mode 100644
-index 000000000..95e31bffe
+index 000000000..7977dfe56
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshPanel.svelte
-@@ -0,0 +1,111 @@
+@@ -0,0 +1,110 @@
 +<script lang="ts">
 +	import ToshMap from './ToshMap.svelte';
 +	import ToshSketches from './ToshSketches.svelte';
@@ -331,7 +328,6 @@ index 000000000..95e31bffe
 +	import { CollapsibleContentBlock } from '$lib/components/app';
 +	import { DatabaseService } from '$lib/services';
 +	import { conversationsStore } from '$lib/stores';
-+	import { t } from '$lib/tosh/i18n';
 +	import { fetchMap } from '$lib/tosh/map';
 +	import type { DatabaseMessage, ToshCall, ToshMapLayer } from '$lib/types';
 +
@@ -398,7 +394,7 @@ index 000000000..95e31bffe
 +				onToggle={() => (stepsOpen = !stepsOpen)}
 +				open={stepsOpen}
 +				subtitle={steps[steps.length - 1]?.summary ?? ''}
-+				title={t(`Pasos del agente (${steps.length})`, `Agent steps (${steps.length})`)}
++				title={`Agent steps (${steps.length})`}
 +			>
 +				<ol class="grid gap-1.5 text-xs text-muted-foreground">
 +					{#each steps as step, index (step.id ?? index)}
@@ -427,24 +423,23 @@ index 000000000..95e31bffe
 +				onclick={loadMap}
 +			>
 +				{loading
-+					? t('Cargando el mapa…', 'Loading the map…')
++					? 'Loading the map…'
 +					: failed
-+						? t('No se pudo cargar el mapa. Reintentar', 'The map could not be loaded. Retry')
-+						: t('Ver en el mapa', 'Show on a map')}
++						? 'The map could not be loaded. Retry'
++						: 'Show on a map'}
 +			</button>
 +		{/if}
 +	</div>
 +{/if}
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshResize.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshResize.svelte
 new file mode 100644
-index 000000000..b24544c89
+index 000000000..f58a6b59d
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshResize.svelte
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,23 @@
 +<script lang="ts">
 +	import Maximize2 from '@lucide/svelte/icons/maximize-2';
 +	import Minimize2 from '@lucide/svelte/icons/minimize-2';
-+	import { t } from '$lib/tosh/i18n';
 +
 +	interface Props {
 +		enlarged: boolean;
@@ -457,7 +452,7 @@ index 000000000..b24544c89
 +<button
 +	class="text-muted-foreground hover:text-foreground"
 +	{onclick}
-+	title={enlarged ? t('Reducir', 'Make smaller') : t('Ampliar', 'Enlarge')}
++	title={enlarged ? 'Make smaller' : 'Enlarge'}
 +>
 +	{#if enlarged}
 +		<Minimize2 class="h-3.5 w-3.5" />
@@ -467,14 +462,13 @@ index 000000000..b24544c89
 +</button>
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte
 new file mode 100644
-index 000000000..aba2ce4ae
+index 000000000..3db0d506a
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,70 @@
 +<script lang="ts">
 +	import ToshResize from './ToshResize.svelte';
 +	import { download, fileStem } from '$lib/tosh/download';
-+	import { t } from '$lib/tosh/i18n';
 +	import { csv, dxf, figure, gap, isOpen, png, svg } from '$lib/tosh/sketch';
 +	import type { ToshSketch } from '$lib/types';
 +
@@ -493,7 +487,7 @@ index 000000000..aba2ce4ae
 +			text: 'currentColor'
 +		})
 +	);
-+	let stem = $derived(fileStem(sketch.title, t('croquis', 'sketch')));
++	let stem = $derived(fileStem(sketch.title, 'sketch'));
 +
 +	async function savePng() {
 +		const blob = await png(sketch);
@@ -513,10 +507,7 @@ index 000000000..aba2ce4ae
 +		class="overflow-hidden rounded-lg bg-muted/40 text-foreground [&_svg]:h-full [&_svg]:w-full {enlarged
 +			? 'h-96'
 +			: 'h-44'}"
-+		title={t(
-+			'Croquis según los datos de la respuesta: el punto 1 es el inicio y cada tramo va al número siguiente.',
-+			"Sketch from the answer's data: point 1 is the start and each leg runs to the next number."
-+		)}
++		title="Sketch from the answer's data: point 1 is the start and each leg runs to the next number."
 +	>
 +		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 +		{@html drawing}
@@ -524,10 +515,8 @@ index 000000000..aba2ce4ae
 +
 +	<div class="flex flex-wrap items-start justify-between gap-2 text-[11px] text-muted-foreground">
 +		<span>
-+			{t('Croquis sin ubicar en el mapa', 'Sketch, not placed on a map')}{#if isOpen(sketch)}
-+				· {t('en rojo, lo que le falta para cerrar', 'in red, what it lacks to close')}: {figure(
-+					gap(sketch)
-+				)}
++			Sketch, not placed on a map{#if isOpen(sketch)}
++				· in red, what it lacks to close: {figure(gap(sketch))}
 +				{sketch.unit}{/if}
 +		</span>
 +
@@ -537,16 +526,12 @@ index 000000000..aba2ce4ae
 +			<button
 +				class="hover:text-foreground"
 +				onclick={() => download(`${stem}.dxf`, dxf(sketch), 'application/dxf')}
-+				title={t(
-+					'Para AutoCAD o ArcGIS Pro, desde el punto 1',
-+					'For AutoCAD or ArcGIS Pro, from point 1'
-+				)}>DXF</button
++				title="For AutoCAD or ArcGIS Pro, from point 1">DXF</button
 +			>
 +
 +			<button
 +				class="hover:text-foreground"
-+				onclick={() => download(`${stem}.csv`, csv(sketch), 'text/csv')}
-+				>{t('Esquinas CSV', 'Corners CSV')}</button
++				onclick={() => download(`${stem}.csv`, csv(sketch), 'text/csv')}>Corners CSV</button
 +			>
 +		</span>
 +	</div>
@@ -936,19 +921,6 @@ index 000000000..213864fec
 +	const cleaned = (title ?? '').replace(/[/:\\]/g, '-').trim();
 +
 +	return (cleaned || fallback).slice(0, 80);
-+}
-diff --git a/tools/ui/src/lib/tosh/i18n.ts b/tools/ui/src/lib/tosh/i18n.ts
-new file mode 100644
-index 000000000..d972f3332
---- /dev/null
-+++ b/tools/ui/src/lib/tosh/i18n.ts
-@@ -0,0 +1,7 @@
-+const spanish =
-+	typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('es');
-+
-+/** The Spanish or English text, after the browser's language, as ToshLLM's own windows do. */
-+export function t(es: string, en: string): string {
-+	return spanish ? es : en;
 +}
 diff --git a/tools/ui/src/lib/tosh/map.ts b/tools/ui/src/lib/tosh/map.ts
 new file mode 100644

@@ -3725,8 +3725,8 @@ struct NativeChatView: View {
                         customJSON = ""
                         agenticMaxTurns = 10
                         pasteLongTextLength = 2500
-                        maxImageMegapixels = 1
-                        pdfAsImages = false
+                        maxImageMegapixels = ProductDefaults.double(SettingsKeys.chatMaxImageMegapixels, or: 1)
+                        pdfAsImages = ProductDefaults.bool(SettingsKeys.chatPDFAsImages, or: false)
                     }
                     .buttonStyle(.link)
                     .font(.caption)

@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Added
 
 - **Chat: an agent can draw a figure that no map places under its answer, such as a tract from a deed's calls.** Its corners are numbered from the start and, when it should close and does not, what it lacks shows in red; it exports as a PNG image, a DXF drawing for CAD and a CSV of its corners.
+- **Web chat: the engine's agent answers from the browser as it does in the app.** The web chat no longer sends tools of its own unless you add them, so the request reaches the agent; its steps, a figure drawn from a deed and a map show under the answer with the same exports, and a new browser starts with the app's image size and PDF handling.
 
 ### Improved
 

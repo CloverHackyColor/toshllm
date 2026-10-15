@@ -165,18 +165,19 @@ index dac55caff..5fa2dc082 100644
  		<div class="info my-6 grid gap-4 tabular-nums">
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte
 new file mode 100644
-index 000000000..60ffe869b
+index 000000000..9504bee22
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,149 @@
 +<script lang="ts">
 +	import 'leaflet/dist/leaflet.css';
++	import ToshResize from './ToshResize.svelte';
 +	import { download } from '$lib/tosh/download';
 +	import { t } from '$lib/tosh/i18n';
 +	import { bundle, geojsonFiles } from '$lib/tosh/map';
 +	import type { ToshMapLayer } from '$lib/types';
 +	import type { Map as LeafletMap } from 'leaflet';
-+	import { onDestroy, onMount } from 'svelte';
++	import { onDestroy, onMount, tick } from 'svelte';
 +
 +	interface Props {
 +		layers: ToshMapLayer[];
@@ -189,6 +190,13 @@ index 000000000..60ffe869b
 +	let element: HTMLDivElement;
 +	let map: LeafletMap | null = null;
 +	let destroyed = false;
++	let enlarged = $state(false);
++
++	async function resize() {
++		enlarged = !enlarged;
++		await tick();
++		map?.invalidateSize();
++	}
 +
 +	function escape(value: unknown): string {
 +		return String(value ?? '').replace(
@@ -266,7 +274,10 @@ index 000000000..60ffe869b
 +</script>
 +
 +<div class="grid gap-1.5">
-+	<div bind:this={element} class="h-72 w-full overflow-hidden rounded-lg"></div>
++	<div
++		bind:this={element}
++		class="w-full overflow-hidden rounded-lg {enlarged ? 'h-[460px]' : 'h-56'}"
++	></div>
 +
 +	<div class="flex flex-wrap items-start justify-between gap-2 text-[11px] text-muted-foreground">
 +		<span class="flex flex-wrap gap-3">
@@ -293,25 +304,29 @@ index 000000000..60ffe869b
 +			{/each}
 +		</span>
 +
-+		<button
-+			class="hover:text-foreground"
-+			onclick={exportGeojson}
-+			title={t(
-+				'Un archivo .geojson por capa y tipo de geometría, para ArcGIS Pro (JSON To Features)',
-+				'One .geojson file per layer and kind of geometry, for ArcGIS Pro (JSON To Features)'
-+			)}>GeoJSON</button
-+		>
++		<span class="flex items-center gap-3">
++			<ToshResize {enlarged} onclick={resize} />
++
++			<button
++				class="hover:text-foreground"
++				onclick={exportGeojson}
++				title={t(
++					'Un archivo .geojson por capa y tipo de geometría, para ArcGIS Pro (JSON To Features)',
++					'One .geojson file per layer and kind of geometry, for ArcGIS Pro (JSON To Features)'
++				)}>GeoJSON</button
++			>
++		</span>
 +	</div>
 +</div>
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshPanel.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshPanel.svelte
 new file mode 100644
-index 000000000..c45603b07
+index 000000000..95e31bffe
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshPanel.svelte
 @@ -0,0 +1,111 @@
 +<script lang="ts">
 +	import ToshMap from './ToshMap.svelte';
-+	import ToshSketch from './ToshSketch.svelte';
++	import ToshSketches from './ToshSketches.svelte';
 +	import Waypoints from '@lucide/svelte/icons/waypoints';
 +	import { CollapsibleContentBlock } from '$lib/components/app';
 +	import { DatabaseService } from '$lib/services';
@@ -399,8 +414,8 @@ index 000000000..c45603b07
 +			</CollapsibleContentBlock>
 +		{/if}
 +
-+		{#if tosh.sketch}
-+			<ToshSketch sketch={tosh.sketch} />
++		{#if tosh.sketches?.length}
++			<ToshSketches sketches={tosh.sketches} />
 +		{/if}
 +
 +		{#if tosh.map}
@@ -420,13 +435,44 @@ index 000000000..c45603b07
 +		{/if}
 +	</div>
 +{/if}
+diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshResize.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshResize.svelte
+new file mode 100644
+index 000000000..b24544c89
+--- /dev/null
++++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshResize.svelte
+@@ -0,0 +1,24 @@
++<script lang="ts">
++	import Maximize2 from '@lucide/svelte/icons/maximize-2';
++	import Minimize2 from '@lucide/svelte/icons/minimize-2';
++	import { t } from '$lib/tosh/i18n';
++
++	interface Props {
++		enlarged: boolean;
++		onclick: () => void;
++	}
++
++	let { enlarged, onclick }: Props = $props();
++</script>
++
++<button
++	class="text-muted-foreground hover:text-foreground"
++	{onclick}
++	title={enlarged ? t('Reducir', 'Make smaller') : t('Ampliar', 'Enlarge')}
++>
++	{#if enlarged}
++		<Minimize2 class="h-3.5 w-3.5" />
++	{:else}
++		<Maximize2 class="h-3.5 w-3.5" />
++	{/if}
++</button>
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte
 new file mode 100644
-index 000000000..45d937a15
+index 000000000..8f33654db
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,74 @@
 +<script lang="ts">
++	import ToshResize from './ToshResize.svelte';
 +	import { download, fileStem } from '$lib/tosh/download';
 +	import { t } from '$lib/tosh/i18n';
 +	import { csv, dxf, figure, gap, isOpen, png, svg } from '$lib/tosh/sketch';
@@ -434,9 +480,11 @@ index 000000000..45d937a15
 +
 +	interface Props {
 +		sketch: ToshSketch;
++		enlarged: boolean;
++		onResize: () => void;
 +	}
 +
-+	let { sketch }: Props = $props();
++	let { enlarged, onResize, sketch }: Props = $props();
 +
 +	let drawing = $derived(svg(sketch, 640, 300, { line: '#3b82f6', text: 'currentColor' }));
 +	let stem = $derived(fileStem(sketch.title, t('croquis', 'sketch')));
@@ -449,12 +497,16 @@ index 000000000..45d937a15
 +</script>
 +
 +<div class="grid gap-1.5">
-+	{#if sketch.title}
-+		<div class="text-xs font-medium">{sketch.title}</div>
-+	{/if}
++	<div class="flex items-center justify-between gap-2">
++		<div class="text-xs font-medium {enlarged ? '' : 'truncate'}">{sketch.title ?? ''}</div>
++
++		<ToshResize {enlarged} onclick={onResize} />
++	</div>
 +
 +	<div
-+		class="overflow-hidden rounded-lg bg-muted/40 text-foreground [&_svg]:h-auto [&_svg]:w-full"
++		class="overflow-hidden rounded-lg bg-muted/40 text-foreground [&_svg]:h-full [&_svg]:w-full {enlarged
++			? 'h-96'
++			: 'h-44'}"
 +		title={t(
 +			'Croquis según los datos de la respuesta: el punto 1 es el inicio y cada tramo va al número siguiente.',
 +			"Sketch from the answer's data: point 1 is the start and each leg runs to the next number."
@@ -491,6 +543,43 @@ index 000000000..45d937a15
 +				>{t('Esquinas CSV', 'Corners CSV')}</button
 +			>
 +		</span>
++	</div>
++</div>
+diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketches.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketches.svelte
+new file mode 100644
+index 000000000..7690999bd
+--- /dev/null
++++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketches.svelte
+@@ -0,0 +1,31 @@
++<script lang="ts">
++	import ToshSketch from './ToshSketch.svelte';
++	import type { ToshSketch as Sketch } from '$lib/types';
++
++	interface Props {
++		sketches: Sketch[];
++	}
++
++	let { sketches }: Props = $props();
++
++	// small and several to a row; one at a time enlarged above the rest
++	let enlarged = $state<number | null>(null);
++</script>
++
++<div class="grid gap-3">
++	{#if enlarged !== null && sketches[enlarged]}
++		<ToshSketch enlarged onResize={() => (enlarged = null)} sketch={sketches[enlarged]} />
++	{/if}
++
++	<div
++		class={sketches.length > 1
++			? 'grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3'
++			: 'grid'}
++	>
++		{#each sketches as sketch, index (index)}
++			{#if index !== enlarged}
++				<ToshSketch enlarged={false} onResize={() => (enlarged = index)} {sketch} />
++			{/if}
++		{/each}
 +	</div>
 +</div>
 diff --git a/tools/ui/src/lib/services/chat.service.ts b/tools/ui/src/lib/services/chat.service.ts
@@ -709,7 +798,7 @@ index 121ee7739..9defecd6d 100644
  
  	getCurrentTurn(conversationId: string): number {
 diff --git a/tools/ui/src/lib/stores/chat/index.svelte.ts b/tools/ui/src/lib/stores/chat/index.svelte.ts
-index 4bdcc6845..ade5640fb 100644
+index 4bdcc6845..c0f8c8353 100644
 --- a/tools/ui/src/lib/stores/chat/index.svelte.ts
 +++ b/tools/ui/src/lib/stores/chat/index.svelte.ts
 @@ -33,17 +33,19 @@ import { settingsStore } from '$lib/stores/settings/index.svelte';
@@ -743,7 +832,7 @@ index 4bdcc6845..ade5640fb 100644
  			conversationsStore.updateMessageAtIndex(idx, { content: streamedContent });
  		};
 +
-+		// what the server's Tosh agent reports: its steps while it works, a sketch or a map request at the end
++		// what the server's Tosh agent reports: its steps while it works, its figures or a map request at the end
 +		let tosh: ToshMessageData = {};
 +
 +		const recordTosh = (chunk: ToshChunk): void => {
@@ -761,7 +850,7 @@ index 4bdcc6845..ade5640fb 100644
 +			} else if (!event) {
 +				tosh = {
 +					...tosh,
-+					...(chunk.sketch ? { sketch: chunk.sketch } : {}),
++					...(chunk.sketches?.length ? { sketches: chunk.sketches } : {}),
 +					...(chunk.map_request ? { mapRequest: chunk.map_request } : {})
 +				};
 +			} else {
@@ -1366,7 +1455,7 @@ index 377a57040..20260b4c3 100644
  	onConnectionState?: (state: StreamConnectionState) => void;
 diff --git a/tools/ui/src/lib/types/tosh.d.ts b/tools/ui/src/lib/types/tosh.d.ts
 new file mode 100644
-index 000000000..4aba6f38a
+index 000000000..fccefc0f6
 --- /dev/null
 +++ b/tools/ui/src/lib/types/tosh.d.ts
 @@ -0,0 +1,53 @@
@@ -1410,7 +1499,7 @@ index 000000000..4aba6f38a
 +export interface ToshChunk {
 +	version?: number;
 +	event?: { type: string; call?: ToshCall; [key: string]: unknown };
-+	sketch?: ToshSketch;
++	sketches?: ToshSketch[];
 +	map_request?: ToshMapRequest;
 +	map?: { layers: ToshMapLayer[] };
 +	[key: string]: unknown;
@@ -1419,7 +1508,7 @@ index 000000000..4aba6f38a
 +/** What an assistant message keeps of the agent's work. */
 +export interface ToshMessageData {
 +	steps?: ToshCall[];
-+	sketch?: ToshSketch;
++	sketches?: ToshSketch[];
 +	mapRequest?: ToshMapRequest;
 +	map?: { layers: ToshMapLayer[] };
 +}

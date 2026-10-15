@@ -94,7 +94,7 @@ struct ChatMessage: Identifiable, Codable, Equatable {
     var mapRequest: String? = nil
     var map: ChatMap? = nil
     /// A figure the agent drew with the answer in a plane of its own, such as a tract from its deed's calls.
-    var sketch: ChatSketch? = nil
+    var sketches: [ChatSketch]? = nil
 
     var estimatedTokens: Int {
         let text = role == "assistant" ? parts.body + (settledInterim ?? "") : wireContent
@@ -1325,8 +1325,9 @@ final class ChatStore: ObservableObject {
                     store?.attachMapRequest(request, conversation: convID, port: port)
                 }
                 if wasAgentTurn, followUp == nil,
-                   let sketch = (finalMeta?["sketch"] as? [String: Any]).flatMap(ChatSketch.init) {
-                    store?.attachSketch(sketch, conversation: convID)
+                   let sketches = (finalMeta?["sketches"] as? [[String: Any]])?.compactMap(ChatSketch.init),
+                   !sketches.isEmpty {
+                    store?.attachSketches(sketches, conversation: convID)
                 }
                 if shouldDeliverQueued {
                     if !finalToolCalls.isEmpty { store?.interruptPendingToolCalls(conversation: convID) }
@@ -3171,8 +3172,8 @@ struct NativeChatView: View {
                         chat.deleteMessageAndFollowing(msg.id)
                     })
                     .equatable()
-                if msg.role == "assistant", let sketch = msg.sketch {
-                    ChatSketchSection(sketch: sketch)
+                if msg.role == "assistant", let sketches = msg.sketches, !sketches.isEmpty {
+                    ChatSketchList(sketches: sketches)
                 }
                 if msg.role == "assistant", msg.map != nil || msg.mapRequest != nil {
                     ChatMapSection(message: msg, loading: chat.mapLoading.contains(msg.id),

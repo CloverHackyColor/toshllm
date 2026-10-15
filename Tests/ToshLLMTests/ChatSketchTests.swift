@@ -55,10 +55,11 @@ final class ChatSketchTests: XCTestCase {
 
     func testTheFigureStaysWithTheAnswerItCameWith() throws {
         var message = ChatMessage(role: "assistant", content: "It closes.")
-        message.sketch = ChatSketch(title: nil, unit: "ft", points: [[0, 0], [10, 0], [10, 10], [0, 0]], closed: true)
+        message.sketches = [ChatSketch(title: "Tract 1", unit: "ft", points: [[0, 0], [10, 0], [10, 10], [0, 0]], closed: true),
+                            ChatSketch(title: "Tract 2", unit: "ft", points: [[0, 0], [5, 0], [5, 5], [0, 0]], closed: true)]
         let saved = try JSONDecoder().decode(ChatMessage.self, from: JSONEncoder().encode(message))
-        XCTAssertEqual(saved.sketch, message.sketch)
+        XCTAssertEqual(saved.sketches, message.sketches)
         let older = try JSONDecoder().decode(ChatMessage.self, from: JSONEncoder().encode(ChatMessage(role: "assistant", content: "x")))
-        XCTAssertNil(older.sketch)
+        XCTAssertNil(older.sketches)
     }
 }

@@ -29,7 +29,7 @@ struct ChatSketch: Codable, Equatable {
         self.closed = closed
     }
 
-    /// From an agent's `tosh.sketch`, or nil when it is not a figure that can be drawn.
+    /// One of an agent's `tosh.sketches`, or nil when it is not a figure that can be drawn.
     init?(_ object: [String: Any]) {
         func pairs(_ value: Any?) -> [[Double]]? {
             guard let items = value as? [Any], (2...Self.maximumPoints).contains(items.count) else { return nil }
@@ -112,27 +112,61 @@ extension ChatSketch {
 }
 
 extension ChatStore {
-    /// Keeps a figure an agent sent with its answer on that answer.
-    func attachSketch(_ sketch: ChatSketch, conversation id: UUID) {
+    /// Keeps the figures an agent sent with its answer on that answer.
+    func attachSketches(_ sketches: [ChatSketch], conversation id: UUID) {
         guard let i = conversations.firstIndex(where: { $0.id == id }),
               let j = conversations[i].messages.indices.last, conversations[i].messages[j].role == "assistant" else { return }
-        conversations[i].messages[j].sketch = sketch
+        conversations[i].messages[j].sketches = sketches
         save()
+    }
+}
+
+/// An answer's figures: small, several to a row, and one at a time enlarged.
+struct ChatSketchList: View {
+    let sketches: [ChatSketch]
+
+    @State private var enlarged: Int?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let index = enlarged, sketches.indices.contains(index) {
+                ChatSketchSection(sketch: sketches[index], enlarged: true) { enlarged = nil }
+            }
+            let rest = sketches.indices.filter { $0 != enlarged }
+            if sketches.count == 1 {
+                ForEach(rest, id: \.self) { index in
+                    ChatSketchSection(sketch: sketches[index], enlarged: false) { enlarged = index }
+                }
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 10, alignment: .top)],
+                          alignment: .leading, spacing: 10) {
+                    ForEach(rest, id: \.self) { index in
+                        ChatSketchSection(sketch: sketches[index], enlarged: false) { enlarged = index }
+                    }
+                }
+            }
+        }
     }
 }
 
 struct ChatSketchSection: View {
     let sketch: ChatSketch
+    let enlarged: Bool
+    let onResize: () -> Void
 
     @EnvironmentObject var loc: Localizer
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if let title = sketch.title, !title.isEmpty {
-                Text(title).font(.caption.weight(.medium))
+            HStack(alignment: .firstTextBaseline) {
+                if let title = sketch.title, !title.isEmpty {
+                    Text(title).font(.caption.weight(.medium)).lineLimit(enlarged ? nil : 1)
+                }
+                Spacer()
+                ChatFigureResizeButton(enlarged: enlarged, action: onResize)
             }
             ChatSketchCanvas(sketch: sketch)
-                .frame(height: 280)
+                .frame(height: enlarged ? 360 : 170)
                 .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
                 .help(loc.t("Croquis según los datos de la respuesta: el punto 1 es el inicio y cada tramo va al número siguiente.",
                             "Sketch from the answer's data: point 1 is the start and each leg runs to the next number."))
@@ -176,6 +210,23 @@ struct ChatSketchSection: View {
                                   ChatSketchCanvas.figure(sketch.gap), sketch.unit)
         }
         return text
+    }
+}
+
+/// Enlarges a figure or a map under an answer, or brings it back to its small size.
+struct ChatFigureResizeButton: View {
+    let enlarged: Bool
+    let action: () -> Void
+
+    @EnvironmentObject var loc: Localizer
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: enlarged ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                .font(.caption)
+        }
+        .buttonStyle(.borderless)
+        .help(enlarged ? loc.t("Reducir", "Make smaller") : loc.t("Ampliar", "Enlarge"))
     }
 }
 

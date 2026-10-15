@@ -132,12 +132,13 @@ struct ChatMapSection: View {
 
     @EnvironmentObject var loc: Localizer
     @State private var selected: ChatMapFeature?
+    @State private var enlarged = false
 
     var body: some View {
         if let map = message.map {
             VStack(alignment: .leading, spacing: 6) {
                 ChatMapCanvas(map: map, onSelect: { selected = $0 })
-                    .frame(height: 340)
+                    .frame(height: enlarged ? 460 : 220)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(alignment: .topTrailing) {
                         if let selected {
@@ -199,6 +200,7 @@ struct ChatMapSection: View {
                 }
             }
             Spacer()
+            ChatFigureResizeButton(enlarged: enlarged) { enlarged.toggle() }
             Button(loc.t("Exportar GeoJSON", "Export GeoJSON")) { export(map) }
                 .buttonStyle(.link).font(.caption)
                 .help(loc.t("Guarda lo dibujado en archivos que abren ArcGIS Pro, QGIS y otros: uno por capa y tipo de geometría, como pide la herramienta JSON To Features de ArcGIS Pro.",

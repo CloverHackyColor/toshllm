@@ -1686,6 +1686,7 @@
   "The catalog marks which models fit your machine; one click configures them.": "У каталозі позначено, які моделі підходять для вашого комп'ютера; один клік налаштовує їх.",
   "The configuration is tested in isolation and does not change your servers.": "Конфігурація тестується ізольовано і не змінює ваші сервери.",
   "The current matches are available in the carousel above.": "Поточні збіги доступні в каруселі вище.",
+  "The definitions of the active tools take about %@k of it.": "",
   "The engine measures free VRAM and RAM to decide how to split the model.": "Рушій вимірює вільну пам'ять VRAM і RAM, щоб вирішити, як розділити модель.",
   "The engine only loads 4x models, so x2 upscales and resamples to half.": "Рушій завантажує лише моделі 4x, тому x2 масштабує та передискретизує вдвічі менше.",
   "The estimated total exceeds half the context configured in Settings; with the history it could fill it.": "Орієнтовний обсяг перевищує половину контексту, налаштованого в Налаштуваннях; разом з історією він може заповнити його повністю.",

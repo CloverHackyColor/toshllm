@@ -1686,6 +1686,7 @@
   "The catalog marks which models fit your machine; one click configures them.": "目录会标出哪些模型适合你的机器，点一下即可完成配置。",
   "The configuration is tested in isolation and does not change your servers.": "配置会在隔离环境中测试，不会更改你的服务器。",
   "The current matches are available in the carousel above.": "当前匹配项可在上方的轮播中查看。",
+  "The definitions of the active tools take about %@k of it.": "",
   "The engine measures free VRAM and RAM to decide how to split the model.": "引擎测量可用的显存和内存，以决定如何拆分模型。",
   "The engine only loads 4x models, so x2 upscales and resamples to half.": "引擎只能载入 4 倍模型，因此 2 倍会先放大再重采样到一半。",
   "The estimated total exceeds half the context configured in Settings; with the history it could fill it.": "预计总量已超过设置中上下文的一半；加上历史记录可能会占满。",

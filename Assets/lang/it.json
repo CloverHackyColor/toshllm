@@ -1686,6 +1686,7 @@
   "The catalog marks which models fit your machine; one click configures them.": "Il catalogo indica quali modelli si adattano alla tua macchina; un clic li configura.",
   "The configuration is tested in isolation and does not change your servers.": "La configurazione viene testata in isolamento e non modifica i tuoi server.",
   "The current matches are available in the carousel above.": "Le corrispondenze attuali sono disponibili nel carosello qui sopra.",
+  "The definitions of the active tools take about %@k of it.": "",
   "The engine measures free VRAM and RAM to decide how to split the model.": "Il motore misura la VRAM e la RAM libere per decidere come suddividere il modello.",
   "The engine only loads 4x models, so x2 upscales and resamples to half.": "Il motore carica solo 4x modelli, quindi x2 fa upscale e resampling alla metà.",
   "The estimated total exceeds half the context configured in Settings; with the history it could fill it.": "La stima totale supera la metà del contesto configurato nelle Impostazioni; con la cronologia potrebbe riempirlo.",

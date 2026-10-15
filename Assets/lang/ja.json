@@ -1686,6 +1686,7 @@
   "The catalog marks which models fit your machine; one click configures them.": "カタログは、お使いのマシンに収まるモデルに印を付けます。1クリックで設定されます。",
   "The configuration is tested in isolation and does not change your servers.": "設定は分離された環境でテストされ、サーバーは変更されません。",
   "The current matches are available in the carousel above.": "現在の候補は上のカルーセルで確認できます。",
+  "The definitions of the active tools take about %@k of it.": "",
   "The engine measures free VRAM and RAM to decide how to split the model.": "エンジンが空きVRAMとRAMを測定し、モデルの分け方を決めます。",
   "The engine only loads 4x models, so x2 upscales and resamples to half.": "エンジンは4倍のモデルしか読み込めないため、2倍は4倍にしてから半分に再標本化します。",
   "The estimated total exceeds half the context configured in Settings; with the history it could fill it.": "見積もりの合計が、設定したコンテキストの半分を超えています。履歴と合わせると埋まってしまう恐れがあります。",

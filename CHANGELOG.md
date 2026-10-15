@@ -15,6 +15,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Chat: a long prompt on a slower GPU is no longer stopped as if the engine had hung.** Each batch of prompt the engine reported counted as the answer starting, which left 30 seconds for the next one, and a Radeon Pro 580X takes longer with a large context. The engine is now stopped only when neither prompt nor answer comes for three minutes, and the message names MoE models only when one is loaded. Reported in [#123](https://github.com/engeldlgado/toshllm/issues/123).
+- **Chat: the context meter counts the definitions of the active tools before the first reply.** With several MCP servers on they can take tens of thousands of tokens, and the meter showed 0 until an answer came back; its tooltip now says how much they take. Reported in [#123](https://github.com/engeldlgado/toshllm/issues/123).
 - **Chat: a photo or recording reaches the model when the math tools run the turn.** The turn went to the math agent with the text alone, so the answer ignored the attachment and a message with only a photo failed.
 
 ## [0.87.24] - 2026-10-14

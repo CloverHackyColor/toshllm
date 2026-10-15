@@ -437,7 +437,7 @@ final class ChatStore: ObservableObject {
 
     /// A progress event of the server agent: the calls it ran show as cards, ahead of the answer.
     func agentEvent(_ event: [String: Any], conversation id: UUID) {
-        lastStreamActivity = Date()
+        liveness.note(text: false)
         switch event["type"] as? String {
         case "intent":
             lastMathIntent = (event["intent"] as? String).flatMap(MathIntent.init(rawValue:))
@@ -485,8 +485,9 @@ final class ChatStore: ObservableObject {
     private var watchdog: Task<Void, Never>?
     /// Where the running reply is streamed from, so Stop can cancel it on the engine too.
     private var activeStream: (port: Int, identity: String)?
-    private var lastStreamActivity = Date()
-    private var sawFirstToken = false
+    private var liveness = StreamLiveness()
+    /// Estimated tokens of the tool definitions the last request sent, which the context holds before any reply.
+    @Published private(set) var toolTokens = 0
     private var slotConvID: UUID?
     private var agentContext: AgentRunContext?
 
@@ -872,7 +873,7 @@ final class ChatStore: ObservableObject {
                 self?.live.update(reasoning: snap.reasoning, visible: snap.visible, speed: snap.speed)
                 let prefilling = snap.reasoning.isEmpty && snap.visible.isEmpty
                 self?.live.setPrefillProgress(prefilling ? snap.progress : nil)
-                self?.noteStreamActivity()
+                self?.noteStreamActivity(text: !prefilling)
                 let n = snap.visible.count
                 let ms = n > 12000 ? 600 : n > 6000 ? 350 : n > 2500 ? 180 : 80
                 try? await Task.sleep(for: .milliseconds(ms))
@@ -936,7 +937,7 @@ final class ChatStore: ObservableObject {
                     // between the passes the agent sends keep-alives, which show it is working
                     if agentTurn, line.hasPrefix(":") {
                         let owner = self
-                        await MainActor.run { owner?.lastStreamActivity = Date() }
+                        await MainActor.run { owner?.liveness.note(text: false) }
                         continue
                     }
                     if agentTurn, line.hasPrefix("data: "), line.contains("\"tosh\""),
@@ -1097,6 +1098,11 @@ final class ChatStore: ObservableObject {
                     body["tools"] = availableTools.compactMap(\.openAIDefinition)
                     body["tool_choice"] = "auto"
                 }
+                let schemas = (body["tools"] as? [[String: Any]])
+                    .flatMap { try? JSONSerialization.data(withJSONObject: $0) }?.count ?? 0
+                // about four characters per token in a JSON schema
+                let toolOwner = self
+                await MainActor.run { toolOwner?.toolTokens = schemas / 4 }
                 if reasoningOff {
                     body["chat_template_kwargs"] = ["enable_thinking": false]
                     // For templates that ignore enable_thinking (Qwen3.6 still
@@ -1712,24 +1718,19 @@ final class ChatStore: ObservableObject {
 
     // MARK: stall watchdog
 
-    /// Called from the stream whenever a token reaches the UI; resets the
-    /// inactivity timer and marks that generation (not prefill) has begun.
-    func noteStreamActivity() {
-        lastStreamActivity = Date()
-        sawFirstToken = true
+    /// Called from the stream whenever something reaches the UI: prompt progress or text.
+    func noteStreamActivity(text: Bool) {
+        liveness.note(text: text)
     }
 
     private func startWatchdog(port: Int) {
         watchdog?.cancel()
-        lastStreamActivity = Date()
-        sawFirstToken = false
+        liveness = StreamLiveness()
         watchdog = Task { [weak self] in
             while true {
                 try? await Task.sleep(for: .seconds(5))
                 guard let self, !Task.isCancelled, self.generating else { return }
-                let idle = Date().timeIntervalSince(self.lastStreamActivity)
-                let limit: TimeInterval = self.sawFirstToken ? 30 : 180
-                if idle > limit {
+                if self.liveness.stalled() {
                     self.handleStreamStall()
                     return
                 }
@@ -1745,15 +1746,18 @@ final class ChatStore: ObservableObject {
         task = nil
         watchdog = nil
         ServerManager.shared.active.stop()
-        lastError = Self.stallMessage
+        lastError = Self.stallMessage(moe: ServerSettings.modelIsMoE(
+            at: UserDefaults.standard.string(forKey: SettingsKeys.modelPath) ?? ""))
         generating = false
         generatingConvID = nil
         live.reset()
         save()
     }
 
-    nonisolated static var stallMessage: String {
-        "El motor dejó de responder y se detuvo para liberar memoria. Suele pasar con modelos MoE grandes en GPU AMD: usa un modelo denso (8B) o sube 'Expertos MoE en CPU'. / The engine stopped responding and was stopped to free memory. This happens with large MoE models on AMD GPUs: use a dense model (8B) or raise 'MoE experts on CPU'."
+    nonisolated static func stallMessage(moe: Bool) -> String {
+        moe
+            ? "El motor dejó de responder y se detuvo para liberar memoria. Suele pasar con modelos MoE grandes en GPU AMD: usa un modelo denso (8B) o sube 'Expertos MoE en CPU'. / The engine stopped responding and was stopped to free memory. This happens with large MoE models on AMD GPUs: use a dense model (8B) or raise 'MoE experts on CPU'."
+            : "El motor dejó de responder y se detuvo para liberar memoria. / The engine stopped responding and was stopped to free memory."
     }
 
     /// Tools the chat runs itself, beyond the math ones the agent covers; the map tools never count, so turning
@@ -4643,7 +4647,7 @@ struct NativeChatView: View {
                 }
 
                 if server.state == .running && contextLimit > 0 {
-                    let used = chat.contextUsed ?? 0
+                    let used = chat.contextUsed ?? chat.toolTokens
                     let fraction = Double(used) / Double(contextLimit)
                     HStack(spacing: 5) {
                         Label(loc.t("Contexto", "Context"), systemImage: "memorychip")
@@ -4656,7 +4660,12 @@ struct NativeChatView: View {
                             .foregroundStyle(fraction > 0.8 ? .orange : .secondary)
                     }
                     .help(loc.t("Tokens usados por el historial y la última respuesta. Al superar 70%, la app intenta resumir los turnos antiguos.",
-                                "Tokens used by history and the latest response. Past 70%, the app attempts to summarize older turns."))
+                                "Tokens used by history and the latest response. Past 70%, the app attempts to summarize older turns.")
+                          + (chat.toolTokens >= 1000
+                             ? " " + loc.t("Las definiciones de las herramientas activas ocupan unos %@k.",
+                                           "The definitions of the active tools take about %@k of it.",
+                                           "\(chat.toolTokens / 1000)")
+                             : ""))
                 }
 
                 if server.state == .running && contextMaySlowGeneration && chat.canCompactCurrent {

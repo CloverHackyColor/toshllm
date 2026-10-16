@@ -6,7 +6,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- **Extensions: an agent can be offered to the chat's model as a tool.** The model reads what the agent answers and when not to call it, and hands it only the turns that are its own, which the agent then answers whole; the agent can keep that description up to date in a file, such as with the data it reaches. Without it, an extension's agent still sees every turn first.
 
 - **Russian interface.** Contributed by [SergeySlice](https://github.com/SergeySlice) in [#127](https://github.com/engeldlgado/toshllm/issues/127).
 - **Chat: a figure an agent places in a coordinate system, such as a State Plane zone, exports at those coordinates.** Its DXF drawing and its CSV of corners carry the system's X and Y, so they open in place in CAD or GIS.

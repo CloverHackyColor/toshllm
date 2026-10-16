@@ -71,17 +71,6 @@ enum EngineExtensions {
         let fields: [Field]
     }
 
-    /// An agent the chat's model calls when a turn is the agent's to answer, which then answers it.
-    struct AgentTool: Decodable, Sendable {
-        let name: String
-        /// For the model: what the agent answers, when to call it and when not to.
-        let description: String
-        let label: Text
-        /// A file in the app's support folder where the agent keeps that description up to date, such as with the
-        /// data it reaches; it wins over `description` once it exists.
-        var descriptionFile: String?
-    }
-
     struct Manifest: Decodable, Sendable {
         let format: Int
         let id: String
@@ -92,8 +81,6 @@ enum EngineExtensions {
         var servers: [String: Server]?
         /// Replaces the engine's agent, so every agent turn goes through it.
         var agent: Server?
-        /// Offers the agent to the chat's model as a tool instead of giving it every turn first.
-        var agentTool: AgentTool?
         /// Starts the app's math servers with it even when they are off, for an agent that relies on them.
         var mathTools: Bool?
         var settings: [Section]?
@@ -227,30 +214,6 @@ enum EngineExtensions {
             }
             return true
         }
-    }
-
-    /// The active agent as a tool for the chat's model, when its extension offers it as one.
-    static func agentTool(_ extensions: [Extension] = active(), support: URL = AppSupport.directory) -> BuiltinToolInfo? {
-        guard let tool = extensions.first(where: \.hasAgent)?.manifest.agentTool else { return nil }
-        let spanish = UserDefaults.standard.string(forKey: SettingsKeys.language) == "es"
-        let kept = tool.descriptionFile
-            .flatMap { try? Data(contentsOf: support.appendingPathComponent($0)) }
-            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }?["description"] as? String
-        return try? BuiltinToolInfo(displayName: tool.label.pick(spanish: spanish), name: tool.name, writesData: false, definition: [
-            "type": "function",
-            "function": [
-                "name": tool.name,
-                "description": kept?.isEmpty == false ? kept! : tool.description,
-                "parameters": [
-                    "type": "object",
-                    "properties": ["request": [
-                        "type": "string",
-                        "description": "The user's request as they wrote it, with what it refers to in earlier messages"
-                    ]],
-                    "required": ["request"]
-                ]
-            ]
-        ])
     }
 
     /// Tool name prefixes of the servers the chat's own tool loop may call: those of active extensions

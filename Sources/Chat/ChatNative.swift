@@ -808,8 +808,7 @@ final class ChatStore: ObservableObject {
                         modalities: ModelModalities? = nil,
                         continuationInstruction: String? = nil,
                         agentRun: AgentRunContext? = nil,
-                        agentDeclined: Bool = false,
-                        agentDelegated: String? = nil) {
+                        agentDeclined: Bool = false) {
         generating = true
         generatingConvID = conversations[i].id
         live.reset()
@@ -841,9 +840,7 @@ final class ChatStore: ObservableObject {
         let agentHistory = Self.agentHistory(system: systemWithCwd, summary: conversations[i].summary,
                                              messages: conversations[i].messages, from: conversations[i].summarizedCount ?? 0,
                                              modalities: modalities)
-        let agentAllowed = !Self.serverAgentMissing && (agentDelegated != nil
-            || agentRun == nil && continuationInstruction == nil && !agentDeclined)
-        let agentTool = EngineExtensions.agentTool()
+        let agentAllowed = agentRun == nil && continuationInstruction == nil && !Self.serverAgentMissing && !agentDeclined
         var history = Self.requestHistory(system: systemWithCwd,
                                           summary: conversations[i].summary,
                                           messages: conversations[i].messages,
@@ -1010,10 +1007,6 @@ final class ChatStore: ObservableObject {
                         let selected = Set(enabledToolNames)
                         availableTools.removeAll { !selected.contains($0.name) }
                     }
-                    // the model decides which turns are the agent's; switching the extension off removes it
-                    if let agentTool, !agentDeclined, !ToolSupport.isBlocked(ToolSupport.currentModelIdentity) {
-                        availableTools.append(agentTool)
-                    }
                 }
                 // only math tools: the server agent runs the turn. A math tool the user still approves call by
                 // call keeps it in this loop, since the server cannot ask. MCP servers shared with the engine
@@ -1022,11 +1015,10 @@ final class ChatStore: ObservableObject {
                 let active = EngineExtensions.active()
                 let engineShared = toolsAllowed
                     && (MCPServerStore.load().contains(where: \.sharedWithEngine) || active.contains { !($0.manifest.servers ?? [:]).isEmpty })
-                // an extension that brings its own agent gets every turn first, and may hand back those that are not
-                // its own, unless it is offered to the model as a tool: then it answers the turns the model hands it
+                // an extension that brings its own agent gets every turn first; it may hand back those that are not its own
                 let extensionAgent = toolsAllowed && active.contains(where: \.hasAgent)
-                agentTurn = agentAllowed && (agentDelegated != nil || agentTool == nil
-                    && (extensionAgent || (availableTools.isEmpty ? engineShared : !Self.hasOwnTools(availableTools))))
+                agentTurn = agentAllowed
+                    && (extensionAgent || (availableTools.isEmpty ? engineShared : !Self.hasOwnTools(availableTools)))
                 if agentTurn { hold = true }
 
                 var req = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/v1/chat/completions")!)
@@ -1083,10 +1075,6 @@ final class ChatStore: ObservableObject {
                     body["messages"] = agentHistory
                     var tosh: [String: Any] = ["max_rounds": agentTurnLimit]
                     if Self.hasOwnTools(availableTools) { tosh["client_tools"] = true }
-                    if let agentDelegated {
-                        tosh["delegated"] = true
-                        tosh["request"] = agentDelegated
-                    }
                     body["tosh"] = tosh
                 } else if let request, availableTools.contains(where: { MathTranscriptionService.isMathTool($0.name) }) {
                     let (intent, asked) = await MathIntent.decide(request, context: Array(userTexts.dropLast()), port: port)
@@ -1103,8 +1091,7 @@ final class ChatStore: ObservableObject {
                     // no tools: the agent's are on the server, and a last round only states what was validated
                 } else if gate || agentRun?.mathGuard.next == .mathOnly {
                     // after a refused math call: correct it or ask, never answer from memory
-                    // a count or total of the deployment's data is still the agent's to answer
-                    body["tools"] = availableTools.filter { MathTranscriptionService.isMathTool($0.name) || $0.name == agentTool?.name }
+                    body["tools"] = availableTools.filter { MathTranscriptionService.isMathTool($0.name) }
                         .compactMap(\.openAIDefinition) + [MathTranscriptionService.clarifyTool]
                     body["tool_choice"] = "required"
                 } else if !availableTools.isEmpty {
@@ -1272,20 +1259,7 @@ final class ChatStore: ObservableObject {
             let finalMeta = agentMeta
             let declined = wasAgentTurn && !wasCancelled && !didReportError && !hasVisibleAnswer
                 && finalToolCalls.isEmpty && Self.agentDeclined(finalMeta)
-            // the model handed the turn to the extension's agent, which answers it from here
-            let handoff = wasAgentTurn || wasCancelled || didReportError ? nil
-                : finalToolCalls.first { $0.name == agentTool?.name }.map {
-                    (try? ChatToolsService.parseArguments($0.arguments))?["request"] as? String ?? request ?? ""
-                }
             let (shouldDeliverQueued, followed): (Bool, Bool) = await MainActor.run {
-                if let handoff, let index = store?.conversations.firstIndex(where: { $0.id == convID }) {
-                    AppLog.chat.notice("the model handed this turn to the extension's agent")
-                    store?.finish(conversation: convID, text: "", speed: nil)
-                    store?.stream(into: index, port: port, temperature: temperature, maxTokens: maxTokens,
-                                  system: system, thinking: thinking, sampling: sampling, modalities: modalities,
-                                  agentDelegated: handoff)
-                    return (false, true)
-                }
                 if retry || declined, let index = store?.conversations.firstIndex(where: { $0.id == convID }) {
                     if retry { Self.serverAgentMissing = true }
                     else { AppLog.chat.notice("the agent left this turn to the chat's own tools") }

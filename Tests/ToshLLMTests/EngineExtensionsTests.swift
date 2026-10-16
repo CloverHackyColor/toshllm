@@ -135,34 +135,6 @@ final class EngineExtensionsTests: XCTestCase {
         XCTAssertEqual(active.count, 2)
     }
 
-    func testAnAgentOfferedAsAToolIsCalledByTheModelInsteadOfTakingEveryTurn() throws {
-        let root = try folder()
-        let tool = #", "agent_tool": {"name": "company_data", "description": "Answers from the company's data.", "label": {"es": "Datos", "en": "Data"}}"#
-        try write(manifest(id(), agent: true, extra: tool), in: root, as: "a")
-        let offered = EngineExtensions.agentTool(EngineExtensions.active(EngineExtensions.discover(in: root, bundled: true).extensions))
-        let function = offered?.openAIDefinition?["function"] as? [String: Any]
-        XCTAssertEqual(offered?.name, "company_data")
-        XCTAssertEqual(function?["description"] as? String, "Answers from the company's data.")
-        XCTAssertEqual(((function?["parameters"] as? [String: Any])?["required"] as? [String]), ["request"])
-
-        // the description the agent keeps up to date wins once it exists
-        let kept = #", "agent_tool": {"name": "company_data", "description": "Static.", "label": {"es": "D", "en": "D"}, "description_file": "state/tool.json"}"#
-        let withFile = try folder()
-        try write(manifest(id(), agent: true, extra: kept), in: withFile, as: "k")
-        let support = try folder()
-        let found = EngineExtensions.active(EngineExtensions.discover(in: withFile, bundled: true).extensions)
-        var description = (EngineExtensions.agentTool(found, support: support)?.openAIDefinition?["function"] as? [String: Any])?["description"] as? String
-        XCTAssertEqual(description, "Static.")
-        try FileManager.default.createDirectory(at: support.appendingPathComponent("state"), withIntermediateDirectories: true)
-        try Data(#"{"description": "Static. Its data: parcels, wells."}"#.utf8).write(to: support.appendingPathComponent("state/tool.json"))
-        description = (EngineExtensions.agentTool(found, support: support)?.openAIDefinition?["function"] as? [String: Any])?["description"] as? String
-        XCTAssertEqual(description, "Static. Its data: parcels, wells.")
-
-        let other = try folder()
-        try write(manifest(id(), agent: true), in: other, as: "b")
-        XCTAssertNil(EngineExtensions.agentTool(EngineExtensions.active(EngineExtensions.discover(in: other, bundled: true).extensions)))
-    }
-
     func testEnvironmentCarriesSetValuesAndLeavesOffTogglesOut() throws {
         let root = try folder()
         try write(manifest(id()), in: root, as: "x")

@@ -13,6 +13,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Chat: a figure an agent sends can carry a notice that each of its exports repeats.** It goes under the drawing in the PNG, as text on a layer of its own in the DXF and as a column in the CSV, in the app and the web chat.
 - **Engine: `--tiles-path` serves a folder of map files at `/tiles/`, in byte ranges.** A map reads a PMTiles file of many gigabytes a piece at a time instead of loading it whole.
 - **Settings: a folder of offline maps and a base map style, with the map options.** The folder's PMTiles regions draw the background of maps in the app and the web chat without internet, with place names when their fonts sit in an assets subfolder, and the app hands the folder to the server on its own. A style of `none` draws a plain background without connecting.
+- **Engine and chat: an extension's agent can take the chat's own tools with every turn.** With `--mcp-agent-client-tools`, a request that brings tools reaches the agent, which offers them to the model beside its own and hands back the calls to them, streamed like any tool call. The app sends its tools, MCP servers included, to an agent whose extension asks for them, runs the calls it gets back and sends the next round to the agent again.
 - **Chat: the tools popover can uncheck every tool at once.** With many MCP servers on, one click starts from none so you pick only the few you need; the popover also shows how many are on. Requested in [#126](https://github.com/engeldlgado/toshllm/issues/126).
 
 ### Improved
@@ -23,6 +24,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Math: after a calculation the answer is written in the language of the question, and an integral or a root the exact tools can give is computed exactly.** A note added after each tool call made the model answer in English, and the numerical tool came first for definite integrals.
 - **Engine: with the server open to the local network and no API key, other computers no longer get the built-in shell and file tools.** They still chat and use the agent and the tools of extensions; this computer, or a request with the API key, keeps every tool.
 - **Settings: the VRAM reserve reaches the engine.** The app passed it in a variable the engine never read, so only router mode and DFlash kept it; Dynamic MoE's memory plan now leaves what you set. Automatic, the new default, keeps the engine's own 8% of the card. Reported in [#124](https://github.com/engeldlgado/toshllm/issues/124).
 - **Web chat: an agent's answer survives a phone locking or switching apps.** The agent kept going only while the browser stayed connected, so a long turn such as reading a scanned deed failed when the page went to the background; it now runs to its end and the page picks the answer up when it comes back.

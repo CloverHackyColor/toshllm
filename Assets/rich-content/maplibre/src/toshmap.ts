@@ -28,8 +28,20 @@ const ATTRIBUTION =
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const host = window as any;
 
+/** A plain ground, for a map with no base map or one that could not load. */
+function ground(dark: boolean): maplibregl.StyleSpecification {
+	return {
+		layers: [{ id: 'ground', paint: { 'background-color': dark ? '#1f2937' : '#f3f4f6' }, type: 'background' }],
+		sources: {},
+		version: 8
+	};
+}
+
 function baseStyle(config: Config): string | maplibregl.StyleSpecification {
-	if (!config.regions.length) return config.style || OPEN_FREE_MAP;
+	if (!config.regions.length) {
+		if (config.style === 'none') return ground(config.dark);
+		return config.style || OPEN_FREE_MAP;
+	}
 
 	const tiles = new URL('tiles/', location.href).href;
 	const flavor = config.dark ? 'dark' : 'light';
@@ -106,11 +118,7 @@ function render(config: Config): void {
 	created.on('error', () => {
 		if (fellBack || created.isStyleLoaded()) return;
 		fellBack = true;
-		created.setStyle({
-			layers: [{ id: 'ground', paint: { 'background-color': config.dark ? '#1f2937' : '#f3f4f6' }, type: 'background' }],
-			sources: {},
-			version: 8
-		});
+		created.setStyle(ground(config.dark));
 	});
 
 	created.on('style.load', () => {

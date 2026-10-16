@@ -377,8 +377,8 @@ struct ChatAdvancedSettingsSection: View {
                     }
                     SettingsRow(icon: "square.3.layers.3d",
                                 title: loc.t("Estilo del mapa base", "Base map style"),
-                                help: loc.t("Dirección de un estilo de MapLibre (style.json) para el fondo de los mapas, en la app y en el chat web. Vacío usa OpenFreeMap por internet. Las rutas por carretera se dibujan siempre sobre Apple Maps.",
-                                            "Address of a MapLibre style (style.json) for the background of maps, in the app and in the web chat. Empty uses OpenFreeMap over the internet. Road routes are always drawn on Apple Maps.")) {
+                                help: loc.t("Dirección de un estilo de MapLibre (style.json) para el fondo de los mapas, en la app y en el chat web. Vacío usa OpenFreeMap por internet, y none dibuja un fondo liso sin conectarse. Las rutas por carretera se dibujan siempre sobre Apple Maps.",
+                                            "Address of a MapLibre style (style.json) for the background of maps, in the app and in the web chat. Empty uses OpenFreeMap over the internet, and none draws a plain background without connecting. Road routes are always drawn on Apple Maps.")) {
                         DeferredSettingsTextField("", text: $mapStyle, prompt: "OpenFreeMap", width: 220)
                             .autocorrectionDisabled()
                     }

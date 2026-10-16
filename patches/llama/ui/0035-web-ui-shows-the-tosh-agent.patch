@@ -1507,15 +1507,15 @@ index dac55caff..5fa2dc082 100644
  		<div class="info my-6 grid gap-4 tabular-nums">
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte
 new file mode 100644
-index 000000000..ccca5fcb6
+index 000000000..3cbf45a3a
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte
-@@ -0,0 +1,231 @@
+@@ -0,0 +1,221 @@
 +<script lang="ts">
 +	import 'maplibre-gl/dist/maplibre-gl.css';
 +	import ToshResize from './ToshResize.svelte';
 +	import { download } from '$lib/tosh/download';
-+	import { baseStyle, bounds, bundle, geojsonFiles } from '$lib/tosh/map';
++	import { baseStyle, bounds, bundle, geojsonFiles, ground } from '$lib/tosh/map';
 +	import { serverStore } from '$lib/stores/server.svelte';
 +	import type { ToshMapLayer } from '$lib/types';
 +	import type { Map as MapLibreMap } from 'maplibre-gl';
@@ -1596,17 +1596,7 @@ index 000000000..ccca5fcb6
 +			if (fellBack || created.isStyleLoaded()) return;
 +
 +			fellBack = true;
-+			created.setStyle({
-+				layers: [
-+					{
-+						id: 'ground',
-+						paint: { 'background-color': dark ? '#1f2937' : '#f3f4f6' },
-+						type: 'background'
-+					}
-+				],
-+				sources: {},
-+				version: 8
-+			});
++			created.setStyle(ground(dark));
 +		});
 +
 +		created.on('style.load', () => {
@@ -2361,10 +2351,10 @@ index 000000000..213864fec
 +}
 diff --git a/tools/ui/src/lib/tosh/map.ts b/tools/ui/src/lib/tosh/map.ts
 new file mode 100644
-index 000000000..f40b610b4
+index 000000000..ed8d88da3
 --- /dev/null
 +++ b/tools/ui/src/lib/tosh/map.ts
-@@ -0,0 +1,192 @@
+@@ -0,0 +1,211 @@
 +import { fileStem } from './download';
 +import { API_CHAT } from '$lib/constants';
 +import type { ToshMapLayer, ToshMapRequest } from '$lib/types';
@@ -2464,10 +2454,25 @@ index 000000000..f40b610b4
 +
 +let pmtilesProtocol = false;
 +
++/** A plain ground, for a map with no base map or one that could not load. */
++export function ground(dark: boolean): StyleSpecification {
++	return {
++		layers: [
++			{
++				id: 'ground',
++				paint: { 'background-color': dark ? '#1f2937' : '#f3f4f6' },
++				type: 'background'
++			}
++		],
++		sources: {},
++		version: 8
++	};
++}
++
 +/**
 + * The base map the server names in its ui settings: its PMTiles regions, drawn with the Protomaps style and the
 + * fonts and sprites next to them, which need no internet (without labels when mapLabels is false, for a folder that
-+ * lacks them); a style of its own; or OpenFreeMap online.
++ * lacks them); a style of its own, or none for a plain ground; or OpenFreeMap online.
 + */
 +export async function baseStyle(
 +	maplibregl: typeof import('maplibre-gl'),
@@ -2479,7 +2484,11 @@ index 000000000..f40b610b4
 +		.map((r) => r.trim())
 +		.filter(Boolean);
 +
-+	if (!regions.length) return String(settings.mapStyle || OPEN_FREE_MAP);
++	if (!regions.length) {
++		if (settings.mapStyle === 'none') return ground(dark);
++
++		return String(settings.mapStyle || OPEN_FREE_MAP);
++	}
 +
 +	const { Protocol } = await import('pmtiles');
 +	const { layers, namedFlavor } = await import('@protomaps/basemaps');

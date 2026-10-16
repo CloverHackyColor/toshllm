@@ -14,7 +14,8 @@ enum MapBase {
     }
 
     static var folder: URL? {
-        guard let path = UserDefaults.standard.string(forKey: SettingsKeys.mapFolder), !path.isEmpty else { return nil }
+        guard let value = UserDefaults.standard.string(forKey: SettingsKeys.mapFolder), !value.isEmpty else { return nil }
+        let path = (value as NSString).expandingTildeInPath
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue else { return nil }
         return URL(fileURLWithPath: path, isDirectory: true)

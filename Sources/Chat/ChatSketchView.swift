@@ -18,15 +18,22 @@ struct ChatSketch: Codable, Equatable {
     var corners: [[Double]]?
     /// The figure should end where it began: the gap left between its last point and its first is drawn in red.
     var closed: Bool
+    /// Where the first point lies in a coordinate system the agent names, such as a State Plane zone: exports put the
+    /// figure there.
+    var origin: [Double]?
+    var plane: String?
 
     static let maximumPoints = 5000
 
-    init(title: String?, unit: String, points: [[Double]], corners: [[Double]]? = nil, closed: Bool) {
+    init(title: String?, unit: String, points: [[Double]], corners: [[Double]]? = nil, closed: Bool,
+         origin: [Double]? = nil, plane: String? = nil) {
         self.title = title
         self.unit = unit
         self.points = points
         self.corners = corners
         self.closed = closed
+        self.origin = origin
+        self.plane = plane
     }
 
     /// One of an agent's `tosh.sketches`, or nil when it is not a figure that can be drawn.
@@ -44,9 +51,14 @@ struct ChatSketch: Codable, Equatable {
         guard let points = pairs(object["points"]) else { return nil }
         let corners = object["corners"] == nil ? nil : pairs(object["corners"])
         if object["corners"] != nil && corners == nil { return nil }
+        let origin = (object["origin"] as? [Any]).flatMap { pair -> [Double]? in
+            let values = pair.compactMap { ($0 as? NSNumber)?.doubleValue }.filter(\.isFinite)
+            return values.count == 2 && pair.count == 2 ? values : nil
+        }
         self.init(title: (object["title"] as? String).map { String($0.prefix(120)) },
                   unit: String((object["unit"] as? String ?? "").prefix(12)), points: points, corners: corners,
-                  closed: object["closed"] as? Bool ?? false)
+                  closed: object["closed"] as? Bool ?? false, origin: origin,
+                  plane: origin == nil ? nil : (object["plane"] as? String).map { String($0.prefix(120)) })
     }
 
     /// How far the last point ends from the first, in the sketch's unit.
@@ -77,23 +89,30 @@ extension ChatSketch {
 
     private static func number(_ value: Double) -> String { String(format: "%.3f", value) }
 
-    /// The figure as a CAD drawing in its own unit, with the first point at the origin: an R12 DXF, which AutoCAD and
-    /// ArcGIS Pro open. The path stays open as it was drawn, and what it lacks to close is a line of its own layer.
+    /// A point where an export writes it: at the figure's coordinates when it has an origin, else from its first point.
+    private func placed(_ point: [Double]) -> [Double] {
+        guard let origin else { return point }
+        return [point[0] + origin[0], point[1] + origin[1]]
+    }
+
+    /// The figure as a CAD drawing in its own unit, at its coordinates or with the first point at the origin: an R12
+    /// DXF, which AutoCAD and ArcGIS Pro open. The path stays open as it was drawn, and what it lacks to close is a line
+    /// of its own layer.
     func dxf() -> String {
         var out = ["0", "SECTION", "2", "HEADER", "9", "$ACADVER", "1", "AC1009",
                    "9", "$INSUNITS", "70", unit.lowercased().hasPrefix("m") ? "6" : "2", "0", "ENDSEC",
                    "0", "SECTION", "2", "ENTITIES",
                    "0", "POLYLINE", "8", "FIGURE", "66", "1", "70", "0", "10", "0.0", "20", "0.0", "30", "0.0"]
-        for point in points {
+        for point in points.map(placed) {
             out += ["0", "VERTEX", "8", "FIGURE", "10", Self.number(point[0]), "20", Self.number(point[1]), "30", "0.0"]
         }
         out += ["0", "SEQEND", "8", "FIGURE"]
-        if closed, let first = points.first, let last = points.last, gap > span * 1e-4 {
+        if closed, let first = points.first.map(placed), let last = points.last.map(placed), gap > span * 1e-4 {
             out += ["0", "LINE", "8", "MISCLOSURE", "10", Self.number(last[0]), "20", Self.number(last[1]), "30", "0.0",
                     "11", Self.number(first[0]), "21", Self.number(first[1]), "31", "0.0"]
         }
         let height = max(span / 60, 1e-3)
-        for (index, corner) in cornerPoints.enumerated() {
+        for (index, corner) in cornerPoints.map(placed).enumerated() {
             out += ["0", "POINT", "8", "CORNERS", "10", Self.number(corner[0]), "20", Self.number(corner[1]), "30", "0.0",
                     "0", "TEXT", "8", "LABELS", "10", Self.number(corner[0] + height / 2), "20", Self.number(corner[1] + height / 2),
                     "30", "0.0", "40", Self.number(height), "1", "\(index + 1)"]
@@ -102,10 +121,11 @@ extension ChatSketch {
         return out.joined(separator: "\n") + "\n"
     }
 
-    /// The numbered corners, east and north of the first one.
+    /// The numbered corners, at their coordinates or east and north of the first one.
     func csv() -> String {
         let suffix = unit.isEmpty ? "" : "_" + unit
-        return (["point,east\(suffix),north\(suffix)"] + cornerPoints.enumerated().map { index, corner in
+        let header = origin == nil ? "point,east\(suffix),north\(suffix)" : "point,x\(suffix),y\(suffix)"
+        return ([header] + cornerPoints.map(placed).enumerated().map { index, corner in
             "\(index + 1),\(Self.number(corner[0])),\(Self.number(corner[1]))"
         }).joined(separator: "\n") + "\n"
     }
@@ -204,7 +224,8 @@ struct ChatSketchSection: View {
     }
 
     private var caption: String {
-        var text = loc.t("Croquis sin ubicar en el mapa", "Sketch, not placed on a map")
+        var text = sketch.plane.map { loc.t("Croquis en %@", "Sketch in %@", $0) }
+            ?? loc.t("Croquis sin ubicar en el mapa", "Sketch, not placed on a map")
         if sketch.closed && sketch.gap > sketch.span * 1e-4 {
             text += " · " + loc.t("en rojo, lo que le falta para cerrar: %@ %@", "in red, what it lacks to close: %@ %@",
                                   ChatSketchCanvas.figure(sketch.gap), sketch.unit)

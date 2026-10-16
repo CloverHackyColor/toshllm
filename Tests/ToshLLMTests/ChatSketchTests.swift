@@ -53,6 +53,21 @@ final class ChatSketchTests: XCTestCase {
         XCTAssertEqual((features[0]["properties"] as? [String: Any])?["layer"] as? String, "Tract: 5 acres")
     }
 
+    func testAFigureWithAnOriginExportsAtItsCoordinates() throws {
+        let sketch = try XCTUnwrap(ChatSketch(["points": [[0, 0], [0, 100], [100, 100], [0, 0]], "unit": "ft", "closed": true,
+                                               "origin": [2077075.85, 303260.44],
+                                               "plane": "NAD27 Texas North Central (4202), US ft"]))
+        XCTAssertEqual(sketch.plane, "NAD27 Texas North Central (4202), US ft")
+        let csv = sketch.csv().split(separator: "\n")
+        XCTAssertEqual(csv.first, "point,x_ft,y_ft")
+        XCTAssertEqual(csv[2], "2,2077075.850,303360.440")
+        XCTAssertTrue(sketch.dxf().contains("10\n2077175.850\n20\n303360.440"))
+        // without an origin a figure stays in its own plane
+        let plain = try XCTUnwrap(ChatSketch(["points": [[0, 0], [0, 100], [0, 0]], "unit": "ft", "plane": "ignored"]))
+        XCTAssertNil(plain.plane)
+        XCTAssertEqual(plain.csv().split(separator: "\n").first, "point,east_ft,north_ft")
+    }
+
     func testTheFigureStaysWithTheAnswerItCameWith() throws {
         var message = ChatMessage(role: "assistant", content: "It closes.")
         message.sketches = [ChatSketch(title: "Tract 1", unit: "ft", points: [[0, 0], [10, 0], [10, 10], [0, 0]], closed: true),

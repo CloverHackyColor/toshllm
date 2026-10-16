@@ -1563,6 +1563,7 @@
   "Size": "尺寸",
   "Size of the messages and the input field, leaving the rest of the interface alone. Also ⌘+ and ⌘− from the chat, and ⌘0 to go back to 100%.": "消息和输入框的字号，不影响界面其余部分。在聊天中也可用 ⌘+ 和 ⌘− 调整，⌘0 恢复 100%。",
   "Sketch from the answer's data: point 1 is the start and each leg runs to the next number.": "根据回答数据绘制的草图：点 1 为起点，每段通向下一个编号。",
+  "Sketch in %@": "",
   "Sketch, not placed on a map": "草图，未放置在地图上",
   "Slow": "慢",
   "Smooth typing animation": "平滑的打字动画",

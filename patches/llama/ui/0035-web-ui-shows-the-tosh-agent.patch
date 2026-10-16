@@ -462,10 +462,10 @@ index 000000000..f58a6b59d
 +</button>
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte
 new file mode 100644
-index 000000000..3db0d506a
+index 000000000..831580fc1
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,72 @@
 +<script lang="ts">
 +	import ToshResize from './ToshResize.svelte';
 +	import { download, fileStem } from '$lib/tosh/download';
@@ -515,7 +515,9 @@ index 000000000..3db0d506a
 +
 +	<div class="flex flex-wrap items-start justify-between gap-2 text-[11px] text-muted-foreground">
 +		<span>
-+			Sketch, not placed on a map{#if isOpen(sketch)}
++			{sketch.plane && sketch.origin
++				? `Sketch in ${sketch.plane}`
++				: 'Sketch, not placed on a map'}{#if isOpen(sketch)}
 +				· in red, what it lacks to close: {figure(gap(sketch))}
 +				{sketch.unit}{/if}
 +		</span>
@@ -1021,10 +1023,10 @@ index 000000000..b131c780c
 +}
 diff --git a/tools/ui/src/lib/tosh/sketch.ts b/tools/ui/src/lib/tosh/sketch.ts
 new file mode 100644
-index 000000000..0c575d4a8
+index 000000000..67224996a
 --- /dev/null
 +++ b/tools/ui/src/lib/tosh/sketch.ts
-@@ -0,0 +1,269 @@
+@@ -0,0 +1,285 @@
 +import type { ToshSketch } from '$lib/types';
 +
 +/** How far the last point ends from the first, in the sketch's unit. */
@@ -1047,6 +1049,13 @@ index 000000000..0c575d4a8
 +}
 +
 +/** The points to number: the corners, without the last one of a closed figure, which is its first again. */
++/** A point where an export writes it: at the figure's coordinates when it has an origin, else from its first point. */
++function placed(sketch: ToshSketch, point: number[]): number[] {
++	const origin = sketch.origin?.length === 2 ? sketch.origin : null;
++
++	return origin ? [point[0] + origin[0], point[1] + origin[1]] : point;
++}
++
 +export function corners(sketch: ToshSketch): number[][] {
 +	const all = sketch.corners ?? sketch.points;
 +
@@ -1199,15 +1208,15 @@ index 000000000..0c575d4a8
 +		'0.0'
 +	];
 +
-+	for (const p of sketch.points) {
++	for (const p of sketch.points.map((point) => placed(sketch, point))) {
 +		out.push('0', 'VERTEX', '8', 'FIGURE', '10', number(p[0]), '20', number(p[1]), '30', '0.0');
 +	}
 +
 +	out.push('0', 'SEQEND', '8', 'FIGURE');
 +
 +	if (isOpen(sketch)) {
-+		const first = sketch.points[0];
-+		const last = sketch.points[sketch.points.length - 1];
++		const first = placed(sketch, sketch.points[0]);
++		const last = placed(sketch, sketch.points[sketch.points.length - 1]);
 +
 +		out.push(
 +			'0',
@@ -1231,34 +1240,36 @@ index 000000000..0c575d4a8
 +
 +	const size = Math.max(span(sketch) / 60, 1e-3);
 +
-+	corners(sketch).forEach((c, i) => {
-+		out.push(
-+			'0',
-+			'POINT',
-+			'8',
-+			'CORNERS',
-+			'10',
-+			number(c[0]),
-+			'20',
-+			number(c[1]),
-+			'30',
-+			'0.0',
-+			'0',
-+			'TEXT',
-+			'8',
-+			'LABELS',
-+			'10',
-+			number(c[0] + size / 2),
-+			'20',
-+			number(c[1] + size / 2),
-+			'30',
-+			'0.0',
-+			'40',
-+			number(size),
-+			'1',
-+			String(i + 1)
-+		);
-+	});
++	corners(sketch)
++		.map((corner) => placed(sketch, corner))
++		.forEach((c, i) => {
++			out.push(
++				'0',
++				'POINT',
++				'8',
++				'CORNERS',
++				'10',
++				number(c[0]),
++				'20',
++				number(c[1]),
++				'30',
++				'0.0',
++				'0',
++				'TEXT',
++				'8',
++				'LABELS',
++				'10',
++				number(c[0] + size / 2),
++				'20',
++				number(c[1] + size / 2),
++				'30',
++				'0.0',
++				'40',
++				number(size),
++				'1',
++				String(i + 1)
++			);
++		});
 +
 +	out.push('0', 'ENDSEC', '0', 'EOF');
 +
@@ -1268,9 +1279,16 @@ index 000000000..0c575d4a8
 +/** The numbered corners, east and north of the first one. */
 +export function csv(sketch: ToshSketch): string {
 +	const suffix = sketch.unit ? `_${sketch.unit}` : '';
-+	const rows = corners(sketch).map((c, i) => `${i + 1},${number(c[0])},${number(c[1])}`);
++	const rows = corners(sketch).map((corner, i) => {
++		const c = placed(sketch, corner);
 +
-+	return [`point,east${suffix},north${suffix}`, ...rows].join('\n') + '\n';
++		return `${i + 1},${number(c[0])},${number(c[1])}`;
++	});
++	const header = sketch.origin
++		? `point,x${suffix},y${suffix}`
++		: `point,east${suffix},north${suffix}`;
++
++	return [header, ...rows].join('\n') + '\n';
 +}
 +
 +/** A PNG of the drawing on white, twice its size, as a report wants it. */
@@ -1439,10 +1457,10 @@ index 377a57040..20260b4c3 100644
  	onConnectionState?: (state: StreamConnectionState) => void;
 diff --git a/tools/ui/src/lib/types/tosh.d.ts b/tools/ui/src/lib/types/tosh.d.ts
 new file mode 100644
-index 000000000..fccefc0f6
+index 000000000..6418555ed
 --- /dev/null
 +++ b/tools/ui/src/lib/types/tosh.d.ts
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,56 @@
 +/** A call the server's Tosh agent made while it answered, as its progress events report it. */
 +export interface ToshCall {
 +	id?: string;
@@ -1461,6 +1479,9 @@ index 000000000..fccefc0f6
 +	points: number[][];
 +	corners?: number[][];
 +	closed: boolean;
++	/** Where the first point lies in the coordinate system `plane` names: exports put the figure there. */
++	origin?: number[];
++	plane?: string;
 +}
 +
 +export interface ToshMapRequest {

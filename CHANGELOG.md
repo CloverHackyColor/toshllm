@@ -3,6 +3,12 @@
 All notable changes to ToshLLM are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+
+- **Chat: a figure an agent places in a coordinate system, such as a State Plane zone, exports at those coordinates.** Its DXF drawing and its CSV of corners carry the system's X and Y, so they open in place in CAD or GIS.
+
 ## [0.87.25] - 2026-10-15
 
 ### Added

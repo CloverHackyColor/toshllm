@@ -462,7 +462,7 @@ index 000000000..f58a6b59d
 +</button>
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte
 new file mode 100644
-index 000000000..831580fc1
+index 000000000..d4ab266f2
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshSketch.svelte
 @@ -0,0 +1,72 @@
@@ -517,9 +517,9 @@ index 000000000..831580fc1
 +		<span>
 +			{sketch.plane && sketch.origin
 +				? `Sketch in ${sketch.plane}`
-+				: 'Sketch, not placed on a map'}{#if isOpen(sketch)}
-+				· in red, what it lacks to close: {figure(gap(sketch))}
-+				{sketch.unit}{/if}
++				: 'Sketch, not placed on a map'}{#if isOpen(sketch)}{` · in red, what it lacks to close: ${figure(
++					gap(sketch)
++				)} ${sketch.unit}`}{/if}
 +		</span>
 +
 +		<span class="flex gap-3">

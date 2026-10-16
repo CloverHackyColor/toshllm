@@ -970,7 +970,7 @@ private struct InfoLabel: View {
             .frame(maxWidth: 360)
             .presentationCompactAdaptation(.popover)
         }
-        .help(loc.t("Полный текст предупреждения", "Click to read the full warning"))
+        .help(loc.t("Haz clic para leer la advertencia completa", "Click to read the full warning"))
     }
 }
 
@@ -1392,14 +1392,14 @@ struct ImageInstanceForm: View {
 
     private var controlImageRow: some View {
         let tip = loc.t(
-            "Изображение-условие Flex.2. Используется для управления структурой сцены: линиями, позой или глубиной.",
+            "Imagen de control de Flex.2. Se utiliza para guiar la estructura de la escena mediante líneas, poses o profundidad.",
             "Flex.2 control image. Used to guide scene structure with lines, pose, or depth."
         )
 
         return VStack(alignment: .leading, spacing: 4) {
             Divider().padding(.vertical, 2)
             filePickRow(
-                loc.t("Control image (опционально)", "Control image (optional)"),
+                loc.t("Imagen de control (opcional)", "Control image (optional)"),
                 path: $cfg.controlImagePath,
                 types: ["png", "jpg", "jpeg", "webp"]
             )
@@ -1416,7 +1416,7 @@ struct ImageInstanceForm: View {
                     )
                     .help(
                         loc.t(
-                            "0.0 = игнорировать контроль, 1.0 = строгое следование.",
+                            "0.0 = ignorar el control, 1.0 = seguimiento estricto.",
                             "0.0 = ignore control, 1.0 = strict adherence."))
 
                     Text(String(format: "%.2f", cfg.controlStrength))
@@ -1427,7 +1427,7 @@ struct ImageInstanceForm: View {
             // Предупреждение о ресурсах для Flex.2
             InfoLabel(
                 text: loc.t(
-                    "Flex.2 требует значительных ресурсов (T5 + CLIP + диффузия). Убедитесь, что хватает VRAM.",
+                    "Flex.2 requiere recursos considerables (T5 + CLIP + difusión). Asegúrate de tener suficiente VRAM.",
                     "Flex.2 requires significant resources (T5 + CLIP + diffusion). Ensure sufficient VRAM."
                 ),
                 systemImage: "memorychip",

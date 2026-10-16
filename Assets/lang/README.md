@@ -43,7 +43,7 @@ hand.
 | Chinese (Simplified) (简体中文) | `zh` | 100% (2018/2018) |
 | Japanese (日本語) | `ja` | 100% (2018/2018) |
 | Korean (한국어) | `ko` | not started |
-| Russian (Русский) | `ru` | not started |
+| Russian (Русский) | `ru` | 99% (2006/2018) |
 | Hindi (हिन्दी) | `hi` | not started |
 | Turkish (Türkçe) | `tr` | not started |
 | Dutch (Nederlands) | `nl` | not started |

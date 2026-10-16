@@ -165,10 +165,10 @@ index dac55caff..5fa2dc082 100644
  		<div class="info my-6 grid gap-4 tabular-nums">
 diff --git a/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte
 new file mode 100644
-index 000000000..f70c246b5
+index 000000000..2f26901b7
 --- /dev/null
 +++ b/tools/ui/src/lib/components/app/chat/ChatMessages/ChatMessage/ChatMessageAssistant/ToshMap.svelte
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,145 @@
 +<script lang="ts">
 +	import 'leaflet/dist/leaflet.css';
 +	import ToshResize from './ToshResize.svelte';
@@ -296,9 +296,8 @@ index 000000000..f70c246b5
 +						>
 +					{:else}
 +						{layer.title ?? 'Layer'}
-+					{/if}{#if layer.complete === false}
-+						(partial){/if}{#if layer.drawn}
-+						(approximate){/if}
++					{/if}{layer.complete === false ? ' (partial)' : ''}{layer.drawn ? ' (approximate)' : ''}
++					{#if layer.subtitle}<span class="opacity-75">{layer.subtitle}</span>{/if}
 +				</span>
 +			{/each}
 +		</span>

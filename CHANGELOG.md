@@ -9,6 +9,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 - **Chat: a figure an agent places in a coordinate system, such as a State Plane zone, exports at those coordinates.** Its DXF drawing and its CSV of corners carry the system's X and Y, so they open in place in CAD or GIS.
 
+### Fixed
+
+- **Web chat: an agent's answer survives a phone locking or switching apps.** The agent kept going only while the browser stayed connected, so a long turn such as reading a scanned deed failed when the page went to the background; it now runs to its end and the page picks the answer up when it comes back.
+
 ## [0.87.25] - 2026-10-15
 
 ### Added

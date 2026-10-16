@@ -12,11 +12,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Chat: a figure an agent sends exports as a shapefile, in a ZIP.** It is a polygon when the figure should close and a line otherwise, with its title and notice as attributes and, when the agent gives its coordinate system, a .prj, in the app and the web chat.
 - **Chat: a figure an agent sends can carry a notice that each of its exports repeats.** It goes under the drawing in the PNG, as text on a layer of its own in the DXF and as a column in the CSV, in the app and the web chat.
 - **Engine: `--tiles-path` serves a folder of map files at `/tiles/`, in byte ranges.** A map reads a PMTiles file of many gigabytes a piece at a time instead of loading it whole.
+- **Settings: a folder of offline maps and a base map style, with the map options.** The folder's PMTiles regions draw the background of maps in the app and the web chat without internet, with place names when their fonts sit in an assets subfolder, and the app hands the folder to the server on its own.
 - **Chat: the tools popover can uncheck every tool at once.** With many MCP servers on, one click starts from none so you pick only the few you need; the popover also shows how many are on. Requested in [#126](https://github.com/engeldlgado/toshllm/issues/126).
 
 ### Improved
 
 - **Web chat: maps draw with MapLibre, on OpenFreeMap online and on map files the server holds without internet.** OpenFreeMap takes the place of the OpenStreetMap tiles, whose policy is for light use; a server can name its own style instead, or PMTiles regions with their fonts under `--tiles-path`, and with neither reachable the layers still show on a plain ground.
+- **Chat: maps in the app draw with MapLibre too, and only road routes stay on Apple Maps.** Apple's terms keep its route data on its own map; every other map uses OpenFreeMap online, a style of your own or the offline regions, and a click on a feature still shows its attributes.
 - **Chat: a Markdown table gives each column the width of its text, wrapping past a limit, and scrolls sideways when it is wider than the answer.** Long words that cannot wrap, such as slugs, no longer squeeze the other columns, and the table has no widths left to work out as the window changes.
 
 ### Fixed

@@ -2361,10 +2361,10 @@ index 000000000..213864fec
 +}
 diff --git a/tools/ui/src/lib/tosh/map.ts b/tools/ui/src/lib/tosh/map.ts
 new file mode 100644
-index 000000000..40302d654
+index 000000000..f40b610b4
 --- /dev/null
 +++ b/tools/ui/src/lib/tosh/map.ts
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,192 @@
 +import { fileStem } from './download';
 +import { API_CHAT } from '$lib/constants';
 +import type { ToshMapLayer, ToshMapRequest } from '$lib/types';
@@ -2466,7 +2466,8 @@ index 000000000..40302d654
 +
 +/**
 + * The base map the server names in its ui settings: its PMTiles regions, drawn with the Protomaps style and the
-+ * fonts and sprites next to them, which need no internet; a style of its own; or OpenFreeMap online.
++ * fonts and sprites next to them, which need no internet (without labels when mapLabels is false, for a folder that
++ * lacks them); a style of its own; or OpenFreeMap online.
 + */
 +export async function baseStyle(
 +	maplibregl: typeof import('maplibre-gl'),
@@ -2494,6 +2495,7 @@ index 000000000..40302d654
 +	);
 +	const flavor = dark ? 'dark' : 'light';
 +	const lang = (navigator.language || 'en').slice(0, 2);
++	const labels = settings.mapLabels !== false;
 +	const sources: StyleSpecification['sources'] = {};
 +	const drawn: StyleSpecification['layers'] = [];
 +
@@ -2508,9 +2510,12 @@ index 000000000..40302d654
 +		// one ground for all the regions, under every one of them
 +		for (const layer of layers(name, namedFlavor(flavor), { lang })) {
 +			if (index > 0 && layer.type === 'background') continue;
++			if (!labels && layer.type === 'symbol') continue;
 +			drawn.push({ ...layer, id: `${name}-${layer.id}` } as StyleSpecification['layers'][number]);
 +		}
 +	});
++
++	if (!labels) return { layers: drawn, sources, version: 8 };
 +
 +	return {
 +		glyphs: `${assets}/fonts/{fontstack}/{range}.pbf`,

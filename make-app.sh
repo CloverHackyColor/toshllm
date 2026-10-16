@@ -129,6 +129,10 @@ cp Assets/rich-content/katex/dist/fonts/* \
    "$APP/Contents/Resources/rich-content/katex/dist/fonts/"
 cp Assets/rich-content/marked/lib/marked.umd.js \
    "$APP/Contents/Resources/rich-content/marked/lib/"
+mkdir -p "$APP/Contents/Resources/rich-content/maplibre/licenses"
+cp Assets/rich-content/maplibre/map.html Assets/rich-content/maplibre/toshmap.js Assets/rich-content/maplibre/maplibre-gl.css \
+   "$APP/Contents/Resources/rich-content/maplibre/"
+cp Assets/rich-content/maplibre/licenses/* "$APP/Contents/Resources/rich-content/maplibre/licenses/"
 
 # Community translation overlays (English-string -> translation). Optional:
 # es/en are built in; missing keys fall back to English. Copied both for the

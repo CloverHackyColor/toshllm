@@ -77,6 +77,9 @@ enum EngineExtensions {
         /// For the model: what the agent answers, when to call it and when not to.
         let description: String
         let label: Text
+        /// A file in the app's support folder where the agent keeps that description up to date, such as with the
+        /// data it reaches; it wins over `description` once it exists.
+        var descriptionFile: String?
     }
 
     struct Manifest: Decodable, Sendable {
@@ -227,14 +230,17 @@ enum EngineExtensions {
     }
 
     /// The active agent as a tool for the chat's model, when its extension offers it as one.
-    static func agentTool(_ extensions: [Extension] = active()) -> BuiltinToolInfo? {
+    static func agentTool(_ extensions: [Extension] = active(), support: URL = AppSupport.directory) -> BuiltinToolInfo? {
         guard let tool = extensions.first(where: \.hasAgent)?.manifest.agentTool else { return nil }
         let spanish = UserDefaults.standard.string(forKey: SettingsKeys.language) == "es"
+        let kept = tool.descriptionFile
+            .flatMap { try? Data(contentsOf: support.appendingPathComponent($0)) }
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }?["description"] as? String
         return try? BuiltinToolInfo(displayName: tool.label.pick(spanish: spanish), name: tool.name, writesData: false, definition: [
             "type": "function",
             "function": [
                 "name": tool.name,
-                "description": tool.description,
+                "description": kept?.isEmpty == false ? kept! : tool.description,
                 "parameters": [
                     "type": "object",
                     "properties": ["request": [

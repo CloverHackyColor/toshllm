@@ -4,7 +4,9 @@ An extension adds tools to ToshLLM's engine, and optionally its own agent, with 
 the app. It is a folder with an `extension.json` and whatever programs that file starts. The servers
 it declares are ordinary [MCP](https://modelcontextprotocol.io) servers, so anything that speaks MCP
 can write one, and they also run without ToshLLM. [`examples/extensions/clock`](../examples/extensions/clock)
-is a complete one in about seventy lines of standard-library Python.
+is a complete one in about seventy lines of standard-library Python, and
+[`examples/extensions/places`](../examples/extensions/places) uses every kind of setting and brings an agent
+that streams its answer, hands the turns outside its field back to the chat and offers a map.
 
 ## Where ToshLLM looks
 
@@ -12,7 +14,8 @@ is a complete one in about seventy lines of standard-library Python.
   `~/Library/Application Support/ToshLLM/Extensions`. Every subfolder with an `extension.json` is
   one extension; a chosen folder that has an `extension.json` itself is a single extension.
 - **Inside the app** (`Contents/Resources/extensions`), for builds that bring their own
-  (`TOSH_APP_EXTENSIONS=<folder>` in `make-app.sh`).
+  (`TOSH_APP_EXTENSIONS=<folder>` in `make-app.sh`). Such a build can also set its own defaults for
+  ToshLLM's settings with `TOSH_APP_DEFAULTS=<plist>`, keyed like `SettingsKeys`; what a user changes still wins.
 
 An extension found in the folder starts switched off. Switching it on shows the programs it will run;
 they run with your user's permissions, so only approve extensions you trust. The approval belongs to
@@ -112,7 +115,7 @@ Each section has an `id`, a `title`, an optional `detail` and `fields`. An optio
 | `choice` | One of `options` (`[{"value", "title"}]`). |
 | `choices` | Any of `options`, as their values joined by commas in the order of `options`; `default` is such a list. It always reaches the engine, empty when none is ticked. |
 | `json` | A JSON object, saved once it parses. |
-| `paths` | A JSON object of short names to files or folders the person picks (`file_types`, `folder_types`). |
+| `paths` | A JSON object of short names to files or folders the person picks (`file_types`, `folder_types`; `"folder_types": ["*"]` takes any folder). |
 
 Every setting that holds a value reaches the engine as an environment variable named by its `key`,
 and every server the engine starts inherits it, so a secret never shows on a command line. Use
@@ -124,8 +127,8 @@ names that are unlikely to clash with other extensions.
 agent turn of the chat, the web chat and API clients goes to its `run` tool, which answers it using
 the model and the tools through the engine. The contract is described in
 [`helpers/tosh-sympy/README.md`](../helpers/tosh-sympy/README.md#the-tosh-agent), and what another
-agent has to send back, including how it hands a turn back to the chat's own tools, in
-[its next section](../helpers/tosh-sympy/README.md#another-agent). Only one extension with an agent
+agent has to send back, including how it hands a turn back to the chat's own tools and how it
+offers a map of an answer, in [its next section](../helpers/tosh-sympy/README.md#another-agent). Only one extension with an agent
 can be on at a time.
 
 ## Without ToshLLM

@@ -55,6 +55,7 @@ struct ToolCallCard: View {
 }
 
 private struct ToolCallDetailView: View {
+    @EnvironmentObject private var loc: Localizer
     let call: ChatToolCall
     let presentation: ToolCallPresentation
 
@@ -100,6 +101,13 @@ private struct ToolCallDetailView: View {
             case .javaScript:
                 codePanel(presentation.code ?? "", language: "javascript")
                 consolePanel(title: "Console")
+            case .map:
+                if let code = presentation.code, !code.isEmpty {
+                    Label(code, systemImage: "map").font(.callout).textSelection(.enabled)
+                }
+                if let result = presentation.result, !result.isEmpty {
+                    Text(result).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                } else { emptyState(loc.t("Dibujando…", "Drawing…")) }
             case .dateTime:
                 if let result = presentation.result, !result.isEmpty {
                     Label(result, systemImage: "calendar.badge.clock")

@@ -113,6 +113,8 @@ enum ChatToolsService {
     /// which runs math turns, cannot ask.
     static func isAlwaysAllowed(_ name: String, bundled: Bool = true) -> Bool {
         if UserDefaults.standard.bool(forKey: permissionKey(name)) { return true }
+        // drawing on the chat's own map reads and writes nothing
+        if bundled && name == ChatMapTool.toolName { return true }
         return bundled && mathToolsAllowed && MathTranscriptionService.isMathTool(name)
     }
 

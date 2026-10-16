@@ -6,7 +6,7 @@ import Foundation
 
 struct ToolCallPresentation: Equatable {
     enum Kind: Equatable {
-        case read, write, edit, shell, grep, glob, javaScript, dateTime, math, search, generic
+        case read, write, edit, shell, grep, glob, javaScript, dateTime, math, search, map, generic
     }
 
     struct Edit: Equatable, Identifiable {
@@ -79,6 +79,19 @@ struct ToolCallPresentation: Equatable {
             return ToolCallPresentation(kind: .javaScript, title: "JavaScript sandbox", path: nil,
                                         code: args["code"] as? String, language: "javascript",
                                         detail: timeout.map { "timeout \($0) ms" }, edits: [], result: result)
+        case ChatMapTool.toolName:
+            let features = args["features"] as? [[String: Any]] ?? []
+            let labels = features.compactMap { $0["label"] as? String }.filter { !$0.isEmpty }
+            return ToolCallPresentation(kind: .map, title: (args["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Map",
+                                        path: nil, code: labels.joined(separator: ", "), language: "text",
+                                        detail: "\(features.count) feature\(features.count == 1 ? "" : "s")",
+                                        edits: [], result: result)
+        case ChatRoadRoute.toolName:
+            let stops = (args["stops"] as? [[String: Any]] ?? []).map { $0["label"] as? String ?? "?" }
+            return ToolCallPresentation(kind: .map, title: (args["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Road route",
+                                        path: nil, code: stops.joined(separator: " → "), language: "text",
+                                        detail: (args["transport"] as? String) == "walking" ? "walking" : "by car",
+                                        edits: [], result: result)
         case "get_datetime":
             return ToolCallPresentation(kind: .dateTime, title: "Date and time", path: nil,
                                         code: nil, language: "text", detail: nil,

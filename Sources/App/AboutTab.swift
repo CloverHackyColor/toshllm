@@ -7,6 +7,7 @@ import SwiftUI
 // MARK: - About
 
 enum AppInfo {
+
     static let version = "0.87.26"
 
     /// True for the pre-AVX2 legacy build (Info.plist TOSHNoAVX2). Kept on its own

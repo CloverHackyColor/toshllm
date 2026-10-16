@@ -7,6 +7,28 @@ import CryptoKit
 import os
 import Security
 
+/// Defaults a product packaged from this tree sets differently (`TOSH_APP_DEFAULTS` in make-app.sh), registered
+/// at launch so that every `@AppStorage` falls back to them until the user changes the setting.
+enum ProductDefaults {
+    static func values(in bundle: Bundle = .main) -> [String: Any] {
+        bundle.url(forResource: "AppDefaults", withExtension: "plist")
+            .flatMap { NSDictionary(contentsOf: $0) as? [String: Any] } ?? [:]
+    }
+
+    static func register() {
+        let values = values()
+        if !values.isEmpty { UserDefaults.standard.register(defaults: values) }
+    }
+
+    static func double(_ key: String, or fallback: Double) -> Double {
+        (values()[key] as? NSNumber)?.doubleValue ?? fallback
+    }
+
+    static func bool(_ key: String, or fallback: Bool) -> Bool {
+        (values()[key] as? NSNumber)?.boolValue ?? fallback
+    }
+}
+
 // MARK: - Settings keys (single source of truth)
 
 /// Every persisted setting key lives here. Views, `ServerSettings.fromDefaults`
@@ -103,6 +125,10 @@ enum SettingsKeys {
     /// memory_list / memory_archive / memory_recall. Off for setups where an
     /// external memory server already covers the job and the model mixes the two.
     static let memoryToolsEnabled = "memoryToolsEnabled"
+    /// show_map: the model draws points, lines and areas on a map under its answer.
+    static let chatMapToolEnabled = "chatMapToolEnabled"
+    /// show_road_route: Apple Maps routes by road, each call approved by the user since it uses the internet.
+    static let chatRoadRouteEnabled = "chatRoadRouteEnabled"
 
     /// Models whose template accepts tools but that write the call in the wrong shape: the
     /// engine rejects it and the turn dies, so they stop being offered any tool.
@@ -264,7 +290,7 @@ enum SettingsKeys {
         audioVADProfile, audioVADThreshold, audioVADMinSpeechMS,
         audioVADMinSilenceMS, audioVADMaxSpeechSeconds, audioVADSpeechPadMS,
         extraArgs, embeddings, agentToolsEnabled, toolsRuntime, jsSandboxEnabled, sympyEnabled, scientificEnabled, mathAgentEnabled, mathToolsAllowed, toolResultLimit,
-        memoryToolsEnabled, toolsUnsupportedModels, mcpServers, uiMcpProxy,
+        memoryToolsEnabled, chatMapToolEnabled, chatRoadRouteEnabled, toolsUnsupportedModels, mcpServers, uiMcpProxy,
         cacheTypeK, cacheTypeV, mlock, cacheRAM,
         parallelSlots, reasoningInline, serverDefaultReasoning, serverDefaultMaxTokens, specMTP, mtpDisabledModels, faAmd, prefetchExperts, ubatch,
         dynamicMoeEnabled, dynamicMoeLeanRAM, routerMode, routerModelsMax,

@@ -228,12 +228,33 @@ through `base_url` with `X-Tosh-Agent: off`, so its passes never come back to it
 `--mcp-agent-only` are neither listed nor run. Progress goes out as MCP progress notifications whose
 message is one event as above; for a `tool_call`, `state` is `completed` or `failed`, and an
 optional `summary` is one readable line about the result that the app shows on the call.
+A pass the agent streams goes out as `{"type": "delta", "content": "..."}` events (or
+`reasoning_content`), forwarded as the model writes; `{"type": "retract"}` after a pass that ended in tool
+calls tells the client to drop that text. The answer's content then starts with the text streamed since the
+last `retract`, and only the rest of it goes out at the end.
 
 When the app has tools of its own besides the math ones it sends `"tosh": {"client_tools": true}`.
 An agent may then hand back a turn that is outside its field: it answers with empty content,
 runs nothing and sets `"tosh": {"version": 1, "outcome": "declined"}`, and the app answers that
 turn with its own tools, as it would without the extension. Other clients never send the field,
 so they always get an answer.
+
+An agent can offer a map of an answer without delaying it: it adds `"map_request": {"show": bool, ...}`
+to the answer's `tosh`, without any geometry. A client sends that object back as
+`"tosh": {"map_request": {...}}` in a request of its own, and the agent answers it, with no model
+pass, with `"tosh": {"map": {"layers": [...]}}`: each layer a GeoJSON FeatureCollection in
+longitude/latitude with an optional `title`, `subtitle` (which of its features these are), `fields`
+(`[{"name", "alias"}]`, the order and names to show a clicked feature's attributes in), `complete` (false when not
+every feature fit) and `link` (`{"title", "url"}`, the layer in its own viewer). The app draws it at once when `show` is
+true, the request having asked for a map, and otherwise offers it under the answer.
+
+Figures that no coordinates place on the ground, such as the tracts traced from a deed's calls, go in the answer's
+own `tosh` as `"sketches": [{"points": [[x, y], ...], "unit": "ft", "closed": bool, "title": "...", "corners": [...]}]`,
+each the path east and north of its first point, in order. The app draws them under the answer without a map, small
+and several to a row, each one enlarged on request; it numbers `corners` (the points themselves when absent) from 1
+and, when `closed`, shows in red the gap between the last point and the first. A figure that lies in a coordinate
+system of its own, such as a State Plane zone, adds `"origin": [x, y]` (its first point there) and `"plane"` (the
+system's name): its DXF and CSV are then written at those coordinates.
 
 ### Direct calls
 

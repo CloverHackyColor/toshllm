@@ -54,6 +54,7 @@ struct ToshLLMApp: App {
     @AppStorage(SettingsKeys.menuBarIcon) private var menuBarIcon = true
 
     init() {
+        ProductDefaults.register()
         // Release VRAM held by an engine orphaned by a previous force-quit.
         EngineLock.reapOrphans()
 

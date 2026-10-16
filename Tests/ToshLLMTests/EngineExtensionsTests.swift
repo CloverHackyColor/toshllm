@@ -207,12 +207,17 @@ final class EngineExtensionsTests: XCTestCase {
         XCTAssertEqual(EngineExtensions.chatToolPrefixes(found), ["cloud_"])
     }
 
-    func testTheExampleExtensionLoads() throws {
+    func testTheExampleExtensionsLoad() throws {
         let examples = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().appendingPathComponent("examples/extensions")
         let found = EngineExtensions.discover(in: examples, bundled: false)
-        XCTAssertEqual(found.extensions.map(\.id), ["clock"])
+        XCTAssertEqual(found.extensions.map(\.id).sorted(), ["clock", "places"])
         XCTAssertTrue(found.problems.isEmpty)
+        // the complete example shows every kind of setting and an agent
+        let places = try XCTUnwrap(found.extensions.first { $0.id == "places" })
+        XCTAssertEqual(Set(places.fields.map(\.kind.rawValue)),
+                       ["toggle", "text", "secret", "choice", "choices", "json", "paths"])
+        XCTAssertTrue(places.hasAgent)
     }
 
     func testTheMathAgentOffersTheToolsOfAnExtensionWithoutAgent() throws {
@@ -229,5 +234,17 @@ final class EngineExtensionsTests: XCTestCase {
 
     func testWithoutExtensionsNothingChanges() throws {
         XCTAssertEqual(SymPyToolsService.serverArguments(enabled: false, resources: try runtime()), [])
+    }
+
+    func testAProductBringsItsOwnDefaults() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let defaults: NSDictionary = [SettingsKeys.chatMaxImageMegapixels: 4.0]
+        XCTAssertTrue(defaults.write(to: folder.appendingPathComponent("AppDefaults.plist"), atomically: true))
+        let values = ProductDefaults.values(in: try XCTUnwrap(Bundle(url: folder)))
+        XCTAssertEqual((values[SettingsKeys.chatMaxImageMegapixels] as? NSNumber)?.doubleValue, 4)
+        XCTAssertTrue(ProductDefaults.values().isEmpty, "a plain build keeps ToshLLM's defaults")
+        XCTAssertEqual(ProductDefaults.double(SettingsKeys.chatMaxImageMegapixels, or: 1), 1)
     }
 }

@@ -16,6 +16,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Improved
 
+- **Web chat: maps draw with MapLibre, on OpenFreeMap online and on map files the server holds without internet.** OpenFreeMap takes the place of the OpenStreetMap tiles, whose policy is for light use; a server can name its own style instead, or PMTiles regions with their fonts under `--tiles-path`, and with neither reachable the layers still show on a plain ground.
 - **Chat: a Markdown table gives each column the width of its text, wrapping past a limit, and scrolls sideways when it is wider than the answer.** Long words that cannot wrap, such as slugs, no longer squeeze the other columns, and the table has no widths left to work out as the window changes.
 
 ### Fixed

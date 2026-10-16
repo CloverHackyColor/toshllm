@@ -22,11 +22,13 @@ struct ChatSketch: Codable, Equatable {
     /// figure there.
     var origin: [Double]?
     var plane: String?
+    /// A line every export carries, such as a disclaimer that the figure is not a survey.
+    var notice: String?
 
     static let maximumPoints = 5000
 
     init(title: String?, unit: String, points: [[Double]], corners: [[Double]]? = nil, closed: Bool,
-         origin: [Double]? = nil, plane: String? = nil) {
+         origin: [Double]? = nil, plane: String? = nil, notice: String? = nil) {
         self.title = title
         self.unit = unit
         self.points = points
@@ -34,6 +36,7 @@ struct ChatSketch: Codable, Equatable {
         self.closed = closed
         self.origin = origin
         self.plane = plane
+        self.notice = notice
     }
 
     /// One of an agent's `tosh.sketches`, or nil when it is not a figure that can be drawn.
@@ -58,7 +61,8 @@ struct ChatSketch: Codable, Equatable {
         self.init(title: (object["title"] as? String).map { String($0.prefix(120)) },
                   unit: String((object["unit"] as? String ?? "").prefix(12)), points: points, corners: corners,
                   closed: object["closed"] as? Bool ?? false, origin: origin,
-                  plane: origin == nil ? nil : (object["plane"] as? String).map { String($0.prefix(120)) })
+                  plane: origin == nil ? nil : (object["plane"] as? String).map { String($0.prefix(120)) },
+                  notice: (object["notice"] as? String).map { String($0.prefix(200)) }.flatMap { $0.isEmpty ? nil : $0 })
     }
 
     /// How far the last point ends from the first, in the sketch's unit.
@@ -117,6 +121,12 @@ extension ChatSketch {
                     "0", "TEXT", "8", "LABELS", "10", Self.number(corner[0] + height / 2), "20", Self.number(corner[1] + height / 2),
                     "30", "0.0", "40", Self.number(height), "1", "\(index + 1)"]
         }
+        if let notice {
+            let placedPoints = (points + cornerPoints).map(placed)
+            let left = placedPoints.map { $0[0] }.min() ?? 0, bottom = placedPoints.map { $0[1] }.min() ?? 0
+            out += ["0", "TEXT", "8", "NOTICE", "10", Self.number(left), "20", Self.number(bottom - 3 * height), "30", "0.0",
+                    "40", Self.number(height), "1", notice.replacingOccurrences(of: "\n", with: " ")]
+        }
         out += ["0", "ENDSEC", "0", "EOF"]
         return out.joined(separator: "\n") + "\n"
     }
@@ -125,8 +135,10 @@ extension ChatSketch {
     func csv() -> String {
         let suffix = unit.isEmpty ? "" : "_" + unit
         let header = origin == nil ? "point,east\(suffix),north\(suffix)" : "point,x\(suffix),y\(suffix)"
-        return ([header] + cornerPoints.map(placed).enumerated().map { index, corner in
-            "\(index + 1),\(Self.number(corner[0])),\(Self.number(corner[1]))"
+        // a column rather than a comment line, which some table imports reject
+        let note = notice.map { ",\"" + $0.replacingOccurrences(of: "\"", with: "\"\"") + "\"" } ?? ""
+        return ([header + (notice == nil ? "" : ",note")] + cornerPoints.map(placed).enumerated().map { index, corner in
+            "\(index + 1),\(Self.number(corner[0])),\(Self.number(corner[1]))" + note
         }).joined(separator: "\n") + "\n"
     }
 }
@@ -207,8 +219,13 @@ struct ChatSketchSection: View {
     }
 
     private func png() -> Data? {
-        let renderer = ImageRenderer(content: ChatSketchCanvas(sketch: sketch).frame(width: 1200, height: 800)
-            .background(Color.white).environment(\.colorScheme, .light))
+        let renderer = ImageRenderer(content: VStack(spacing: 0) {
+            ChatSketchCanvas(sketch: sketch).frame(width: 1200, height: 800)
+            if let notice = sketch.notice {
+                Text(notice).font(.system(size: 20)).foregroundStyle(.black).padding(.bottom, 18)
+            }
+        }
+        .frame(width: 1200).background(Color.white).environment(\.colorScheme, .light))
         renderer.scale = 2
         guard let image = renderer.cgImage else { return nil }
         return NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
@@ -230,6 +247,7 @@ struct ChatSketchSection: View {
             text += " · " + loc.t("en rojo, lo que le falta para cerrar: %@ %@", "in red, what it lacks to close: %@ %@",
                                   ChatSketchCanvas.figure(sketch.gap), sketch.unit)
         }
+        if let notice = sketch.notice { text += " · " + notice }
         return text
     }
 }

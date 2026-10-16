@@ -66,6 +66,17 @@ final class ChatSketchTests: XCTestCase {
         let plain = try XCTUnwrap(ChatSketch(["points": [[0, 0], [0, 100], [0, 0]], "unit": "ft", "plane": "ignored"]))
         XCTAssertNil(plain.plane)
         XCTAssertEqual(plain.csv().split(separator: "\n").first, "point,east_ft,north_ft")
+        XCTAssertFalse(plain.dxf().contains("NOTICE"))
+    }
+
+    func testANoticeTravelsWithEveryExportOnlyWhenGiven() throws {
+        let sketch = try XCTUnwrap(ChatSketch(["points": [[0, 0], [0, 100], [100, 100], [0, 0]], "unit": "ft", "closed": true,
+                                               "notice": "Not survey quality, \"approximate\""]))
+        let csv = sketch.csv().split(separator: "\n")
+        XCTAssertEqual(csv.first, "point,east_ft,north_ft,note")
+        XCTAssertEqual(csv[1], "1,0.000,0.000,\"Not survey quality, \"\"approximate\"\"\"")
+        XCTAssertTrue(sketch.dxf().contains("8\nNOTICE\n10\n0.000\n20\n"))
+        XCTAssertNil(try XCTUnwrap(ChatSketch(["points": [[0, 0], [1, 1]], "notice": ""])).notice)
     }
 
     func testTheFigureStaysWithTheAnswerItCameWith() throws {

@@ -1533,6 +1533,7 @@
   "Sets keys to %@ and values to %@.": "キーを %@ に、値を %@ に設定します。",
   "Settings": "設定",
   "Settings exported successfully.": "設定を書き出しました。",
+  "Shapefile (ZIP)": "Shapefile (ZIP)",
   "Share": "共有",
   "Share a benchmark to see your history.": "ベンチマークを共有すると履歴が見られます。",
   "Share of the drafted tokens the big model confirmed, accumulated since the server started. It does not change answer quality, only speed.": "下書きしたトークンのうち、大きいモデルが承認した割合です(サーバー起動からの累計)。回答の品質は変わらず、速度だけが変わります。",

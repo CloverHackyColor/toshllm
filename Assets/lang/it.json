@@ -1533,6 +1533,7 @@
   "Sets keys to %@ and values to %@.": "Imposta le chiavi su %@ e i valori su %@.",
   "Settings": "Impostazioni",
   "Settings exported successfully.": "Impostazioni esportate con successo.",
+  "Shapefile (ZIP)": "Shapefile (ZIP)",
   "Share": "Condividi",
   "Share a benchmark to see your history.": "Condividi un benchmark per visualizzare la tua cronologia.",
   "Share of the drafted tokens the big model confirmed, accumulated since the server started. It does not change answer quality, only speed.": "Condivisione dei token abbozzati confermati dal modello grande, accumulati dall'avvio del server. Non influisce sulla qualità delle risposte, solo sulla velocità.",

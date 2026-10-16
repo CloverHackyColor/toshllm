@@ -24,11 +24,13 @@ struct ChatSketch: Codable, Equatable {
     var plane: String?
     /// A line every export carries, such as a disclaimer that the figure is not a survey.
     var notice: String?
+    /// The coordinate system of `origin` as a shapefile's .prj holds it.
+    var prj: String?
 
     static let maximumPoints = 5000
 
     init(title: String?, unit: String, points: [[Double]], corners: [[Double]]? = nil, closed: Bool,
-         origin: [Double]? = nil, plane: String? = nil, notice: String? = nil) {
+         origin: [Double]? = nil, plane: String? = nil, notice: String? = nil, prj: String? = nil) {
         self.title = title
         self.unit = unit
         self.points = points
@@ -37,6 +39,7 @@ struct ChatSketch: Codable, Equatable {
         self.origin = origin
         self.plane = plane
         self.notice = notice
+        self.prj = prj
     }
 
     /// One of an agent's `tosh.sketches`, or nil when it is not a figure that can be drawn.
@@ -62,7 +65,8 @@ struct ChatSketch: Codable, Equatable {
                   unit: String((object["unit"] as? String ?? "").prefix(12)), points: points, corners: corners,
                   closed: object["closed"] as? Bool ?? false, origin: origin,
                   plane: origin == nil ? nil : (object["plane"] as? String).map { String($0.prefix(120)) },
-                  notice: (object["notice"] as? String).map { String($0.prefix(200)) }.flatMap { $0.isEmpty ? nil : $0 })
+                  notice: (object["notice"] as? String).map { String($0.prefix(200)) }.flatMap { $0.isEmpty ? nil : $0 },
+                  prj: origin == nil ? nil : (object["prj"] as? String).map { String($0.prefix(4000)) })
     }
 
     /// How far the last point ends from the first, in the sketch's unit.
@@ -94,7 +98,7 @@ extension ChatSketch {
     private static func number(_ value: Double) -> String { String(format: "%.3f", value) }
 
     /// A point where an export writes it: at the figure's coordinates when it has an origin, else from its first point.
-    private func placed(_ point: [Double]) -> [Double] {
+    func placed(_ point: [Double]) -> [Double] {
         guard let origin else { return point }
         return [point[0] + origin[0], point[1] + origin[1]]
     }
@@ -209,6 +213,9 @@ struct ChatSketchSection: View {
                     Button(loc.t("Imagen PNG", "PNG image")) { save(png(), as: "png") }
                     Button(loc.t("DXF (CAD)", "DXF (CAD)")) { save(Data(sketch.dxf().utf8), as: "dxf") }
                     Button(loc.t("Esquinas en CSV", "Corners as CSV")) { save(Data(sketch.csv().utf8), as: "csv") }
+                    Button(loc.t("Shapefile (ZIP)", "Shapefile (ZIP)")) {
+                        save(sketch.shapefile(named: ChatMap.fileStem(sketch.title ?? loc.t("croquis", "sketch"))), as: "zip")
+                    }
                 }
                 .menuStyle(.borderlessButton).fixedSize().font(.caption)
                 .help(loc.t("PNG para un informe; DXF para AutoCAD o ArcGIS Pro, en %@ desde el punto 1; CSV con las esquinas numeradas.",

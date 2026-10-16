@@ -1533,6 +1533,7 @@
   "Sets keys to %@ and values to %@.": "把键设为 %@，值设为 %@。",
   "Settings": "设置",
   "Settings exported successfully.": "设置已成功导出。",
+  "Shapefile (ZIP)": "Shapefile (ZIP)",
   "Share": "分享",
   "Share a benchmark to see your history.": "分享一次跑分结果后即可查看你的历史记录。",
   "Share of the drafted tokens the big model confirmed, accumulated since the server started. It does not change answer quality, only speed.": "草稿词元中被大模型确认的比例，自服务器启动以来累计。它不改变回答质量，只影响速度。",

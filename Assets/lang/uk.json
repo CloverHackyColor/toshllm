@@ -1533,6 +1533,7 @@
   "Sets keys to %@ and values to %@.": "Встановлює для ключів %@, а для значень — %@.",
   "Settings": "Налаштування",
   "Settings exported successfully.": "Налаштування успішно експортовано.",
+  "Shapefile (ZIP)": "Shapefile (ZIP)",
   "Share": "Поділитися",
   "Share a benchmark to see your history.": "Поділіться бенчмарком, щоб переглянути свою історію.",
   "Share of the drafted tokens the big model confirmed, accumulated since the server started. It does not change answer quality, only speed.": "Частка чернеткових токенів, підтверджених великою моделлю, накопичена з моменту запуску сервера. Це не змінює якість відповіді, лише швидкість.",

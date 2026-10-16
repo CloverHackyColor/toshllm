@@ -135,6 +135,21 @@ final class EngineExtensionsTests: XCTestCase {
         XCTAssertEqual(active.count, 2)
     }
 
+    func testAnAgentOfferedAsAToolIsCalledByTheModelInsteadOfTakingEveryTurn() throws {
+        let root = try folder()
+        let tool = #", "agent_tool": {"name": "company_data", "description": "Answers from the company's data.", "label": {"es": "Datos", "en": "Data"}}"#
+        try write(manifest(id(), agent: true, extra: tool), in: root, as: "a")
+        let offered = EngineExtensions.agentTool(EngineExtensions.active(EngineExtensions.discover(in: root, bundled: true).extensions))
+        let function = offered?.openAIDefinition?["function"] as? [String: Any]
+        XCTAssertEqual(offered?.name, "company_data")
+        XCTAssertEqual(function?["description"] as? String, "Answers from the company's data.")
+        XCTAssertEqual(((function?["parameters"] as? [String: Any])?["required"] as? [String]), ["request"])
+
+        let other = try folder()
+        try write(manifest(id(), agent: true), in: other, as: "b")
+        XCTAssertNil(EngineExtensions.agentTool(EngineExtensions.active(EngineExtensions.discover(in: other, bundled: true).extensions)))
+    }
+
     func testEnvironmentCarriesSetValuesAndLeavesOffTogglesOut() throws {
         let root = try folder()
         try write(manifest(id()), in: root, as: "x")

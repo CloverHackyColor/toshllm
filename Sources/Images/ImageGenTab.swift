@@ -307,7 +307,6 @@ struct ImageControls: View {
                 Label(loc.t("Instancia", "Instance"), systemImage: "cube")
                     .font(.headline)
                 Spacer()
-                experimentalBadge
                 Button { pool.add() } label: {
                     Image(systemName: "plus")
                 }
@@ -350,14 +349,6 @@ struct ImageControls: View {
             }
             .font(.callout)
         }
-    }
-
-    private var experimentalBadge: some View {
-        Text(loc.t("Experimental", "Experimental"))
-            .font(.caption2.bold())
-            .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(.orange.opacity(0.18), in: Capsule())
-            .foregroundStyle(.orange)
     }
 
     private var serverBusyWarning: some View {

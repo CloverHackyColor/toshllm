@@ -1,8 +1,32 @@
 diff --git a/common/arg.cpp b/common/arg.cpp
-index 636d7a36e..b17243f83 100644
+index 636d7a36e..ccb7eb2bd 100644
 --- a/common/arg.cpp
 +++ b/common/arg.cpp
-@@ -3490,16 +3490,38 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
+@@ -3388,16 +3388,23 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
+     ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_REUSE_PORT"));
+     add_opt(common_arg(
+         {"--path"}, "PATH",
+         string_format("path to serve static files from (default: %s)", params.public_path.c_str()),
+         [](common_params & params, const std::string & value) {
+             params.public_path = value;
+         }
+     ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_STATIC_PATH"));
++    add_opt(common_arg(
++        {"--tiles-path"}, "PATH",
++        "folder of map files (PMTiles, fonts, sprites) served at /tiles/, with byte ranges",
++        [](common_params & params, const std::string & value) {
++            params.tiles_path = value;
++        }
++    ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_TILES_PATH"));
+     add_opt(common_arg(
+         {"--cors-origins"}, "ORIGINS",
+         string_format(
+             "comma-separated list of allowed origins for CORS (default: %s)\n"
+             "if set to special value 'localhost', reflect the Origin header only if it is localhost",
+         params.cors_origins.c_str()),
+         [](common_params & params, const std::string & value) {
+             params.cors_origins = value;
+@@ -3490,16 +3497,38 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
      add_opt(common_arg(
          {"--mcp-servers-json"}, "JSON",
          "experimental: inline JSON with MCP server definitions (Cursor-compatible format) - do not enable in untrusted environments (default: none)\n"
@@ -42,10 +66,28 @@ index 636d7a36e..b17243f83 100644
              if (value) {
                  params.server_tools = {"all"};
 diff --git a/common/common.h b/common/common.h
-index 909f7f9e7..409a80ff5 100644
+index 909f7f9e7..eba7d7427 100644
 --- a/common/common.h
 +++ b/common/common.h
-@@ -685,16 +685,19 @@ struct common_params {
+@@ -638,16 +638,17 @@ struct common_params {
+     bool    cache_prompt        = true;  // whether to enable prompt caching
+     bool    cache_idle_slots    = true;  // save and clear idle slots upon starting a new task
+     int32_t n_ctx_checkpoints   = 32;    // max number of context checkpoints per slot
+     int32_t kv_unified_per_slot = 0;     // max context per parallel slot; 0 = unset
+     int32_t checkpoint_min_step = 8192;  // minimum spacing between context checkpoints
+     int32_t cache_ram_mib       = 8192;  // -1 = no limit, 0 - disable, 1 = 1 MiB, etc.
+ 
+     std::string public_path   = "";                                                                         // NOLINT
++    std::string tiles_path    = "";                                                                         // NOLINT
+     std::string api_prefix    = "";                                                                         // NOLINT
+     std::string chat_template = "";                                                                         // NOLINT
+     std::vector<std::string> hostnames = {"127.0.0.1"};
+     bool use_jinja = true;                                                                                  // NOLINT
+ 
+     // server CORS params
+     std::string cors_origins = "*";
+     std::string cors_methods = "GET, POST, DELETE, OPTIONS";
+@@ -685,16 +686,19 @@ struct common_params {
  
      // enable built-in tools
      std::vector<std::string> server_tools;
@@ -88,10 +130,37 @@ index 939016064..f539502a4 100644
  
      return props;
 diff --git a/tools/server/server-http.cpp b/tools/server/server-http.cpp
-index 33cbb156c..d1dd24208 100644
+index 33cbb156c..aeb782fe2 100644
 --- a/tools/server/server-http.cpp
 +++ b/tools/server/server-http.cpp
-@@ -677,17 +677,18 @@ void server_http_context::get(const std::string & path, const server_http_contex
+@@ -363,16 +363,26 @@ bool server_http_context::init_listener(const common_params & params) {
+     srv->new_task_queue = [this] {
+         return new server_http_task_queue(*pimpl->pool);
+     };
+ 
+     //
+     // Web UI setup
+     //
+ 
++    // a map reads its tiles in byte ranges; the CORS middleware above answers for the origin
++    if (!params.tiles_path.empty()) {
++        httplib::Headers tile_headers = {{"Access-Control-Expose-Headers", "Content-Length, Content-Range, ETag"}};
++        if (const auto is_found = srv->set_mount_point(params.api_prefix + "/tiles", params.tiles_path, tile_headers);
++            !is_found) {
++            SRV_ERR("tiles path not found: %s\n", params.tiles_path.c_str());
++            return false;
++        }
++    }
++
+     // Use new `params.ui` field (backed by old `params.webui` for compat)
+     if (!params.ui) {
+         SRV_INF("%s", "The UI is disabled\n");
+         SRV_INF("%s", "Use --ui/--no-ui (or deprecated --webui/--no-webui) to enable/disable\n");
+     } else {
+         // register static assets routes
+         if (!params.public_path.empty()) {
+             // Set the base directory for serving static files
+@@ -677,17 +687,18 @@ void server_http_context::get(const std::string & path, const server_http_contex
      auto callback = [handler](const httplib::Request & req, httplib::Response & res) {
          server_http_req_ptr request = std::make_unique<server_http_req>(server_http_req{
              get_params(req),
@@ -111,7 +180,7 @@ index 33cbb156c..d1dd24208 100644
      for (const auto & srv : pimpl->servers) {
          srv->Get(full_path, callback);
      }
-@@ -728,17 +729,18 @@ void server_http_context::post(const std::string & path, const server_http_conte
+@@ -728,17 +739,18 @@ void server_http_context::post(const std::string & path, const server_http_conte
  
          server_http_req_ptr request = std::make_unique<server_http_req>(server_http_req{
              get_params(req),
@@ -131,7 +200,7 @@ index 33cbb156c..d1dd24208 100644
      for (const auto & srv : pimpl->servers) {
          srv->Post(full_path, callback);
      }
-@@ -749,17 +751,18 @@ void server_http_context::del(const std::string & path, const server_http_contex
+@@ -749,17 +761,18 @@ void server_http_context::del(const std::string & path, const server_http_contex
      auto callback = [handler](const httplib::Request & req, httplib::Response & res) {
          server_http_req_ptr request = std::make_unique<server_http_req>(server_http_req{
              get_params(req),

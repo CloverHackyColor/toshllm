@@ -5591,7 +5591,7 @@ index 000000000..b42b3d62c
 +            float4 acc2 = {0.f, 0.f, 0.f, 0.f};
 +            // the four shorts this lane reads are contiguous, so an aligned stride turns
 +            // them into two words
-+            ushort qw[2];
++            ushort qw[4];
 +            if (FC_mul_mv_row8) {
 +                const uint2 t = *(device const uint2 *)qs;
 +                qw[0] = (ushort)(t.x); qw[1] = (ushort)(t.x >> 16);

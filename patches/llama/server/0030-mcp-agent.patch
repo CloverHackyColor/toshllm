@@ -989,7 +989,7 @@ index 6e2d8ff9d..b51ded455 100644
  static inline void signal_handler(int signal) {
      if (is_terminating.test_and_set()) {
          // in case it hangs, we can force terminate the server by hitting Ctrl+C twice
-@@ -48,10 +78,297 @@ void llama_server_terminate() {
+@@ -48,10 +78,305 @@ void llama_server_terminate() {
          shutdown_handler(0);
      }
  }
@@ -1173,6 +1173,14 @@ index 6e2d8ff9d..b51ded455 100644
 +        std::string host = params.hostnames.empty() ? "127.0.0.1" : params.hostnames.front();
 +        if (host.empty() || host == "0.0.0.0" || host == "::") {
 +            host = "127.0.0.1";
++        }
++        // an IPv6 literal goes in brackets, the % of its zone written %25 (RFC 6874)
++        if (host.find(':') != std::string::npos) {
++            std::string escaped;
++            for (char c : host) {
++                escaped += c == '%' ? std::string("%25") : std::string(1, c);
++            }
++            host = "[" + escaped + "]";
 +        }
 +        json args = {{"request", body},
 +                     {"base_url", "http://" + host + ":" + std::to_string(params.port)},

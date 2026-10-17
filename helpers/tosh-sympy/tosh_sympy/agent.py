@@ -52,7 +52,8 @@ class Cancelled(Exception):
 class Engine:
     def __init__(self, base_url, api_key, agent_key=""):
         parsed = urllib.parse.urlparse(base_url)
-        self.host, self.port = parsed.hostname or "127.0.0.1", parsed.port or 80
+        # an IPv6 host comes in brackets with its zone's % as %25, and connects without them
+        self.host, self.port = urllib.parse.unquote(parsed.hostname or "127.0.0.1"), parsed.port or 80
         self.api_key = api_key or ""
         # what /tools asks before it lists or runs the tools of a server only the agent may use
         self.agent_key = agent_key or ""

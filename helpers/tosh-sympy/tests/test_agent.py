@@ -524,6 +524,13 @@ def test_intent_reads_the_examples_of_the_brief():
         assert policy.classify(text) == intent, (text, policy.classify(text))
 
 
+def test_the_engine_reads_every_address_the_server_hands_it():
+    for url, host in (("http://127.0.0.1:8080", "127.0.0.1"), ("http://localhost:8080", "localhost"),
+                      ("http://[::1]:8080", "::1"), ("http://[fe80::1%25lo0]:8080", "fe80::1%lo0")):
+        engine = agent.Engine(url, "")
+        assert (engine.host, engine.port) == (host, 8080), (url, engine.host, engine.port)
+
+
 def main():
     tests = [(n, f) for n, f in globals().items() if n.startswith("test_")]
     failed = 0

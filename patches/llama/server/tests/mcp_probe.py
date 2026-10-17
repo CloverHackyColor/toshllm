@@ -12,6 +12,8 @@ argument.
     slow   stops reading for `seconds`, then answers
     die    exits mid-call
     eof    closes its output and keeps running
+
+A file at the log's path plus ".hold" holds every initialize until it is removed, as a server slow to start.
 """
 
 import json
@@ -55,6 +57,8 @@ for line in sys.stdin:
         continue
     method = message.get("method")
     if method == "initialize":
+        while os.path.exists(LOG + ".hold"):
+            time.sleep(0.01)
         send({"jsonrpc": "2.0", "id": rid, "result": {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}},
                                                       "serverInfo": {"name": "probe", "version": "1"}}})
         continue

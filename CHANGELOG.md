@@ -20,6 +20,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **LLMs: Qwen 3.5 to 3.8 models split across GPUs by tensor start again with MTP.** Since 0.87.13 the guess head scored a shortened vocabulary that a tensor split cannot take, and the engine stopped at startup; with the model split that way it scores the whole vocabulary. Reported by [Basten7](https://github.com/Basten7) in [#130](https://github.com/engeldlgado/toshllm/issues/130).
 - **LLMs on Radeon RX 400/500, Vega, Radeon VII and Radeon Pro Vega/WX: Q2_K models no longer write past an array in the matrix-vector kernel.** The engine build warned about it. Reported by [SergeySlice](https://github.com/SergeySlice) in [#131](https://github.com/engeldlgado/toshllm/issues/131).
 - **Engine and math: the agent answers on a server that listens on an IPv6 address.** It was handed an address it could not read, such as `http://::1:8080`, and every turn failed; it now gets `http://[::1]:8080`, with the zone of a link-local address written as `%25`.
+- **MCP: calls waiting for a server that is slow to start can be cancelled, and a start that fails is not retried by each of them.** A failed start used to make every queued call wait the full timeout again; now they fail together, and the start is tried again a few seconds later.
 
 ## [0.87.26] - 2026-10-17
 

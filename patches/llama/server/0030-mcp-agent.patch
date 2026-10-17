@@ -251,13 +251,10 @@ index 4554b20f4..26fb1c800 100644
          return def;
      }
 diff --git a/tools/server/server-mcp.cpp b/tools/server/server-mcp.cpp
-index 65e39179d..726812ddc 100644
+index 65e39179d..c37bca886 100644
 --- a/tools/server/server-mcp.cpp
 +++ b/tools/server/server-mcp.cpp
-@@ -207,51 +207,138 @@ static json mcp_result_to_response(const json & result) {
-         }
-     }
-     if (result.is_object() && result.value("isError", false)) {
+@@ -210,45 +210,136 @@ static json mcp_result_to_response(const json & result) {
          return {{"error", text.empty() ? "MCP tool returned an error" : text}};
      }
      return {{"plain_text_response", text}};
@@ -268,6 +265,10 @@ index 65e39179d..726812ddc 100644
 +                                    const std::function<void(const json &)> & on_progress) {
 +    const bool has_id = request.contains("id");
 +    const std::string key = has_id ? request.at("id").dump() : "";
++    // nothing is sent for a caller that already went away
++    if (has_id && should_stop && should_stop()) {
++        return {{"error", {{"code", -32603}, {"message", "cancelled"}}}};
++    }
 +    {
 +        std::lock_guard<std::mutex> lk(demux_mutex);
 +        if (demux_closed) {
@@ -404,13 +405,7 @@ index 65e39179d..726812ddc 100644
      return {{"error", {{"code", -32603}, {"message", "transport closed"}}}};
  }
  
- bool server_mcp_transport::ensure_init(const std::function<bool()> & should_stop) {
-     if (initialized) {
-         return true;
-@@ -310,29 +397,40 @@ std::vector<server_mcp_tool_def> server_mcp_transport::list_tools(const std::fun
-             tools.push_back(std::move(def));
-         }
-     }
+@@ -313,23 +404,38 @@ std::vector<server_mcp_tool_def> server_mcp_transport::list_tools(const std::fun
      return tools;
  }
  
@@ -422,11 +417,23 @@ index 65e39179d..726812ddc 100644
 -        return {{"error", last_error}};
 +                                     const std::function<bool()> & should_stop,
 +                                     const std::function<void(const json &)> & on_progress) {
-+    // a call queued behind another only starts its timeout once it is sent
-+    std::unique_lock<std::mutex> serial(call_mutex, std::defer_lock);
++    // a call queued behind another only starts its timeout once it is sent, and gives up its place if its caller goes
++    std::unique_lock<std::timed_mutex> serial(call_mutex, std::defer_lock);
 +    if (!concurrent) {
-+        serial.lock();
-+    }
++        while (!serial.try_lock_for(std::chrono::milliseconds(100))) {
++            if (should_stop && should_stop()) {
++                return {{"error", "cancelled"}};
++            }
++        }
+     }
+-
+-    json req = {
+-        {"jsonrpc", "2.0"},
+-        {"id", next_id++},
+-        {"method", "tools/call"},
+-        {"params", {{"name", tool_name}, {"arguments", arguments}}},
+-    };
+-    json resp = send_rpc(req, should_stop);
 +    json req;
 +    {
 +        std::lock_guard<std::mutex> lock(rpc_mutex);
@@ -439,15 +446,7 @@ index 65e39179d..726812ddc 100644
 +            {"method", "tools/call"},
 +            {"params", {{"name", tool_name}, {"arguments", arguments}}},
 +        };
-     }
--
--    json req = {
--        {"jsonrpc", "2.0"},
--        {"id", next_id++},
--        {"method", "tools/call"},
--        {"params", {{"name", tool_name}, {"arguments", arguments}}},
--    };
--    json resp = send_rpc(req, should_stop);
++    }
 +    if (on_progress) {
 +        req["params"]["_meta"] = {{"progressToken", req.at("id")}};
 +    }
@@ -457,13 +456,7 @@ index 65e39179d..726812ddc 100644
      }
      if (resp.contains("result")) {
          return mcp_result_to_response(resp.at("result"));
-     }
-     return {{"error", "invalid response from MCP server"}};
- }
-@@ -665,16 +763,17 @@ const server_mcp_server_config * server_mcp::find_config(const std::string & nam
-         if (c.name == name) {
-             return &c;
-         }
+@@ -668,10 +774,11 @@ const server_mcp_server_config * server_mcp::find_config(const std::string & nam
      }
      return nullptr;
  }
@@ -475,10 +468,20 @@ index 65e39179d..726812ddc 100644
              auto parsed = server_mcp_server_config::parse_from_json(json_str);
              if (parsed.empty()) {
                  SRV_WRN("%s", "MCP config: no servers found in JSON\n");
-             }
-             for (auto & p : parsed) {
-                 // names must be unique across both config sources: get_or_create / find_config key on the name
-@@ -730,26 +829,27 @@ void server_mcp::start(const common_params & params) {
+@@ -725,28 +832,37 @@ void server_mcp::start(const common_params & params) {
+ 
+     std::lock_guard<std::mutex> lock(mutex);
+     registry.swap(discovered);
+ }
+ 
++std::vector<std::string> server_mcp::server_names() const {
++    std::vector<std::string> names;
++    for (const auto & c : configs) {
++        names.push_back(c.name);
++    }
++    return names;
++}
++
  std::vector<server_mcp_tool_def> server_mcp::list_tools() const {
      std::lock_guard<std::mutex> lock(mutex);
      return registry;
@@ -505,13 +508,7 @@ index 65e39179d..726812ddc 100644
  std::shared_ptr<server_mcp_transport> server_mcp::get_or_create(const std::string & name) {
      std::vector<std::shared_ptr<server_mcp_transport>> to_close; // closed after unlock
      std::shared_ptr<server_mcp_transport> result;
- 
-     {
-         std::lock_guard<std::mutex> lock(mutex);
-@@ -774,16 +874,17 @@ std::shared_ptr<server_mcp_transport> server_mcp::get_or_create(const std::strin
-             SRV_WRN("MCP '%s' is no longer alive: %s\n", name.c_str(), it->second->diagnostics().c_str());
-             to_close.push_back(std::move(it->second));
-             transports.erase(it);
+@@ -777,10 +893,11 @@ std::shared_ptr<server_mcp_transport> server_mcp::get_or_create(const std::strin
          }
  
          const server_mcp_server_config * cfg = find_config(name);
@@ -523,15 +520,11 @@ index 65e39179d..726812ddc 100644
                  result = fresh;
              } else {
                  SRV_WRN("MCP '%s': failed to start: %s\n", name.c_str(), fresh->diagnostics().c_str());
-                 to_close.push_back(std::move(fresh));
-                 dead_servers[name] = now + std::chrono::seconds(MCP_COOLDOWN_SECONDS);
-             }
 diff --git a/tools/server/server-mcp.h b/tools/server/server-mcp.h
-index c7f33a3f7..d5ffb399b 100644
+index c7f33a3f7..5d5a3c74a 100644
 --- a/tools/server/server-mcp.h
 +++ b/tools/server/server-mcp.h
-@@ -1,18 +1,21 @@
- #pragma once
+@@ -2,14 +2,17 @@
  
  #include "server-common.h"
  
@@ -549,13 +542,7 @@ index c7f33a3f7..d5ffb399b 100644
  #include <vector>
  
  //
- // Configuration (Cursor-compatible "mcpServers" JSON)
- //
- 
-@@ -45,16 +48,18 @@ struct server_mcp_tool_def {
- //
- // each queue item is one complete serialized JSON message.
- // subclass owns byte I/O and framing; base owns JSON and the JSON-RPC session (handshake, id correlation).
+@@ -48,10 +51,12 @@ struct server_mcp_tool_def {
  //
  
  struct server_mcp_transport {
@@ -568,13 +555,7 @@ index c7f33a3f7..d5ffb399b 100644
      server_pipe<std::string> from_server; // serialized messages read from the server
  
      virtual ~server_mcp_transport() = default;
- 
-     virtual bool start() = 0;
-     virtual void close() = 0; // blocking and idempotent
-@@ -65,31 +70,44 @@ struct server_mcp_transport {
-     // may run on a different thread than send_rpc(), so last_error is read under rpc_mutex
-     virtual std::string diagnostics() {
-         std::lock_guard<std::mutex> lock(rpc_mutex);
+@@ -68,25 +73,38 @@ struct server_mcp_transport {
          return last_error;
      }
  
@@ -592,7 +573,7 @@ index c7f33a3f7..d5ffb399b 100644
 +    // per-transport: guards the handshake, the tool list and the members below; a tool call holds it only to
 +    // take its id, so a long call (the Tosh agent's turn) does not stall the calls of other clients
      std::mutex rpc_mutex;
-+    std::mutex call_mutex; // held across a whole call unless the server is concurrent
++    std::timed_mutex call_mutex; // held across a whole call unless the server is concurrent; waited for cancellably
      uint64_t next_id = 1; // reset to 1 per (re)spawn
      bool initialized = false;
      std::string last_error;
@@ -618,12 +599,14 @@ index c7f33a3f7..d5ffb399b 100644
  //
  // server_mcp_stdio: child process, NDJSON JSON-RPC over stdio (stderr drained to the debug log)
  //
+@@ -140,17 +158,20 @@ public:
+     void start(const common_params & params);
  
- struct server_mcp_stdio : server_mcp_transport {
-     explicit server_mcp_stdio(const server_mcp_server_config & config);
-@@ -143,33 +161,35 @@ public:
+     // true until start() has parsed at least one server from the config
      bool empty() const { return configs.empty(); }
  
++    std::vector<std::string> server_names() const;
++
      std::vector<server_mcp_tool_def> list_tools() const;
  
      // lazily (re)spawns the transport. returns the MCP result or an {"error": ...}. should_stop is OR-ed with the manager's cancel flag.
@@ -638,12 +621,7 @@ index c7f33a3f7..d5ffb399b 100644
      // note: multiple calls are idempotent
      void shutdown();
  
- private:
-     std::vector<server_mcp_server_config> configs;
- 
-     mutable std::mutex mutex; // guards transports, dead_servers, registry
- 
-     // shared_ptr: call_tool() hands a transport to the caller and drops the lock for the blocking RPC, so a concurrent evict/respawn must not destroy it mid-call
+@@ -163,10 +184,11 @@ private:
      std::map<std::string, std::shared_ptr<server_mcp_transport>> transports;
      std::map<std::string, std::chrono::steady_clock::time_point> dead_servers; // spawn-failure cooldown
      std::vector<server_mcp_tool_def> registry;
@@ -655,9 +633,6 @@ index c7f33a3f7..d5ffb399b 100644
  
      // the only place that names a concrete transport
      std::shared_ptr<server_mcp_transport> create_transport(const server_mcp_server_config & cfg);
- 
-     // nullptr during cooldown or shutdown
-     std::shared_ptr<server_mcp_transport> get_or_create(const std::string & name);
 diff --git a/tools/server/server-models.cpp b/tools/server/server-models.cpp
 index 35d21c876..d0aad2668 100644
 --- a/tools/server/server-models.cpp
@@ -746,13 +721,26 @@ index 78169e9a5..468c4fe52 100644
          }
      }
 diff --git a/tools/server/server-tools.cpp b/tools/server/server-tools.cpp
-index 12e9dbb8c..453882b27 100644
+index 12e9dbb8c..4bc757ff5 100644
 --- a/tools/server/server-tools.cpp
 +++ b/tools/server/server-tools.cpp
-@@ -1991,17 +1991,24 @@ static std::unique_ptr<server_tools_runtime> make_tools_runtime(const std::strin
-         return std::make_unique<server_tools_container_runtime>(spec);
+@@ -1835,10 +1835,15 @@ struct server_mcp_tool : server_tool {
      }
-     make_tools_io({{"runtime", spec}}); // nothing to own, just reject a bad spec now
+ 
+     json invoke(json params, server_tool::stream *) const override {
+         return mcp_mgr.call_tool(server_name, tool_name, params);
+     }
++
++    // POST /tools runs an MCP call within its request, so the request's connection check is valid throughout
++    json call(const json & params, const std::function<bool()> & should_stop) const {
++        return mcp_mgr.call_tool(server_name, tool_name, params, should_stop);
++    }
+ };
+ 
+ // resolves --tools-runtime into the isolate that every tool call runs through
+ // spec() returns the runtime string make_tools_io() takes, and runs once per tool call
+ struct server_tools_runtime {
+@@ -1994,11 +1999,18 @@ static std::unique_ptr<server_tools_runtime> make_tools_runtime(const std::strin
      return std::make_unique<server_tools_static_runtime>(spec);
  }
  
@@ -772,13 +760,7 @@ index 12e9dbb8c..453882b27 100644
      }
  
      if (!enabled_tools.empty()) {
-         if (!common_subproc::is_supported()) {
-             throw std::runtime_error("subprocess is not enabled on this build");
-         }
-@@ -2038,48 +2045,86 @@ void server_tools::setup(const std::vector<std::string> & enabled_tools,
-     // append MCP tools, skipping any that collide with a server tool or another MCP tool of the same "<server>_<tool>" name
-     if (!mcp_mgr.empty()) {
-         std::unordered_set<std::string> seen_names;
+@@ -2041,10 +2053,14 @@ void server_tools::setup(const std::vector<std::string> & enabled_tools,
          for (auto & t : tools) {
              seen_names.insert(t->name);
          }
@@ -793,11 +775,7 @@ index 12e9dbb8c..453882b27 100644
                  SRV_WRN("MCP tool \"%s\" from server \"%s\" collides with an existing tool, skipping\n",
                      mcp_name.c_str(), def.server_name.c_str());
                  continue;
-             }
-             seen_names.insert(mcp_name);
-             tools.push_back(std::make_unique<server_mcp_tool>(def, mcp_mgr));
-             n_added++;
-         }
+@@ -2056,15 +2072,49 @@ void server_tools::setup(const std::vector<std::string> & enabled_tools,
          if (n_added > 0) {
              SRV_INF("Added %zu MCP tools\n", n_added);
          }
@@ -848,7 +826,7 @@ index 12e9dbb8c..453882b27 100644
              res->data = safe_json_to_str(result);
          } catch (const std::exception & e) {
              SRV_ERR("got exception: %s\n", e.what());
-             res->status = 500;
+@@ -2072,11 +2122,11 @@ void server_tools::setup(const std::vector<std::string> & enabled_tools,
              res->data   = safe_json_to_str(format_error_response(e.what(), ERROR_TYPE_SERVER));
          }
          return res;
@@ -861,13 +839,7 @@ index 12e9dbb8c..453882b27 100644
              json body = json::parse(req.body);
              std::string tool_name = body.at("tool").get<std::string>();
              json params = body.value("params", json::object());
-             bool stream = body.value("stream", false);
- 
-             // accept x-tool-cwd header to override of the process
-@@ -2108,16 +2153,32 @@ void server_tools::setup(const std::vector<std::string> & enabled_tools,
-                 params.erase("resp_type");
-             }
-             auto resp_type = get_header(req.headers, "x-resp-type");
+@@ -2111,10 +2161,26 @@ void server_tools::setup(const std::vector<std::string> & enabled_tools,
              if (!resp_type.empty()) {
                  params["resp_type"] = resp_type;
              }
@@ -894,9 +866,21 @@ index 12e9dbb8c..453882b27 100644
                  int id = res_id.fetch_add(1);
                  queue_res.add_waiting_task_id(id);
                  res->qr = &queue_res;
-                 res->id = id;
- 
-                 res->worker = std::thread([this, id, &req, &tool, params]() mutable {
+@@ -2150,11 +2216,13 @@ void server_tools::setup(const std::vector<std::string> & enabled_tools,
+                         return false;
+                     }
+                     return true;
+                 };
+             } else {
+-                json result = tool.invoke(params, nullptr);
++                // a client that goes away stops its MCP call instead of holding the server's lane to the timeout
++                const auto * mcp = dynamic_cast<const server_mcp_tool *>(&tool);
++                json result = mcp ? mcp->call(params, req.should_stop) : tool.invoke(params, nullptr);
+                 res->status = 200;
+                 res->data   = safe_json_to_str(result);
+             }
+         } catch (const common_json_error & e) {
+             res->status = 400;
 diff --git a/tools/server/server-tools.h b/tools/server/server-tools.h
 index e7332f2e5..66811a44c 100644
 --- a/tools/server/server-tools.h
@@ -950,13 +934,10 @@ index e7332f2e5..66811a44c 100644
      ~server_tools();
  };
 diff --git a/tools/server/server.cpp b/tools/server/server.cpp
-index 6e2d8ff9d..f0c755dda 100644
+index 6e2d8ff9d..b51ded455 100644
 --- a/tools/server/server.cpp
 +++ b/tools/server/server.cpp
-@@ -7,18 +7,23 @@
- 
- #include "arg.h"
- #include "build-info.h"
+@@ -10,21 +10,51 @@
  #include "common.h"
  #include "fit.h"
  #include "llama.h"
@@ -974,13 +955,41 @@ index 6e2d8ff9d..f0c755dda 100644
  #include <thread> // for std::thread::hardware_concurrency
  
  #if defined(_WIN32)
++#include <winsock2.h>
++#include <ws2tcpip.h>
  #include <windows.h>
++#else
++#include <arpa/inet.h>
  #endif
  
-@@ -45,16 +50,303 @@ int llama_server(common_params & params, int argc, char ** argv, server_child &
- void llama_server_terminate();
- void llama_server_terminate() {
-     if (shutdown_handler) {
+ static std::function<void(int)> shutdown_handler;
++
++// an address only this computer reaches: loopback in IPv4 or IPv6, or a UNIX socket; a host name may resolve elsewhere
++static bool tosh_local_address(std::string host) {
++    if (host == "localhost" || string_ends_with(host, ".sock")) {
++        return true;
++    }
++    if (host.size() > 2 && host.front() == '[' && host.back() == ']') {
++        host = host.substr(1, host.size() - 2);
++    }
++    unsigned char v4[4];
++    if (inet_pton(AF_INET, host.c_str(), v4) == 1) {
++        return v4[0] == 127;
++    }
++    unsigned char v6[16];
++    if (inet_pton(AF_INET6, host.c_str(), v6) != 1) {
++        return false;
++    }
++    const unsigned char loopback[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
++    const unsigned char mapped[12]   = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
++    return std::equal(v6, v6 + 16, loopback) || (std::equal(v6, v6 + 12, mapped) && v6[12] == 127);
++}
+ static std::atomic_flag is_terminating = ATOMIC_FLAG_INIT;
+ 
+ static inline void signal_handler(int signal) {
+     if (is_terminating.test_and_set()) {
+         // in case it hangs, we can force terminate the server by hitting Ctrl+C twice
+@@ -48,10 +78,297 @@ void llama_server_terminate() {
          shutdown_handler(0);
      }
  }
@@ -1278,13 +1287,7 @@ index 6e2d8ff9d..f0c755dda 100644
  static server_http_context::handler_t ex_wrapper(server_http_context::handler_t func) {
      return [func = std::move(func)](const server_http_req & req) -> server_http_res_ptr {
          std::string message;
-         error_type error;
-         try {
-             return func(req);
-@@ -265,18 +557,22 @@ int llama_server(common_params & params, int argc, char ** argv, server_child &
-     ctx_http.get ("/metrics",                  ex_wrapper(routes.get_metrics));
-     ctx_http.get ("/props",                    ex_wrapper(routes.get_props));
-     ctx_http.post("/props",                    ex_wrapper(routes.post_props));
+@@ -268,12 +585,16 @@ int llama_server(common_params & params, int argc, char ** argv, server_child &
      ctx_http.get ("/models",                   ex_wrapper(routes.get_models));
      ctx_http.get ("/v1/models",                ex_wrapper(routes.get_models));
      ctx_http.post("/completion",               ex_wrapper(routes.post_completions)); // legacy
@@ -1303,13 +1306,7 @@ index 6e2d8ff9d..f0c755dda 100644
      ctx_http.post("/responses",                ex_wrapper(routes.post_responses_oai));
      ctx_http.post("/v1/audio/transcriptions",  ex_wrapper(routes.post_transcriptions_oai));
      ctx_http.post("/audio/transcriptions",     ex_wrapper(routes.post_transcriptions_oai));
-     ctx_http.post("/v1/messages",              ex_wrapper(routes.post_anthropic_messages)); // anthropic messages API
-     ctx_http.post("/infill",                   ex_wrapper(routes.post_infill));
-     ctx_http.post("/embedding",                ex_wrapper(routes.post_embeddings)); // legacy
-@@ -360,17 +656,24 @@ int llama_server(common_params & params, int argc, char ** argv, server_child &
-         mcp_mgr.start(params);
-     } catch (const std::exception & e) {
-         SRV_ERR("MCP starting failed: %s\n", e.what());
+@@ -363,11 +684,18 @@ int llama_server(common_params & params, int argc, char ** argv, server_child &
          return 1;
      }
  
@@ -1329,6 +1326,39 @@ index 6e2d8ff9d..f0c755dda 100644
              return 1;
          }
          ctx_http.get ("/tools",           ex_wrapper(tools.handle_get));
-         ctx_http.post("/tools",           ex_wrapper(tools.handle_post));
-         if (!params.server_tools.empty()) {
-             warn_names.push_back("server tools (experimental)");
+@@ -393,10 +721,35 @@ int llama_server(common_params & params, int argc, char ** argv, server_child &
+             features += name;
+         }
+         SRV_WRN("security: %s enabled - do not expose to untrusted environments\n", features.c_str());
+     }
+ 
++    // serving others without a key is the administrator's choice, made knowing what they reach
++    if (params.api_keys.empty()) {
++        std::vector<std::string> open;
++        for (const auto & host : params.hostnames) {
++            if (!host.empty() && !tosh_local_address(host)) {
++                open.push_back(host);
++            }
++        }
++        if (!open.empty()) {
++            std::string what = is_router_server ? "the API and its models" : "the API and the model";
++            if (!mcp_mgr.empty()) {
++                what += ", the MCP servers " + string_join(mcp_mgr.server_names(), ", ");
++            }
++            if (params.ui_mcp_proxy) {
++                what += ", the web UI's MCP proxy";
++            }
++            if (!params.server_tools.empty()) {
++                what += " (built-in tools stay for this computer)";
++            }
++            SRV_WRN("security: listening on %s without an API key: other computers that can reach %s can use %s; "
++                    "--api-key makes clients send a key\n",
++                    string_join(open, ", ").c_str(), open.size() == 1 ? "it" : "them", what.c_str());
++        }
++    }
++
+     //
+     // Handle downloading model
+     //
+ 
+     if (child.is_child() && child.get_mode() == SERVER_CHILD_MODE_DOWNLOAD) {

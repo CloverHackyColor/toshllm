@@ -25,6 +25,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Fixed
 
 - **MCP: a remote server can no longer send your headers or requests to another address.** The app and the engine's relay refuse an endpoint or a redirect on another scheme, host or port, and name it.
+- **MCP: a local server that stops answering no longer holds a request past its timeout.** Cancelling returns at once too, later requests keep working, idle servers no longer stall the app, and one that closes its input no longer ends it.
 - **MCP: servers on the older HTTP+SSE transport connect from the app.** Connecting used to wait without end.
 - **Math: after a calculation the answer is written in the language of the question, and an integral or a root the exact tools can give is computed exactly.** A note added after each tool call made the model answer in English, and the numerical tool came first for definite integrals.
 - **Engine: with the server open to the local network and no API key, other computers no longer get the built-in shell and file tools.** They still chat and use the agent and the tools of extensions; this computer, or a request with the API key, keeps every tool.

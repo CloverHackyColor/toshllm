@@ -3,7 +3,7 @@
 All notable changes to ToshLLM are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [0.87.26] - 2026-10-17
 
 ### Added
 
@@ -26,7 +26,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
-- **MCP: a remote server can no longer send your headers or requests to another address.** The app and the engine's relay refuse an endpoint or a redirect on another scheme, host or port, and name it.
+- **MCP: a remote server can no longer send your headers or requests to another address (security fix).** The app and the engine's relay refuse an endpoint or a redirect on another scheme, host or port, which up to 0.87.25 could receive them; update earlier installs, and check that a `remote.py` you run from a path of your own matches `HELPERS.sha256`.
 - **MCP: a local server that stops answering no longer holds a request past its timeout.** Cancelling returns at once too, later requests keep working, idle servers no longer stall the app, and one that closes its input no longer ends it.
 - **MCP: servers on the older HTTP+SSE transport connect from the app.** Connecting used to wait without end.
 - **Engine: an MCP tool call through `/tools` stops when its client goes away.** The server is told within half a second and the next call to it no longer waits out the abandoned one's timeout, so cancelling an agent's turn also stops its tool call.

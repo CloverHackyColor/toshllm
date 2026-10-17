@@ -1173,13 +1173,15 @@ struct ImageInstanceForm: View {
                     ))
             }
 
-            filePickRow(
-                loc.t("Archivo del modelo", "Model file"), path: $cfg.customModelPath,
-                types: ["safetensors", "gguf", "ckpt"])
-            filePickRow(
-                loc.t("VAE (opcional)", "VAE (optional)"),
-                path: $cfg.customVAEPath, types: ["safetensors", "gguf"])
-
+            // Поля Model file и VAE — показываются только для sd-cli типов
+            if cfg.inpaintEngine != .iopaint {
+                filePickRow(
+                    loc.t("Archivo del modelo", "Model file"), path: $cfg.customModelPath,
+                    types: ["safetensors", "gguf", "ckpt"])
+                filePickRow(
+                    loc.t("VAE (opcional)", "VAE (optional)"),
+                    path: $cfg.customVAEPath, types: ["safetensors", "gguf"])
+            }
             // Условные поля для энкодеров в зависимости от выбранного движка
             if cfg.inpaintEngine.requiresEncoders {
                 if cfg.inpaintEngine.requiresT5 {

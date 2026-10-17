@@ -104,15 +104,37 @@ final class SubtitleVideoExporter: ObservableObject {
 
     /// Burning text in means re-encoding, but not necessarily down a generation:
     /// an HEVC source re-encoded as H.264 pays for nothing.
-    nonisolated private static func preset(for composition: AVAsset,
-                                           source: AVAssetTrack) async -> String {
-        let available = AVAssetExportSession.exportPresets(compatibleWith: composition)
+    nonisolated private static func preset(
+        for composition: AVAsset,
+        source: AVAssetTrack
+    ) async -> String {
+        // 1. Проверяем, является ли исходный трек HEVC
         guard let formats = try? await source.load(.formatDescriptions),
-              formats.contains(where: { CMFormatDescriptionGetMediaSubType($0) == kCMVideoCodecType_HEVC }),
-              available.contains(AVAssetExportPresetHEVCHighestQuality) else {
-            return AVAssetExportPresetHighestQuality
+            formats.contains(where: {
+                CMFormatDescriptionGetMediaSubType($0) == kCMVideoCodecType_HEVC
+            })
+        else {
+            // Если это не HEVC, возвращаем ваш стандартный пресет по умолчанию
+            return AVAssetExportPresetHighestQuality  // Замените на ваш дефолтный пресет, если он другой
         }
-        return AVAssetExportPresetHEVCHighestQuality
+
+        // 2. Выбираем конкретный HEVC-пресет, который мы хотим использовать
+        // (Выберите тот, который лучше подходит под ваши задачи: 1920x1080, HighestQuality и т.д.)
+        let targetPreset = AVAssetExportPresetHEVC1920x1080
+
+        // 3. Проверяем его совместимость с помощью современного API
+        let isCompatible = await withCheckedContinuation { continuation in
+            AVAssetExportSession.determineCompatibility(
+                ofExportPreset: targetPreset,
+                with: composition,
+                outputFileType: .mp4  // Укажите ваш целевой тип файла: .mp4 или .mov
+            ) { compatible in
+                continuation.resume(returning: compatible)
+            }
+        }
+
+        // 4. Возвращаем HEVC-пресет, если он совместим, иначе fallback на обычный
+        return isCompatible ? targetPreset : AVAssetExportPresetHighestQuality
     }
 
     /// Without carrying the source's colour tags across, a wide-gamut or HDR clip

@@ -101,7 +101,9 @@ if [ -x "$SYMPY_RUNTIME/python/bin/python3" ]; then
         "$BUNDLED_SYMPY/python/bin/python3" -I -m compileall -q -j 0 --invalidation-mode checked-hash \
             "$BUNDLED_SYMPY/tosh_sympy" "$BUNDLED_SYMPY/tosh_scientific"
     fi
-    echo "bundled math runtime ($(<"$SYMPY_RUNTIME/VERSION"))"
+    # which helper modules this runtime carries, for anyone who runs it to check
+    (cd "$BUNDLED_SYMPY" && shasum -a 256 tosh_sympy/*.py tosh_scientific/*.py) > "$BUNDLED_SYMPY/HELPERS.sha256"
+    echo "bundled math runtime ($(<"$SYMPY_RUNTIME/VERSION"), helpers $(shasum -a 256 < "$BUNDLED_SYMPY/HELPERS.sha256" | cut -c1-12))"
 else
     echo "WARNING: math runtime not built; run ./scripts/build-sympy.sh to include it"
 fi

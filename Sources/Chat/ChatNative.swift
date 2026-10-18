@@ -177,6 +177,7 @@ struct Conversation: Identifiable, Codable {
     /// Last exchange's context tokens, per chat so the bar follows the open
     /// conversation and persists with the KV cache. Optional for old JSON.
     var contextUsed: Int? = nil
+    var model: String? = nil
 }
 
 struct ChatBranch: Identifiable, Codable, Equatable {
@@ -535,6 +536,22 @@ final class ChatStore: ObservableObject {
     var currentIndex: Int? { conversations.firstIndex { $0.id == currentID } }
     var current: Conversation? { currentIndex.map { conversations[$0] } }
 
+    private func currentModelTitle() -> String? {
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: SettingsKeys.routerMode) {
+            guard let alias = ServerSettings.activeRouterModel() else { return nil }
+            if let model = LocalModel.scan(in: ServerSettings.modelsDirectory).first(where: {
+                ServerSettings.routerAlias(for: $0.url.path) == alias
+            }) {
+                return ModelName.forPath(model.url.path).display
+            }
+            return alias
+        }
+        let modelPath = defaults.string(forKey: SettingsKeys.modelPath) ?? ""
+        guard !modelPath.isEmpty else { return nil }
+        return ModelName.forPath(modelPath).display
+    }
+
     func newConversation(in projectID: UUID? = nil) {
         // Reuse an existing empty conversation in the same scope instead of
         // piling up blanks when the button is clicked repeatedly.
@@ -543,7 +560,8 @@ final class ChatStore: ObservableObject {
             lastError = nil
             return
         }
-        let c = Conversation(title: "", projectID: projectID)
+        var c = Conversation(title: "", projectID: projectID)
+        c.model = currentModelTitle()
         conversations.insert(c, at: 0)
         currentID = c.id
         lastError = nil
@@ -5256,7 +5274,7 @@ struct ConversationListView: View {
                             .font(.caption2).foregroundStyle(.tertiary)
                             .labelStyle(.titleAndIcon).lineLimit(1)
                     }
-                    Text(relativeDate(c.updated))
+                    Text(c.model ?? "Qwen").lineLimit(1)
                         .font(.caption2).foregroundStyle(.tertiary)
                 }
             }

@@ -2,10 +2,10 @@
 // Copyright (C) 2026 Engelbert Delgado <engeldlgado@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import SwiftUI
-import Metal
 import Combine
 import ImageIO
+import Metal
+import SwiftUI
 import UniformTypeIdentifiers
 
 // Local text-to-image via a bundled stable-diffusion.cpp engine. A model is one
@@ -15,7 +15,9 @@ import UniformTypeIdentifiers
 
 /// One downloadable piece of an image model, tagged with the sd-cli flag it maps to.
 struct ImageGenComponent: Identifiable {
-    enum Kind { case checkpoint, diffusion, vae, audioVAE, connectors, textEncoder, llmVision, t5, clipL }
+    enum Kind {
+        case checkpoint, diffusion, vae, audioVAE, connectors, textEncoder, llmVision, t5, clipL
+    }
     let kind: Kind
     let urlString: String
     let fileName: String
@@ -27,33 +29,34 @@ struct ImageGenComponent: Identifiable {
     /// The sd-cli argument this file is passed as.
     var flag: String {
         switch kind {
-        case .checkpoint:  return "--model"
-        case .diffusion:   return "--diffusion-model"
-        case .vae:         return "--vae"
-        case .audioVAE:    return "--audio-vae"
-        case .connectors:  return "--embeddings-connectors"
+        case .checkpoint: return "--model"
+        case .diffusion: return "--diffusion-model"
+        case .vae: return "--vae"
+        case .audioVAE: return "--audio-vae"
+        case .connectors: return "--embeddings-connectors"
         case .textEncoder: return "--llm"
-        case .llmVision:   return "--llm_vision"
-        case .t5:          return "--t5xxl"
-        case .clipL:       return "--clip_l"
+        case .llmVision: return "--llm_vision"
+        case .t5: return "--t5xxl"
+        case .clipL: return "--clip_l"
         }
     }
 
     func label(_ spanish: Bool) -> String {
         switch kind {
-        case .checkpoint:  return spanish ? "Modelo" : "Model"
-        case .diffusion:   return spanish ? "Modelo de difusión" : "Diffusion model"
-        case .vae:         return "VAE"
-        case .audioVAE:    return spanish ? "VAE de audio" : "Audio VAE"
-        case .connectors:  return spanish ? "Conectores" : "Connectors"
-        case .llmVision:   return spanish ? "Proyector de visión" : "Vision projector"
+        case .checkpoint: return spanish ? "Modelo" : "Model"
+        case .diffusion: return spanish ? "Modelo de difusión" : "Diffusion model"
+        case .vae: return "VAE"
+        case .audioVAE: return spanish ? "VAE de audio" : "Audio VAE"
+        case .connectors: return spanish ? "Conectores" : "Connectors"
+        case .llmVision: return spanish ? "Proyector de visión" : "Vision projector"
         case .textEncoder, .t5, .clipL: return spanish ? "Codificador de texto" : "Text encoder"
         }
     }
 
     /// Default path for a download; ModelStore may resolve an existing copy elsewhere.
     func path(in dir: URL) -> URL {
-        fileName.hasPrefix("/") ? URL(fileURLWithPath: fileName) : dir.appendingPathComponent(fileName)
+        fileName.hasPrefix("/")
+            ? URL(fileURLWithPath: fileName) : dir.appendingPathComponent(fileName)
     }
 }
 
@@ -61,8 +64,8 @@ enum InpaintEngine: String, CaseIterable, Codable, Identifiable {
     case sdcliCheckpoint = "sd-cli-checkpoint"  // sd-cli --model (полный чекпоинт)
     case sdcliDiffusion = "sd-cli-diffusion"  // sd-cli --diffusion-model (только диффузия)
     case sdcliDual = "sd-cli-dual"  // sd-cli с T5 + CLIP (SD 3.x/Flux)
+    case sdcliControl = "sd-cli-control"  // Flex.2 с ControlNet
     case iopaint = "iopaint"  // iopaint run --model (LaMa)
-    case flex2Control = "flex2-control"  // Flex.2 с ControlNet
 
     var id: String { self.rawValue }
 
@@ -71,32 +74,32 @@ enum InpaintEngine: String, CaseIterable, Codable, Identifiable {
         case .sdcliCheckpoint: return "sd-cli (Checkpoint)"
         case .sdcliDiffusion: return "sd-cli (Diffusion)"
         case .sdcliDual: return "sd-cli (T5 + CLIP)"
+        case .sdcliControl: return "sd-cli (Control)"
         case .iopaint: return "iopaint (LaMa)"
-        case .flex2Control: return "Flex.2 (Control)"
+        
         }
     }
 
     var isDiffusionModel: Bool {
-        self == .sdcliDiffusion || self == .sdcliDual || self == .flex2Control
+        self == .sdcliDiffusion || self == .sdcliDual || self == .sdcliControl
     }
 
     var requiresEncoders: Bool {
-        self == .sdcliDual || self == .flex2Control
+        self == .sdcliDual || self == .sdcliControl
     }
 
     var requiresT5: Bool {
-        self == .sdcliDual || self == .flex2Control
+        self == .sdcliDual || self == .sdcliControl
     }
 
     var supportsControl: Bool {
-        self == .flex2Control
+        self == .sdcliControl
     }
 
     var isIOPaint: Bool {
         self == .iopaint
     }
 }
-
 
 /// An image-generation model the app can install and run.
 struct ImageGenModel: Identifiable {
@@ -152,8 +155,10 @@ struct ImageGenModel: Identifiable {
     func fitsGPU(mainVRAM: Double, auxVRAM: Double?) -> Bool {
         guard let auxVRAM else { return fitsVRAMClass(mainVRAM) }
         return auxVRAM >= totalGB - residentGB
-            && !ImageGenLimits.baseSizes(vramGB: mainVRAM, residentGB: residentGB,
-                                         attnVRAMSq: attnVRAMSq, maxLongEdge: maxLongEdge).isEmpty
+            && !ImageGenLimits.baseSizes(
+                vramGB: mainVRAM, residentGB: residentGB,
+                attnVRAMSq: attnVRAMSq, maxLongEdge: maxLongEdge
+            ).isEmpty
     }
 
     /// A transformer (DiT) ships its denoiser as a diffusion model file; the UNet models
@@ -201,8 +206,10 @@ enum ImageGenCatalog {
     /// Non-gated FLUX autoencoder mirror, shared by Z-Image and Flux. The f16 copy: a GPU
     /// without bfloat cannot run any op on bf16 weights and generation stops on the first.
     private static func fluxVAE(_ name: String) -> ImageGenComponent {
-        ImageGenComponent(kind: .vae,
-            urlString: "https://huggingface.co/wbruna/Z-Image-Turbo-sdcpp-GGUF/resolve/main/ae-f16.gguf",
+        ImageGenComponent(
+            kind: .vae,
+            urlString:
+                "https://huggingface.co/wbruna/Z-Image-Turbo-sdcpp-GGUF/resolve/main/ae-f16.gguf",
             fileName: name, sizeGB: 0.16)
     }
 
@@ -211,9 +218,13 @@ enum ImageGenCatalog {
         name: "SD 1.5",
         detailES: "Diminuto y veloz. Para GPUs pequeñas; enorme ecosistema de estilos.",
         detailEN: "Tiny and fast. For small GPUs; huge ecosystem of styles.",
-        components: [ImageGenComponent(kind: .checkpoint,
-            urlString: "https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF/resolve/main/stable-diffusion-v1-5-pruned-emaonly-Q8_0.gguf",
-            fileName: "sd-v1-5-Q8_0.gguf", sizeGB: 1.68)],
+        components: [
+            ImageGenComponent(
+                kind: .checkpoint,
+                urlString:
+                    "https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF/resolve/main/stable-diffusion-v1-5-pruned-emaonly-Q8_0.gguf",
+                fileName: "sd-v1-5-Q8_0.gguf", sizeGB: 1.68)
+        ],
         // square only: measured 08-19, 512x288 and 768x432 come back with magenta blotches
         // in the background at the same steps that give a clean 512x512
         defaultSteps: 20, cfgScale: 7.0, minVRAMGB: 3, maxLongEdge: 768,
@@ -224,9 +235,13 @@ enum ImageGenCatalog {
         name: "SDXL Turbo",
         detailES: "3.5B, pocos pasos. Buena calidad y compatible con LoRAs/estilos SDXL.",
         detailEN: "3.5B, few steps. Strong quality and compatible with SDXL LoRAs/styles.",
-        components: [ImageGenComponent(kind: .checkpoint,
-            urlString: "https://huggingface.co/stabilityai/sdxl-turbo/resolve/main/sd_xl_turbo_1.0_fp16.safetensors",
-            fileName: "sd_xl_turbo_1.0_fp16.safetensors", sizeGB: 6.6)],
+        components: [
+            ImageGenComponent(
+                kind: .checkpoint,
+                urlString:
+                    "https://huggingface.co/stabilityai/sdxl-turbo/resolve/main/sd_xl_turbo_1.0_fp16.safetensors",
+                fileName: "sd_xl_turbo_1.0_fp16.safetensors", sizeGB: 6.6)
+        ],
         // measured 08-19: 5060 MB resident (its encoder goes to RAM) + 492 MB of graph.
         // attnVRAMSq only applies on cards without the attention kernels (safe mode).
         defaultSteps: 6, cfgScale: 1.0, minVRAMGB: 6, maxLongEdge: 1280,
@@ -235,15 +250,20 @@ enum ImageGenCatalog {
     /// Z-Image Turbo (6B DiT, 8 steps, Apache). Diffusion + VAE + Qwen3-4B encoder.
     static let zImageTurbo = ImageGenModel(
         name: "Z-Image Turbo",
-        detailES: "6B, 8 pasos, Apache. Rápido y fotorrealista; el mejor equilibrio en tarjetas AMD.",
+        detailES:
+            "6B, 8 pasos, Apache. Rápido y fotorrealista; el mejor equilibrio en tarjetas AMD.",
         detailEN: "6B, 8 steps, Apache. Fast and photorealistic; the best balance on AMD cards.",
         components: [
-            ImageGenComponent(kind: .diffusion,
-                urlString: "https://huggingface.co/leejet/Z-Image-Turbo-GGUF/resolve/main/z_image_turbo-Q4_0.gguf",
+            ImageGenComponent(
+                kind: .diffusion,
+                urlString:
+                    "https://huggingface.co/leejet/Z-Image-Turbo-GGUF/resolve/main/z_image_turbo-Q4_0.gguf",
                 fileName: "z_image_turbo-Q4_0.gguf", sizeGB: 3.5),
             fluxVAE("z_image_ae-f16.gguf"),
-            ImageGenComponent(kind: .textEncoder,
-                urlString: "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+            ImageGenComponent(
+                kind: .textEncoder,
+                urlString:
+                    "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
                 fileName: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf", sizeGB: 2.4),
         ],
         // measured 08-19: 3673 MB resident + 690 MB of graph at 1024x1024, and holds up at
@@ -256,15 +276,21 @@ enum ImageGenCatalog {
         detailES: "12B, 4 pasos, Apache. Máxima adherencia al prompt.",
         detailEN: "12B, 4 steps, Apache. Top prompt adherence.",
         components: [
-            ImageGenComponent(kind: .diffusion,
-                urlString: "https://huggingface.co/city96/FLUX.1-schnell-gguf/resolve/main/flux1-schnell-Q4_0.gguf",
+            ImageGenComponent(
+                kind: .diffusion,
+                urlString:
+                    "https://huggingface.co/city96/FLUX.1-schnell-gguf/resolve/main/flux1-schnell-Q4_0.gguf",
                 fileName: "flux1-schnell-Q4_0.gguf", sizeGB: 6.4),
             fluxVAE("flux_ae-f16.gguf"),
-            ImageGenComponent(kind: .t5,
-                urlString: "https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf/resolve/main/t5-v1_1-xxl-encoder-Q4_K_M.gguf",
+            ImageGenComponent(
+                kind: .t5,
+                urlString:
+                    "https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf/resolve/main/t5-v1_1-xxl-encoder-Q4_K_M.gguf",
                 fileName: "t5-v1_1-xxl-encoder-Q4_K_M.gguf", sizeGB: 2.76),
-            ImageGenComponent(kind: .clipL,
-                urlString: "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors",
+            ImageGenComponent(
+                kind: .clipL,
+                urlString:
+                    "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors",
                 fileName: "clip_l.safetensors", sizeGB: 0.23),
         ],
         // lower minimum than before, but Z-Image stays the curated pick for these cards
@@ -272,22 +298,30 @@ enum ImageGenCatalog {
 
     /// Non-gated FLUX.2 autoencoder (full encoder + small decoder), shared by the
     /// Flux 2 family; the reference `ae.safetensors` lives in a gated BFL repo.
-    private static let flux2VAE = ImageGenComponent(kind: .vae,
-        urlString: "https://huggingface.co/black-forest-labs/FLUX.2-small-decoder/resolve/main/full_encoder_small_decoder.safetensors",
+    private static let flux2VAE = ImageGenComponent(
+        kind: .vae,
+        urlString:
+            "https://huggingface.co/black-forest-labs/FLUX.2-small-decoder/resolve/main/full_encoder_small_decoder.safetensors",
         fileName: "flux2_full_encoder_small_decoder.safetensors", sizeGB: 0.25)
 
     /// Flux.2 klein 4B: the lightest Flux 2 (4 steps). `recommendable:false` keeps Z-Image the curated AMD pick.
     static let flux2Klein4B = ImageGenModel(
         name: "Flux.2 klein 4B",
-        detailES: "4B, 4 pasos, Apache. El Flux 2 más ligero: rápido y deja más VRAM para imágenes grandes.",
-        detailEN: "4B, 4 steps, Apache. The lightest Flux 2: fast, and leaves more VRAM for larger images.",
+        detailES:
+            "4B, 4 pasos, Apache. El Flux 2 más ligero: rápido y deja más VRAM para imágenes grandes.",
+        detailEN:
+            "4B, 4 steps, Apache. The lightest Flux 2: fast, and leaves more VRAM for larger images.",
         components: [
-            ImageGenComponent(kind: .diffusion,
-                urlString: "https://huggingface.co/leejet/FLUX.2-klein-4B-GGUF/resolve/main/flux-2-klein-4b-Q4_0.gguf",
+            ImageGenComponent(
+                kind: .diffusion,
+                urlString:
+                    "https://huggingface.co/leejet/FLUX.2-klein-4B-GGUF/resolve/main/flux-2-klein-4b-Q4_0.gguf",
                 fileName: "flux-2-klein-4b-Q4_0.gguf", sizeGB: 2.46),
             flux2VAE,
-            ImageGenComponent(kind: .textEncoder,
-                urlString: "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf",
+            ImageGenComponent(
+                kind: .textEncoder,
+                urlString:
+                    "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf",
                 fileName: "Qwen3-4B-Q4_K_M.gguf", sizeGB: 2.5),
         ],
         defaultSteps: 4, cfgScale: 1.0, minVRAMGB: 6, recommendable: false, halfPartials: true,
@@ -299,12 +333,16 @@ enum ImageGenCatalog {
         detailES: "9B, 4 pasos, Apache. La calidad de Flux 2 sin la descarga de 30 GB.",
         detailEN: "9B, 4 steps, Apache. Flux 2 quality without the 30 GB download.",
         components: [
-            ImageGenComponent(kind: .diffusion,
-                urlString: "https://huggingface.co/leejet/FLUX.2-klein-9B-GGUF/resolve/main/flux-2-klein-9b-Q4_0.gguf",
+            ImageGenComponent(
+                kind: .diffusion,
+                urlString:
+                    "https://huggingface.co/leejet/FLUX.2-klein-9B-GGUF/resolve/main/flux-2-klein-9b-Q4_0.gguf",
                 fileName: "flux-2-klein-9b-Q4_0.gguf", sizeGB: 5.6),
             flux2VAE,
-            ImageGenComponent(kind: .textEncoder,
-                urlString: "https://huggingface.co/unsloth/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf",
+            ImageGenComponent(
+                kind: .textEncoder,
+                urlString:
+                    "https://huggingface.co/unsloth/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf",
                 fileName: "Qwen3-8B-Q4_K_M.gguf", sizeGB: 5.0),
         ],
         defaultSteps: 4, cfgScale: 1.0, minVRAMGB: 10, recommendable: false,
@@ -315,15 +353,21 @@ enum ImageGenCatalog {
     /// holds VRAM at a time.
     static let flux2Dev = ImageGenModel(
         name: "Flux.2 dev",
-        detailES: "32B, la referencia de calidad. Muy pesado (34 GB de descarga). Licencia no comercial.",
-        detailEN: "32B, the quality reference. Very heavy (34 GB download). Non-commercial license.",
+        detailES:
+            "32B, la referencia de calidad. Muy pesado (34 GB de descarga). Licencia no comercial.",
+        detailEN:
+            "32B, the quality reference. Very heavy (34 GB download). Non-commercial license.",
         components: [
-            ImageGenComponent(kind: .diffusion,
-                urlString: "https://huggingface.co/city96/FLUX.2-dev-gguf/resolve/main/flux2-dev-Q4_K_S.gguf",
+            ImageGenComponent(
+                kind: .diffusion,
+                urlString:
+                    "https://huggingface.co/city96/FLUX.2-dev-gguf/resolve/main/flux2-dev-Q4_K_S.gguf",
                 fileName: "flux2-dev-Q4_K_S.gguf", sizeGB: 19.3),
             flux2VAE,
-            ImageGenComponent(kind: .textEncoder,
-                urlString: "https://huggingface.co/unsloth/Mistral-Small-3.2-24B-Instruct-2506-GGUF/resolve/main/Mistral-Small-3.2-24B-Instruct-2506-Q4_K_M.gguf",
+            ImageGenComponent(
+                kind: .textEncoder,
+                urlString:
+                    "https://huggingface.co/unsloth/Mistral-Small-3.2-24B-Instruct-2506-GGUF/resolve/main/Mistral-Small-3.2-24B-Instruct-2506-Q4_K_M.gguf",
                 fileName: "Mistral-Small-3.2-24B-Instruct-2506-Q4_K_M.gguf", sizeGB: 14.3),
         ],
         defaultSteps: 20, cfgScale: 1.0, minVRAMGB: 24, recommendable: false,
@@ -336,14 +380,20 @@ enum ImageGenCatalog {
         detailES: "20B. Escribe texto legible dentro de la imagen. Muy pesado y lento.",
         detailEN: "20B. Renders legible text inside images. Heavy and slow.",
         components: [
-            ImageGenComponent(kind: .diffusion,
-                urlString: "https://huggingface.co/city96/Qwen-Image-gguf/resolve/main/qwen-image-Q4_0.gguf",
+            ImageGenComponent(
+                kind: .diffusion,
+                urlString:
+                    "https://huggingface.co/city96/Qwen-Image-gguf/resolve/main/qwen-image-Q4_0.gguf",
                 fileName: "qwen-image-Q4_0.gguf", sizeGB: 11.3),
-            ImageGenComponent(kind: .vae,
-                urlString: "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors",
+            ImageGenComponent(
+                kind: .vae,
+                urlString:
+                    "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors",
                 fileName: "qwen_image_vae.safetensors", sizeGB: 0.24),
-            ImageGenComponent(kind: .textEncoder,
-                urlString: "https://huggingface.co/unsloth/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
+            ImageGenComponent(
+                kind: .textEncoder,
+                urlString:
+                    "https://huggingface.co/unsloth/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
                 fileName: "Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf", sizeGB: 4.5),
         ],
         // Its 3D VAE needs IM2COL_3D, which Metal doesn't implement (issue #19):
@@ -352,29 +402,40 @@ enum ImageGenCatalog {
         extraArgs: ["--backend", "vae=cpu"])
 
     /// Turbo's distilled schedule (`sample_sigmas` of its model_index.json) plus the final 0.
-    static let qwenImage21TurboSigmas = [1.0, 0.978453, 0.95418, 0.926626, 0.89508,
-                                         0.845148, 0.704534, 0.414568, 0.0]
+    static let qwenImage21TurboSigmas = [
+        1.0, 0.978453, 0.95418, 0.926626, 0.89508,
+        0.845148, 0.704534, 0.414568, 0.0,
+    ]
 
     /// Qwen-Image 2.1 (7B MMDiT, non-commercial license). Writes legible text and edits from
     /// reference images; Turbo shares its VAE and the Qwen3-VL-8B encoder, which runs off the card.
-    static func qwenImage21(_ name: String, detailES: String, detailEN: String,
-                            repo: String = "leejet/Qwen-Image-2.1-GGUF", revision: String = "main",
-                            file: String, formerFile: String? = nil, sizeGB: Double, minVRAMGB: Double,
-                            recommendable: Bool, turbo: Bool = false) -> ImageGenModel {
+    static func qwenImage21(
+        _ name: String, detailES: String, detailEN: String,
+        repo: String = "leejet/Qwen-Image-2.1-GGUF", revision: String = "main",
+        file: String, formerFile: String? = nil, sizeGB: Double, minVRAMGB: Double,
+        recommendable: Bool, turbo: Bool = false
+    ) -> ImageGenModel {
         ImageGenModel(
             name: name, detailES: detailES, detailEN: detailEN,
             components: [
-                ImageGenComponent(kind: .diffusion,
+                ImageGenComponent(
+                    kind: .diffusion,
                     urlString: "https://huggingface.co/\(repo)/resolve/\(revision)/\(file)",
                     fileName: file, sizeGB: sizeGB, formerFileNames: formerFile.map { [$0] } ?? []),
-                ImageGenComponent(kind: .vae,
-                    urlString: "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
+                ImageGenComponent(
+                    kind: .vae,
+                    urlString:
+                        "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
                     fileName: "qwen_image_2.1_vae_bf16.safetensors", sizeGB: 0.68),
-                ImageGenComponent(kind: .textEncoder,
-                    urlString: "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+                ImageGenComponent(
+                    kind: .textEncoder,
+                    urlString:
+                        "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
                     fileName: "Qwen3VL-8B-Instruct-Q4_K_M.gguf", sizeGB: 5.03),
-                ImageGenComponent(kind: .llmVision,
-                    urlString: "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-8B-Instruct-F16.gguf",
+                ImageGenComponent(
+                    kind: .llmVision,
+                    urlString:
+                        "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-8B-Instruct-F16.gguf",
                     fileName: "mmproj-Qwen3VL-8B-Instruct-F16.gguf", sizeGB: 1.16),
             ],
             // The published recipes: 25 steps (Turbo: its own 8) at guidance 1 with Euler; a card
@@ -393,20 +454,25 @@ enum ImageGenCatalog {
 
     static let qwenImage21Q3 = qwenImage21(
         "Qwen-Image 2.1 (Q3)",
-        detailES: "7B. Escribe texto legible y edita desde imágenes de referencia. Versión ligera para 8 GB. Licencia no comercial.",
-        detailEN: "7B. Writes legible text and edits from reference images. Light build for 8 GB cards. Non-commercial license.",
+        detailES:
+            "7B. Escribe texto legible y edita desde imágenes de referencia. Versión ligera para 8 GB. Licencia no comercial.",
+        detailEN:
+            "7B. Writes legible text and edits from reference images. Light build for 8 GB cards. Non-commercial license.",
         file: "qwen_image_2.1-Q3_K.gguf", sizeGB: 3.27, minVRAMGB: 8, recommendable: false)
 
     static let qwenImage21Q4 = qwenImage21(
         "Qwen-Image 2.1",
-        detailES: "7B. Escribe texto legible dentro de la imagen y edita desde imágenes de referencia. Licencia no comercial.",
-        detailEN: "7B. Writes legible text inside the image and edits from reference images. Non-commercial license.",
+        detailES:
+            "7B. Escribe texto legible dentro de la imagen y edita desde imágenes de referencia. Licencia no comercial.",
+        detailEN:
+            "7B. Writes legible text inside the image and edits from reference images. Non-commercial license.",
         file: "qwen_image_2.1-Q4_K.gguf", sizeGB: 4.20, minVRAMGB: 12, recommendable: false)
 
     static let qwenImage21Q6 = qwenImage21(
         "Qwen-Image 2.1 (Q6)",
         detailES: "7B con más precisión. Mismo ritmo que la Q4. Licencia no comercial.",
-        detailEN: "7B at higher precision, at the same pace as the Q4 build. Non-commercial license.",
+        detailEN:
+            "7B at higher precision, at the same pace as the Q4 build. Non-commercial license.",
         file: "qwen_image_2.1-Q6_K.gguf", sizeGB: 6.00, minVRAMGB: 12, recommendable: false)
 
     static let qwenImage21Q8 = qwenImage21(
@@ -422,16 +488,20 @@ enum ImageGenCatalog {
 
     static let qwenImage21TurboQ3 = qwenImage21(
         "Qwen-Image 2.1 Turbo (Q3)",
-        detailES: "7B en 8 pasos en vez de 25. Texto legible y edición desde referencias. Versión ligera para 8 GB. Licencia no comercial.",
-        detailEN: "7B in 8 steps instead of 25. Legible text and edits from references. Light build for 8 GB cards. Non-commercial license.",
+        detailES:
+            "7B en 8 pasos en vez de 25. Texto legible y edición desde referencias. Versión ligera para 8 GB. Licencia no comercial.",
+        detailEN:
+            "7B in 8 steps instead of 25. Legible text and edits from references. Light build for 8 GB cards. Non-commercial license.",
         repo: qwenImage21TurboRepo, revision: qwenImage21TurboRevision,
         file: "qwen-image-2.1-turbo-Q3_K_XL.gguf", formerFile: "Qwen-Image-2.1-Turbo-AD-Q3_K.gguf",
         sizeGB: 3.61, minVRAMGB: 8, recommendable: false, turbo: true)
 
     static let qwenImage21TurboQ4 = qwenImage21(
         "Qwen-Image 2.1 Turbo",
-        detailES: "7B en 8 pasos en vez de 25. Escribe texto legible y edita desde imágenes de referencia. Licencia no comercial.",
-        detailEN: "7B in 8 steps instead of 25. Writes legible text and edits from reference images. Non-commercial license.",
+        detailES:
+            "7B en 8 pasos en vez de 25. Escribe texto legible y edita desde imágenes de referencia. Licencia no comercial.",
+        detailEN:
+            "7B in 8 steps instead of 25. Writes legible text and edits from reference images. Non-commercial license.",
         repo: qwenImage21TurboRepo, revision: qwenImage21TurboRevision,
         file: "qwen-image-2.1-turbo-Q4_K_M.gguf", formerFile: "Qwen-Image-2.1-Turbo-AD-Q4_K.gguf",
         sizeGB: 4.20, minVRAMGB: 12, recommendable: false, turbo: true)
@@ -446,8 +516,10 @@ enum ImageGenCatalog {
 
     static let qwenImage21TurboQ8 = qwenImage21(
         "Qwen-Image 2.1 Turbo (Q8)",
-        detailES: "7B en 8 pasos, casi sin pérdida, para tarjetas de 16 GB en adelante. Licencia no comercial.",
-        detailEN: "7B in 8 steps at near-lossless precision, for 16 GB cards and up. Non-commercial license.",
+        detailES:
+            "7B en 8 pasos, casi sin pérdida, para tarjetas de 16 GB en adelante. Licencia no comercial.",
+        detailEN:
+            "7B in 8 steps at near-lossless precision, for 16 GB cards and up. Non-commercial license.",
         repo: qwenImage21TurboRepo, revision: qwenImage21TurboRevision,
         file: "qwen-image-2.1-turbo-Q8_0.gguf", formerFile: "Qwen-Image-2.1-Turbo-Q8_0.gguf",
         sizeGB: 7.64, minVRAMGB: 16, recommendable: false, turbo: true)
@@ -455,10 +527,12 @@ enum ImageGenCatalog {
     /// Curated order (small to large). Z-Image sits before SDXL so it wins the
     /// 8-12 GB tie as the recommended pick (validated for photorealism on AMD);
     /// klein 9B sits before schnell to win the 16 GB tie the same way.
-    static let models: [ImageGenModel] = [sd15, zImageTurbo, sdxlTurbo, qwenImage21Q3, qwenImage21TurboQ3,
-                                          flux2Klein4B, qwenImage21Q4, qwenImage21TurboQ4, flux2Klein9B,
-                                          fluxSchnell, qwenImage21Q6, qwenImage21TurboQ6, qwenImage,
-                                          qwenImage21Q8, qwenImage21TurboQ8, flux2Dev]
+    static let models: [ImageGenModel] = [
+        sd15, zImageTurbo, sdxlTurbo, qwenImage21Q3, qwenImage21TurboQ3,
+        flux2Klein4B, qwenImage21Q4, qwenImage21TurboQ4, flux2Klein9B,
+        fluxSchnell, qwenImage21Q6, qwenImage21TurboQ6, qwenImage,
+        qwenImage21Q8, qwenImage21TurboQ8, flux2Dev,
+    ]
 
     /// The best model this GPU can run: the highest min-VRAM tier that fits, and
     /// within a tie the earliest listed (curated preference).
@@ -476,23 +550,33 @@ enum ImageGenCatalog {
     /// Build a model from user-picked files: a checkpoint (or diffusion model) and
     /// an optional VAE. Passed as a full checkpoint via --model, which covers most
     /// community SD/SDXL finetunes; minVRAMGB 0 so it's never blocked.
-    static func custom(modelPath: String, vaePath: String, textEncoderPath: String = "",
-                       isDiffusion: Bool = false, steps: Int, cfg: Double) -> ImageGenModel {
+    static func custom(
+        modelPath: String, vaePath: String, textEncoderPath: String = "",
+        isDiffusion: Bool = false, steps: Int, cfg: Double
+    ) -> ImageGenModel {
         func gb(_ p: String) -> Double {
             let bytes = (try? FileManager.default.attributesOfItem(atPath: p))?[.size] as? Int ?? 0
             return Double(bytes) / 1_073_741_824
         }
-        var comps = [ImageGenComponent(kind: isDiffusion ? .diffusion : .checkpoint, urlString: "",
-                                       fileName: modelPath, sizeGB: gb(modelPath))]
+        var comps = [
+            ImageGenComponent(
+                kind: isDiffusion ? .diffusion : .checkpoint, urlString: "",
+                fileName: modelPath, sizeGB: gb(modelPath))
+        ]
         if !vaePath.isEmpty {
-            comps.append(ImageGenComponent(kind: .vae, urlString: "", fileName: vaePath, sizeGB: gb(vaePath)))
+            comps.append(
+                ImageGenComponent(kind: .vae, urlString: "", fileName: vaePath, sizeGB: gb(vaePath))
+            )
         }
         if !textEncoderPath.isEmpty {
-            comps.append(ImageGenComponent(kind: .textEncoder, urlString: "",
-                                           fileName: textEncoderPath, sizeGB: gb(textEncoderPath)))
+            comps.append(
+                ImageGenComponent(
+                    kind: .textEncoder, urlString: "",
+                    fileName: textEncoderPath, sizeGB: gb(textEncoderPath)))
         }
         // Assume the SD/SDXL UNet family (the common custom case) for the VRAM cap.
-        return ImageGenModel(name: "Custom",
+        return ImageGenModel(
+            name: "Custom",
             detailES: "Tu propio modelo. Ajusta pasos y CFG según su ficha.",
             detailEN: "Your own model. Set steps and CFG to match its card.",
             components: comps, defaultSteps: steps, cfgScale: cfg, minVRAMGB: 0,
@@ -513,8 +597,10 @@ enum ImageGenLimits {
     /// 2048x2048 on Z-Image; SDXL is lower, so this is the conservative side) and
     /// the tiled VAE decode is flat at about 0.5 GB whatever the frame size. The
     /// quadratic term only survives for models those kernels do not cover.
-    static func estVRAMGB(px: Int, residentGB: Double, attnVRAMSq: Double,
-                          streamedAttention: Bool = true) -> Double {
+    static func estVRAMGB(
+        px: Int, residentGB: Double, attnVRAMSq: Double,
+        streamedAttention: Bool = true
+    ) -> Double {
         let p = Double(px)
         guard streamedAttention else {
             // A card the attention kernels do not cover builds the score matrix whole, and
@@ -542,7 +628,8 @@ enum ImageGenLimits {
         let d = UserDefaults.standard
         let extra = d.string(forKey: SettingsKeys.extraArgs) ?? ""
         let devices = MTLCopyAllDevices()
-        let name = (gpuIndex >= 0 && gpuIndex < devices.count)
+        let name =
+            (gpuIndex >= 0 && gpuIndex < devices.count)
             ? devices[gpuIndex].name
             : (MTLCreateSystemDefaultDevice()?.name ?? "")
         return streamsAttention(gpuName: name, extraArgs: extra)
@@ -551,7 +638,9 @@ enum ImageGenLimits {
     /// Working set (GB) Metal allows on the selected card.
     static func workingSetGB(gpuIndex: Int) -> Double {
         let devices = MTLCopyAllDevices()
-        let dev = (gpuIndex >= 0 && gpuIndex < devices.count) ? devices[gpuIndex] : MTLCreateSystemDefaultDevice()
+        let dev =
+            (gpuIndex >= 0 && gpuIndex < devices.count)
+            ? devices[gpuIndex] : MTLCreateSystemDefaultDevice()
         return Double(dev?.recommendedMaxWorkingSetSize ?? 0) / 1_073_741_824
     }
 
@@ -564,35 +653,46 @@ enum ImageGenLimits {
         return !devices[gpuIndex].isHeadless
     }
 
-    static func baseSizes(vramGB: Double, residentGB: Double,
-                          attnVRAMSq: Double = 0, maxLongEdge: Int = .max,
-                          streamedAttention: Bool = true) -> [Int] {
-        let candidates = [512, 640, 768, 896, 1024, 1152, 1280, 1440,
-                          1600, 1792, 1920, 2048, 2304, 2560, 3072]
+    static func baseSizes(
+        vramGB: Double, residentGB: Double,
+        attnVRAMSq: Double = 0, maxLongEdge: Int = .max,
+        streamedAttention: Bool = true
+    ) -> [Int] {
+        let candidates = [
+            512, 640, 768, 896, 1024, 1152, 1280, 1440,
+            1600, 1792, 1920, 2048, 2304, 2560, 3072,
+        ]
         return candidates.filter { base in
             guard base <= maxLongEdge else { return false }
             let short = max(256, Int((Double(base) * 9 / 16 / 64).rounded()) * 64)
-            return fits(width: base, height: short, vramGB: vramGB,
-                        residentGB: residentGB, attnVRAMSq: attnVRAMSq,
-                        streamedAttention: streamedAttention)
+            return fits(
+                width: base, height: short, vramGB: vramGB,
+                residentGB: residentGB, attnVRAMSq: attnVRAMSq,
+                streamedAttention: streamedAttention)
         }
     }
 
     /// True when a specific frame's estimated VRAM fits (a square at a large base,
     /// or any UNet frame at high res, may not even when a 16:9 base does).
-    static func fits(width: Int, height: Int, vramGB: Double,
-                     residentGB: Double, attnVRAMSq: Double = 0,
-                     streamedAttention: Bool = true) -> Bool {
-        estVRAMGB(px: width * height, residentGB: residentGB, attnVRAMSq: attnVRAMSq,
-                  streamedAttention: streamedAttention) <= vramGB
+    static func fits(
+        width: Int, height: Int, vramGB: Double,
+        residentGB: Double, attnVRAMSq: Double = 0,
+        streamedAttention: Bool = true
+    ) -> Bool {
+        estVRAMGB(
+            px: width * height, residentGB: residentGB, attnVRAMSq: attnVRAMSq,
+            streamedAttention: streamedAttention) <= vramGB
     }
 
     /// Fraction of VRAM the frame is estimated to use (drives the near-limit note).
-    static func vramFraction(width: Int, height: Int, vramGB: Double,
-                             residentGB: Double, attnVRAMSq: Double = 0,
-                             streamedAttention: Bool = true) -> Double {
-        estVRAMGB(px: width * height, residentGB: residentGB, attnVRAMSq: attnVRAMSq,
-                  streamedAttention: streamedAttention) / max(0.1, vramGB)
+    static func vramFraction(
+        width: Int, height: Int, vramGB: Double,
+        residentGB: Double, attnVRAMSq: Double = 0,
+        streamedAttention: Bool = true
+    ) -> Double {
+        estVRAMGB(
+            px: width * height, residentGB: residentGB, attnVRAMSq: attnVRAMSq,
+            streamedAttention: streamedAttention) / max(0.1, vramGB)
     }
 
     /// Pixels each reference image is scaled to: full size for one or two, then an even
@@ -631,15 +731,15 @@ enum ImageAspect: String, CaseIterable, Identifiable {
     /// (width, height) with `base` as the longer edge, rounded to the latent grid.
     func dimensions(base: Int) -> (Int, Int) {
         let short9x16 = Self.gridSnap(Double(base) * 9 / 16)
-        let short3x4  = Self.gridSnap(Double(base) * 3 / 4)
+        let short3x4 = Self.gridSnap(Double(base) * 3 / 4)
         switch self {
-        case .square:    return (base, base)
+        case .square: return (base, base)
         case .landscape: return (base, short9x16)
-        case .portrait:  return (short9x16, base)
-        case .photo:     return (base, short3x4)
+        case .portrait: return (short9x16, base)
+        case .photo: return (base, short3x4)
         case .photoTall: return (short3x4, base)
-        case .cinema:    return (base, Self.gridSnap(Double(base) / 2.39))
-        case .custom:    return (base, base)   // ratio comes from the config, see customDimensions
+        case .cinema: return (base, Self.gridSnap(Double(base) / 2.39))
+        case .custom: return (base, base)  // ratio comes from the config, see customDimensions
         }
     }
 
@@ -649,8 +749,9 @@ enum ImageAspect: String, CaseIterable, Identifiable {
         let parts = ratio.split(whereSeparator: { ":x/ ".contains($0) }).compactMap { Double($0) }
         guard parts.count == 2, parts[0] > 0, parts[1] > 0 else { return (base, base) }
         let (rw, rh) = (parts[0], parts[1])
-        return rw >= rh ? (base, gridSnap(Double(base) * rh / rw))
-                        : (gridSnap(Double(base) * rw / rh), base)
+        return rw >= rh
+            ? (base, gridSnap(Double(base) * rh / rw))
+            : (gridSnap(Double(base) * rw / rh), base)
     }
 }
 
@@ -667,7 +768,9 @@ enum ImageFormat: String, CaseIterable, Identifiable {
 /// steps against no cache: cache-dit 1.46x (PSNR 30.6 dB), spectrum 1.91x (30.6 dB),
 /// easycache 2.06x (31.6 dB).
 enum ImageFastMode: String, CaseIterable, Identifiable {
-    case off, cacheDit = "cache-dit", spectrum, easycache
+    case off
+    case cacheDit = "cache-dit"
+    case spectrum, easycache
     var id: String { rawValue }
 
     /// cache-dit and easycache work on transformer models only; spectrum also on UNets.
@@ -690,7 +793,10 @@ enum ImageFastMode: String, CaseIterable, Identifiable {
 /// model, launches sd-cli with the AMD-validated flags, and surfaces progress.
 @MainActor
 final class ImageGenerator: ObservableObject {
-    enum State: Equatable { case idle, generating, done, failed(String) }
+    enum State: Equatable {
+        case idle, generating, done
+        case failed(String)
+    }
 
     /// Coarse stage so the UI can explain what the long wait is doing.
     enum Stage { case loading, sampling, decoding }
@@ -733,7 +839,9 @@ final class ImageGenerator: ObservableObject {
     /// another window, so the file is the shared handoff).
     static var latestLogURL: URL? {
         let dir = AppSupport.directory.appendingPathComponent("logs", isDirectory: true)
-        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        let files =
+            (try? FileManager.default.contentsOfDirectory(
+                at: dir, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
         return files.filter { $0.lastPathComponent.hasPrefix("imagegen") }
             .max { a, b in (mtime(a) ?? .distantPast) < (mtime(b) ?? .distantPast) }
     }
@@ -741,7 +849,10 @@ final class ImageGenerator: ObservableObject {
         try? u.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
     }
 
-    var isBusy: Bool { if case .generating = state { return true }; return false }
+    var isBusy: Bool {
+        if case .generating = state { return true }
+        return false
+    }
 
     /// Seconds elapsed since the run started (for the status line).
     var elapsed: Int { startedAt.map { Int(-$0.timeIntervalSinceNow) } ?? 0 }
@@ -752,17 +863,20 @@ final class ImageGenerator: ObservableObject {
         guard let first = firstStepAt, progress > 0.001, progress < 1 else { return nil }
         let spent = -first.timeIntervalSinceNow
         let remainingSampling = spent / progress * (1 - progress)
-        return max(0, Int(remainingSampling + spent * 0.2))   // ~20% tail for the decode
+        return max(0, Int(remainingSampling + spent * 0.2))  // ~20% tail for the decode
     }
 
     /// The bundled engine, with a dev fallback to the reproducible vendor build.
     static var binary: String {
         if let bundled = Bundle.main.resourceURL?.appendingPathComponent("bin-image/sd-cli").path,
-           FileManager.default.fileExists(atPath: bundled) {
+            FileManager.default.fileExists(atPath: bundled)
+        {
             return bundled
         }
-        return NSString(string: "~/dev/repositorios/toshllm/vendor/stable-diffusion.cpp/build-static/bin/sd-cli")
-            .expandingTildeInPath
+        return NSString(
+            string: "~/dev/repositorios/toshllm/vendor/stable-diffusion.cpp/build-static/bin/sd-cli"
+        )
+        .expandingTildeInPath
     }
 
     /// Находит исполняемый файл iopaint в стандартных местах macOS.
@@ -784,14 +898,14 @@ final class ImageGenerator: ObservableObject {
         return candidates.first { fm.fileExists(atPath: $0) }
     }
 
-
     static var engineInstalled: Bool { FileManager.default.fileExists(atPath: binary) }
 
     /// True when every component file for `model` is present (and named).
     static func installed(_ model: ImageGenModel, in models: ModelStore) -> Bool {
-        !model.components.isEmpty && model.components.allSatisfy {
-            !$0.fileName.isEmpty && models.hasComponent($0)
-        }
+        !model.components.isEmpty
+            && model.components.allSatisfy {
+                !$0.fileName.isEmpty && models.hasComponent($0)
+            }
     }
 
     func cancel() {
@@ -821,7 +935,8 @@ final class ImageGenerator: ObservableObject {
             switch key {
             case "model", "unet", "dit": return "diffusion"
             case "clip", "text", "textencoder", "textencoders",
-                 "conditioner", "cond", "llm", "t5", "t5xxl": return "te"
+                "conditioner", "cond", "llm", "t5", "t5xxl":
+                return "te"
             case "firststage", "autoencoder", "tae": return "vae"
             default: return key
             }
@@ -838,31 +953,37 @@ final class ImageGenerator: ObservableObject {
 
     /// Generate an image. `prompt` is required; the rest are the tuned defaults
     /// unless the caller overrides them.
-    func generate(model: ImageGenModel, models: ModelStore, prompt: String,
-                  negativePrompt: String = "",
-                  width: Int, height: Int, steps: Int, seed: Int,
-                  format: ImageFormat, offloadToCPU: Bool, gpuIndex: Int,
-                  auxGPUIndex: Int = -1,
-                  initImagePath: String = "", maskPath: String = "",
-                  strength: Double = 0.75,
-                  inpaintEngine: InpaintEngine = .iopaint,       // <-- ДОБАВЛЕНО
-                  textEncoderPath: String = "",                  // <-- ДОБАВЛЕНО
-                  t5EncoderPath: String = "",                    // <-- ДОБАВЛЕНО
-                  controlImagePath: String = "",                 // <-- ДОБАВЛЕНО
-                  controlStrength: Double = 0.5,              // <-- ДОБАВЛЕНО
-                  referenceImagePaths: [String] = [],
-                  fastMode: ImageFastMode = .off) {
+    func generate(
+        model: ImageGenModel, models: ModelStore, prompt: String,
+        negativePrompt: String = "",
+        width: Int, height: Int, steps: Int, seed: Int,
+        format: ImageFormat, offloadToCPU: Bool, gpuIndex: Int,
+        auxGPUIndex: Int = -1,
+        initImagePath: String = "", maskPath: String = "",
+        strength: Double = 0.75,
+        inpaintEngine: InpaintEngine = .iopaint,  // <-- ДОБАВЛЕНО
+        textEncoderPath: String = "",  // <-- ДОБАВЛЕНО
+        t5EncoderPath: String = "",  // <-- ДОБАВЛЕНО
+        controlImagePath: String = "",  // <-- ДОБАВЛЕНО
+        controlStrength: Double = 0.5,  // <-- ДОБАВЛЕНО
+        referenceImagePaths: [String] = [],
+        fastMode: ImageFastMode = .off
+    ) {
         guard !isBusy else { return }
         let steps = model.steps(steps)
         // A reference that went missing would shift every <imageN> after it, so the run
         // stops instead of editing against the wrong picture.
-        let refs = Array(referenceImagePaths.filter { !$0.isEmpty }.prefix(max(0, model.maxReferenceImages)))
+        let refs = Array(
+            referenceImagePaths.filter { !$0.isEmpty }.prefix(max(0, model.maxReferenceImages)))
         if refs.contains(where: { !FileManager.default.fileExists(atPath: $0) }) {
             state = .failed("MISSING_REF")
             onFinish?()
             return
         }
-        lastPrompt = prompt; lastSeed = seed; lastWidth = width; lastHeight = height
+        lastPrompt = prompt
+        lastSeed = seed
+        lastWidth = width
+        lastHeight = height
         let outputDir = URL(fileURLWithPath: initImagePath).deletingLastPathComponent()
 
         // Timestamp plus a short token: a batch fired in the same second (one run
@@ -870,9 +991,10 @@ final class ImageGenerator: ObservableObject {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy-MM-dd_HH.mm.ss"
         let token = String(UUID().uuidString.prefix(4)).lowercased()
-        let out = outputDir.appendingPathComponent("toshllm_\(fmt.string(from: Date()))_\(token).\(format.ext)")
+        let out = outputDir.appendingPathComponent(
+            "toshllm_\(fmt.string(from: Date()))_\(token).\(format.ext)")
 
-       // --- ВЕТКА IOPAINT (LaMa) ---
+        // --- ВЕТКА IOPAINT (LaMa) ---
         if inpaintEngine == .iopaint && !maskPath.isEmpty && !initImagePath.isEmpty {
             guard let iopaintPath = Self.findIOPaint() else {
                 state = .failed("IOPaint no encontrado. Ejecuta: pip install iopaint")
@@ -885,24 +1007,24 @@ final class ImageGenerator: ObservableObject {
             let outputDir = URL(fileURLWithPath: initImagePath).deletingLastPathComponent()
             let expectedOutputName = "toshllm_\(fmt.string(from: Date()))_\(token).\(format.ext)"
             let expectedOutputURL = outputDir.appendingPathComponent(expectedOutputName)
-            
+
             let args = [
                 "run",
                 "--model=lama",
                 "--image=\(initImagePath)",
                 "--mask=\(maskPath)",
                 "--output=\(outputDir.path)",
-                "--device=cpu"
+                "--device=cpu",
             ]
-            
+
             let p = Process()
-            p.executableURL = URL(fileURLWithPath: iopaintPath) 
+            p.executableURL = URL(fileURLWithPath: iopaintPath)
             p.arguments = args
 
             var env = ProcessInfo.processInfo.environment
             env["SSL_CERT_FILE"] = "/etc/ssl/cert.pem"
             p.environment = env
-            
+
             let pipe = Pipe()
             p.standardOutput = pipe
             p.standardError = pipe
@@ -980,11 +1102,17 @@ final class ImageGenerator: ObservableObject {
 
             fileLog.startSession()
             fileLog.append("$ \(iopaintPath) " + args.joined(separator: " ") + "\n\n")
-            
-            resultImage = nil; resultURL = nil; previewImage = nil
-            progress = 0; stepText = ""; stage = .loading
-            state = .generating; startedAt = Date(); firstStepAt = nil
-            
+
+            resultImage = nil
+            resultURL = nil
+            previewImage = nil
+            progress = 0
+            stepText = ""
+            stage = .loading
+            state = .generating
+            startedAt = Date()
+            firstStepAt = nil
+
             do {
                 try p.run()
                 process = p
@@ -992,7 +1120,7 @@ final class ImageGenerator: ObservableObject {
             } catch {
                 state = .failed(error.localizedDescription)
             }
-            return // ВАЖНО: прерываем выполнение, чтобы не идти дальше к sd-cli
+            return  // ВАЖНО: прерываем выполнение, чтобы не идти дальше к sd-cli
         }
 
         // Each component maps to its own sd-cli flag (a full checkpoint via --model,
@@ -1003,7 +1131,9 @@ final class ImageGenerator: ObservableObject {
         }
 
         // --- ДОБАВЛЯЕМ ЯВНЫЕ ЭНКОДЕРЫ (для Flex.2 или кастомных сборок) ---
-        if !textEncoderPath.isEmpty && !model.components.contains(where: { $0.kind == .clipL || $0.kind == .textEncoder }) {
+        if !textEncoderPath.isEmpty
+            && !model.components.contains(where: { $0.kind == .clipL || $0.kind == .textEncoder })
+        {
             args += ["--clip_l", textEncoderPath]
         }
         if !t5EncoderPath.isEmpty && !model.components.contains(where: { $0.kind == .t5 }) {
@@ -1011,14 +1141,19 @@ final class ImageGenerator: ObservableObject {
         }
 
         // --- ДОБАВЛЯЕМ CONTROL ДЛЯ FLEX.2 ---
-        if !controlImagePath.isEmpty && inpaintEngine == .flex2Control {
-            args += ["--control-image", controlImagePath, "--control-strength", String(format: "%.2f", controlStrength)]
+        if !controlImagePath.isEmpty && inpaintEngine == .sdcliControl {
+            args += [
+                "--control-image", controlImagePath,
+                "--control-strength", String(format: "%.2f", controlStrength),
+            ]
         }
 
         // sd-cli picks a LoRA up from the prompt, as <lora:file:weight>, but only when it knows
         // where to look. The folder is only passed when it holds something, so an empty one
         // does not make the engine scan on every run.
-        if let lora = ImageGenPool.loraDirectory(), ImageGenPool.loraFiles(in: lora).isEmpty == false {
+        if let lora = ImageGenPool.loraDirectory(),
+            ImageGenPool.loraFiles(in: lora).isEmpty == false
+        {
             args += ["--lora-model-dir", lora.path]
         }
         args += [
@@ -1064,14 +1199,19 @@ final class ImageGenerator: ObservableObject {
         // by the VAE. Every reference lengthens the sequence the model attends over, so past
         // two they share a budget of two full-size references instead of one each.
         for ref in refs { args += ["-r", ref] }
-        if let px = ImageGenLimits.referencePixels(count: refs.count, resolution: model.referenceResolution) {
+        if let px = ImageGenLimits.referencePixels(
+            count: refs.count, resolution: model.referenceResolution)
+        {
             args += ["--ref-image-args", "vae_input_max_pixels=\(px)"]
         }
-        let split = auxGPUIndex >= 0 && auxGPUIndex != gpuIndex && gpuIndex >= 0
+        let split =
+            auxGPUIndex >= 0 && auxGPUIndex != gpuIndex && gpuIndex >= 0
             && MTLCopyAllDevices().count > 1
         var extra = model.extraArgs
-        if let tile = model.largeVAETile, let i = extra.firstIndex(of: "--vae-tile-size"), i + 1 < extra.count,
-           ImageGenLimits.workingSetGB(gpuIndex: gpuIndex) >= 11.5 {
+        if let tile = model.largeVAETile, let i = extra.firstIndex(of: "--vae-tile-size"),
+            i + 1 < extra.count,
+            ImageGenLimits.workingSetGB(gpuIndex: gpuIndex) >= 11.5
+        {
             extra[i + 1] = String(tile)
         }
         if split {
@@ -1120,7 +1260,8 @@ final class ImageGenerator: ObservableObject {
         }
         // Metal defaults eGPUs to shared buffers; force private VRAM like the LLM engine.
         let picked = split ? [gpuIndex, auxGPUIndex] : [gpuIndex]
-        let anyExternal = picked.contains { $0 >= 0 && $0 < devices.count && devices[$0].location == .external }
+        let anyExternal =
+            picked.contains { $0 >= 0 && $0 < devices.count && devices[$0].location == .external }
             || (gpuIndex < 0 && MTLCreateSystemDefaultDevice()?.location == .external)
         if UserDefaults.standard.bool(forKey: SettingsKeys.forcePrivateBuffers) || anyExternal {
             env["GGML_METAL_SHARED_BUFFERS_DISABLE"] = "1"
@@ -1198,7 +1339,8 @@ final class ImageGenerator: ObservableObject {
             let line = String(raw)
             if line.lowercased().contains("decod") { stage = .decoding }
             guard line.contains("s/it"),
-                  let r = line.range(of: #"(\d+)/(\d+)"#, options: .regularExpression) else { continue }
+                let r = line.range(of: #"(\d+)/(\d+)"#, options: .regularExpression)
+            else { continue }
             let parts = line[r].split(separator: "/")
             if parts.count == 2, let a = Int(parts[0]), let b = Int(parts[1]), b > 0 {
                 if firstStepAt == nil { firstStepAt = Date() }
@@ -1218,10 +1360,16 @@ final class ImageGenerator: ObservableObject {
         defer { onFinish?() }
         guard status == 0, let img = NSImage(contentsOf: output) else {
             // 15/SIGTERM and 2/SIGINT are user cancels, not errors.
-            if status == 15 || status == 2 { state = .failed(""); return }
+            if status == 15 || status == 2 {
+                state = .failed("")
+                return
+            }
             // Map the two size-related failures to actionable messages instead of a
             // raw exit code: VRAM exhaustion and the GPU watchdog timeout.
-            if logTail.contains("failed to allocate") { state = .failed("OOM"); return }
+            if logTail.contains("failed to allocate") {
+                state = .failed("OOM")
+                return
+            }
             let timedOut = logTail.contains("Timeout") || logTail.contains("status 5")
             state = .failed(timedOut ? "TIMEOUT" : "exit \(status)")
             return
@@ -1280,7 +1428,6 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
     var controlImagePath: String = ""
     var controlStrength: Double = 0.5  // Значение по умолчанию (обычно от 0.0 до 1.0)
 
-
     init() {}
 
     init(from decoder: Decoder) throws {
@@ -1290,7 +1437,7 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
         customModelPath = (try? c.decode(String.self, forKey: .customModelPath)) ?? ""
         customVAEPath = (try? c.decode(String.self, forKey: .customVAEPath)) ?? ""
         customTextEncoderPath = (try? c.decode(String.self, forKey: .customTextEncoderPath)) ?? ""
-       // customIsDiffusion = (try? c.decode(Bool.self, forKey: .customIsDiffusion)) ?? false
+        // customIsDiffusion = (try? c.decode(Bool.self, forKey: .customIsDiffusion)) ?? false
         customCfg = (try? c.decode(Double.self, forKey: .customCfg)) ?? 7.0
         prompt = (try? c.decode(String.self, forKey: .prompt)) ?? ""
         negativePrompt = (try? c.decode(String.self, forKey: .negativePrompt)) ?? ""
@@ -1340,10 +1487,11 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
     /// the best pick for the hardware.
     func resolvedModel(for hw: HardwareInfo) -> ImageGenModel {
         if isCustom {
-            return ImageGenCatalog.custom(modelPath: customModelPath, vaePath: customVAEPath,
-                                          textEncoderPath: customTextEncoderPath,
-                                          isDiffusion: inpaintEngine.isDiffusionModel,  // <-- ИЗМЕНЕНО
-                                          steps: steps, cfg: customCfg)
+            return ImageGenCatalog.custom(
+                modelPath: customModelPath, vaePath: customVAEPath,
+                textEncoderPath: customTextEncoderPath,
+                isDiffusion: inpaintEngine.isDiffusionModel,  // <-- ИЗМЕНЕНО
+                steps: steps, cfg: customCfg)
         }
         return ImageGenCatalog.model(id: modelID)
             ?? ImageGenCatalog.recommended(for: hw)
@@ -1397,8 +1545,9 @@ final class ImageGenPool: ObservableObject {
 
     init() {
         if let data = UserDefaults.standard.data(forKey: SettingsKeys.imagenInstances),
-           let c = try? JSONDecoder().decode([ImageInstanceConfig].self, from: data),
-           !c.isEmpty {
+            let c = try? JSONDecoder().decode([ImageInstanceConfig].self, from: data),
+            !c.isEmpty
+        {
             configs = c
         } else {
             configs = [Self.legacyConfig()]
@@ -1409,8 +1558,12 @@ final class ImageGenPool: ObservableObject {
     /// updated app keeps the user's prompt and choices.
     private static func legacyConfig() -> ImageInstanceConfig {
         let d = UserDefaults.standard
-        func int(_ key: String, _ def: Int) -> Int { d.object(forKey: key) == nil ? def : d.integer(forKey: key) }
-        func dbl(_ key: String, _ def: Double) -> Double { d.object(forKey: key) == nil ? def : d.double(forKey: key) }
+        func int(_ key: String, _ def: Int) -> Int {
+            d.object(forKey: key) == nil ? def : d.integer(forKey: key)
+        }
+        func dbl(_ key: String, _ def: Double) -> Double {
+            d.object(forKey: key) == nil ? def : d.double(forKey: key)
+        }
         var c = ImageInstanceConfig()
         c.modelID = d.string(forKey: SettingsKeys.imagenModel) ?? ""
         c.customModelPath = d.string(forKey: SettingsKeys.imagenCustomModel) ?? ""
@@ -1464,8 +1617,9 @@ final class ImageGenPool: ObservableObject {
         c.prompt = ""
         let used = Set(configs.map(\.gpuIndex))
         let candidates = hardware.gpus.filter { !$0.isIntegrated }.map(\.index)
-        if let free = (candidates.isEmpty ? Array(0 ..< max(hardware.gpus.count, 1)) : candidates)
-            .first(where: { !used.contains($0) }) {
+        if let free = (candidates.isEmpty ? Array(0..<max(hardware.gpus.count, 1)) : candidates)
+            .first(where: { !used.contains($0) })
+        {
             c.gpuIndex = free
         }
         configs.append(c)
@@ -1501,32 +1655,45 @@ final class ImageGenPool: ObservableObject {
 
     // MARK: prompt queue
 
-    func enqueue(_ text: String, seed: Int = -1, targetInstanceID: UUID? = nil, initImagePath: String? = nil) {
+    func enqueue(
+        _ text: String, seed: Int = -1, targetInstanceID: UUID? = nil, initImagePath: String? = nil
+    ) {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { return }
         let img = initImagePath?.isEmpty == false ? initImagePath : nil
-        queue.append(QueuedPrompt(text: t, seed: seed, targetInstanceID: targetInstanceID, initImagePath: img))
+        queue.append(
+            QueuedPrompt(
+                text: t, seed: seed, targetInstanceID: targetInstanceID, initImagePath: img))
         if queueActive { pump() }
     }
 
     func removeFromQueue(_ id: UUID) { queue.removeAll { $0.id == id } }
 
-    func startQueue() { queueActive = true; pump() }
-    func stopQueue() { queueActive = false }   // in-flight runs finish; nothing new starts
+    func startQueue() {
+        queueActive = true
+        pump()
+    }
+    func stopQueue() { queueActive = false }  // in-flight runs finish; nothing new starts
 
     /// Append a generator's finished result to the session gallery (newest first),
     /// so every render stays visible even as instances move on to the next prompt.
     private func recordResult(from gen: ImageGenerator, instanceID: UUID) {
-        guard let url = gen.resultURL, let img = gen.resultImage, gallery.first?.url != url else { return }
-        gallery.insert(GeneratedImage(url: url, image: img, prompt: gen.lastPrompt, seed: gen.lastSeed,
-                                      width: gen.lastWidth, height: gen.lastHeight, duration: gen.lastDuration,
-                                      instanceLabel: instanceLabel(for: instanceID)), at: 0)
+        guard let url = gen.resultURL, let img = gen.resultImage, gallery.first?.url != url else {
+            return
+        }
+        gallery.insert(
+            GeneratedImage(
+                url: url, image: img, prompt: gen.lastPrompt, seed: gen.lastSeed,
+                width: gen.lastWidth, height: gen.lastHeight, duration: gen.lastDuration,
+                instanceLabel: instanceLabel(for: instanceID)), at: 0)
         if gallery.count > 60 { gallery.removeLast() }
     }
 
     /// True when `job` may run on `c`: untargeted, targeted at `c`, or its target
     /// was removed from the pool (falls back to "any free instance").
-    nonisolated static func runnable(_ job: QueuedPrompt, on c: ImageInstanceConfig, existingIDs: Set<UUID>) -> Bool {
+    nonisolated static func runnable(
+        _ job: QueuedPrompt, on c: ImageInstanceConfig, existingIDs: Set<UUID>
+    ) -> Bool {
         guard let target = job.targetInstanceID else { return true }
         return target == c.id || !existingIDs.contains(target)
     }
@@ -1549,27 +1716,33 @@ final class ImageGenPool: ObservableObject {
             let gen = generator(for: c.id)
             let aux = c.auxGPU(gpuCount: gpuCount)
             guard !gen.isBusy, !busyGPUs.contains(c.gpuIndex),
-                  aux.map({ !busyGPUs.contains($0) }) ?? true else { continue }
-            guard let idx = queue.firstIndex(where: { Self.runnable($0, on: c, existingIDs: existingIDs) }) else { continue }
+                aux.map({ !busyGPUs.contains($0) }) ?? true
+            else { continue }
+            guard
+                let idx = queue.firstIndex(where: {
+                    Self.runnable($0, on: c, existingIDs: existingIDs)
+                })
+            else { continue }
             let job = queue.remove(at: idx)
             busyGPUs.insert(c.gpuIndex)
             if let aux { busyGPUs.insert(aux) }
             let (w, h) = c.dimensions
-            gen.generate(model: c.resolvedModel(for: hardware), models: models, prompt: job.text,
-                         negativePrompt: effectiveNegativePrompt(for: c),
-                         width: w, height: h, steps: c.steps, seed: job.seed, format: .png,
-                         offloadToCPU: c.offloadCPU, gpuIndex: c.gpuIndex, auxGPUIndex: aux ?? -1,
-                         initImagePath: job.initImagePath ?? c.initImagePath,
-                         maskPath: c.maskPath, strength: c.strength,
-                            // --- НОВЫЕ ПАРАМЕТРЫ ---
-                         inpaintEngine: c.inpaintEngine,
-                         textEncoderPath: c.textEncoderPath,
-                         t5EncoderPath: c.t5EncoderPath,
-                         controlImagePath: c.controlImagePath,
-                         controlStrength: c.controlStrength,
-                                                 
-                         referenceImagePaths: c.referenceImagePaths,
-                         fastMode: c.fastModeValue)
+            gen.generate(
+                model: c.resolvedModel(for: hardware), models: models, prompt: job.text,
+                negativePrompt: effectiveNegativePrompt(for: c),
+                width: w, height: h, steps: c.steps, seed: job.seed, format: .png,
+                offloadToCPU: c.offloadCPU, gpuIndex: c.gpuIndex, auxGPUIndex: aux ?? -1,
+                initImagePath: job.initImagePath ?? c.initImagePath,
+                maskPath: c.maskPath, strength: c.strength,
+                // --- НОВЫЕ ПАРАМЕТРЫ ---
+                inpaintEngine: c.inpaintEngine,
+                textEncoderPath: c.textEncoderPath,
+                t5EncoderPath: c.t5EncoderPath,
+                controlImagePath: c.controlImagePath,
+                controlStrength: c.controlStrength,
+
+                referenceImagePaths: c.referenceImagePaths,
+                fastMode: c.fastModeValue)
         }
         if queue.isEmpty && !anyBusy { queueActive = false }
     }
@@ -1580,10 +1753,14 @@ final class ImageGenPool: ObservableObject {
     nonisolated static func cleanupOutputsIfEnabled() {
         guard UserDefaults.standard.bool(forKey: SettingsKeys.imagenCleanupOnClose) else { return }
         let dir = ServerSettings.modelsDirectory.appendingPathComponent("imagen", isDirectory: true)
-        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+        let files =
+            (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil))
+            ?? []
         for f in files {
             let name = f.deletingPathExtension().lastPathComponent
-            guard name.hasPrefix("toshllm_"), !name.contains("-x2"), !name.contains("-x4") else { continue }
+            guard name.hasPrefix("toshllm_"), !name.contains("-x2"), !name.contains("-x4") else {
+                continue
+            }
             try? FileManager.default.removeItem(at: f)
         }
     }
@@ -1598,14 +1775,19 @@ final class ImageGenPool: ObservableObject {
     }
 
     nonisolated static func loraFiles(in dir: URL) -> [URL] {
-        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
-        return files.filter { ["safetensors", "ckpt", "pt"].contains($0.pathExtension.lowercased()) }
-            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let files =
+            (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil))
+            ?? []
+        return files.filter {
+            ["safetensors", "ckpt", "pt"].contains($0.pathExtension.lowercased())
+        }
+        .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
     private func save() {
-        UserDefaults.standard.set(try? JSONEncoder().encode(configs),
-                                  forKey: SettingsKeys.imagenInstances)
+        UserDefaults.standard.set(
+            try? JSONEncoder().encode(configs),
+            forKey: SettingsKeys.imagenInstances)
     }
 }
 
@@ -1621,7 +1803,10 @@ struct UpscaleResult: Identifiable, Equatable {
 
 @MainActor
 final class ImageUpscaler: ObservableObject {
-    enum State: Equatable { case idle, running, done, failed(String) }
+    enum State: Equatable {
+        case idle, running, done
+        case failed(String)
+    }
 
     @Published var state: State = .idle
     @Published var resultImage: NSImage?
@@ -1672,36 +1857,47 @@ final class ImageUpscaler: ObservableObject {
         func component(customPath: String = "") -> ImageGenComponent? {
             switch self {
             case .photo:
-                return ImageGenComponent(kind: .checkpoint,
-                    urlString: "https://github.com/Phhofm/models/releases/download/4xNomosWebPhoto_esrgan/4xNomosWebPhoto_esrgan.pth",
+                return ImageGenComponent(
+                    kind: .checkpoint,
+                    urlString:
+                        "https://github.com/Phhofm/models/releases/download/4xNomosWebPhoto_esrgan/4xNomosWebPhoto_esrgan.pth",
                     fileName: "4xNomosWebPhoto_esrgan.pth", sizeGB: 0.032)
             case .art:
-                return ImageGenComponent(kind: .checkpoint,
-                    urlString: "https://huggingface.co/uwg/upscaler/resolve/main/ESRGAN/4x-UltraSharp.pth",
+                return ImageGenComponent(
+                    kind: .checkpoint,
+                    urlString:
+                        "https://huggingface.co/uwg/upscaler/resolve/main/ESRGAN/4x-UltraSharp.pth",
                     fileName: "4x-UltraSharp.pth", sizeGB: 0.064)
             case .custom:
                 guard !customPath.isEmpty else { return nil }
-                return ImageGenComponent(kind: .checkpoint, urlString: "",
-                                         fileName: customPath, sizeGB: 0)
+                return ImageGenComponent(
+                    kind: .checkpoint, urlString: "",
+                    fileName: customPath, sizeGB: 0)
             }
         }
 
         func label(_ spanish: Bool) -> String {
             switch self {
-            case .photo:  return spanish ? "Fotos" : "Photos"
-            case .art:    return spanish ? "Generada" : "Generated"
+            case .photo: return spanish ? "Fotos" : "Photos"
+            case .art: return spanish ? "Generada" : "Generated"
             case .custom: return spanish ? "Otro" : "Custom"
             }
         }
 
         func detail(_ spanish: Bool) -> String {
             switch self {
-            case .photo:  return spanish ? "4xNomosWebPhoto. Entrenado con ruido, desenfoque y recompresión reales."
-                                         : "4xNomosWebPhoto. Trained on real noise, lens blur and re-compression."
-            case .art:    return spanish ? "4x-UltraSharp. Más contraste y detalle fino; luce en arte generado."
-                                         : "4x-UltraSharp. More contrast and fine detail; shines on generated art."
-            case .custom: return spanish ? "Tu propio modelo ESRGAN ×4 (.pth o .safetensors)."
-                                         : "Your own 4x ESRGAN model (.pth or .safetensors)."
+            case .photo:
+                return spanish
+                    ? "4xNomosWebPhoto. Entrenado con ruido, desenfoque y recompresión reales."
+                    : "4xNomosWebPhoto. Trained on real noise, lens blur and re-compression."
+            case .art:
+                return spanish
+                    ? "4x-UltraSharp. Más contraste y detalle fino; luce en arte generado."
+                    : "4x-UltraSharp. More contrast and fine detail; shines on generated art."
+            case .custom:
+                return spanish
+                    ? "Tu propio modelo ESRGAN ×4 (.pth o .safetensors)."
+                    : "Your own 4x ESRGAN model (.pth or .safetensors)."
             }
         }
     }
@@ -1717,8 +1913,10 @@ final class ImageUpscaler: ObservableObject {
 
     /// Upscales the queued files one at a time: two ESRGAN runs at once would
     /// contend for the same VRAM the tiles already stretch.
-    func upscale(sources: [URL], flavor: Flavor, customPath: String = "", scale: Scale = .x4,
-                 models: ModelStore, gpuIndex: Int) {
+    func upscale(
+        sources: [URL], flavor: Flavor, customPath: String = "", scale: Scale = .x4,
+        models: ModelStore, gpuIndex: Int
+    ) {
         guard !isBusy, !sources.isEmpty else { return }
         pending = sources
         queued = []
@@ -1763,14 +1961,17 @@ final class ImageUpscaler: ObservableObject {
         let out = outputURL(for: source, fallback: dir)
 
         guard let component = flavor.component(customPath: customPath) else {
-            state = .failed("no model"); return
+            state = .failed("no model")
+            return
         }
-        let args = ["-M", "upscale",
-                    "--upscale-model", models.componentPath(component).path,
-                    // tiled so a single Metal dispatch stays under the GPU watchdog
-                    "--upscale-tile-size", "128",
-                    "-i", source.path,
-                    "-o", out.path]
+        let args = [
+            "-M", "upscale",
+            "--upscale-model", models.componentPath(component).path,
+            // tiled so a single Metal dispatch stays under the GPU watchdog
+            "--upscale-tile-size", "128",
+            "-i", source.path,
+            "-o", out.path,
+        ]
 
         var env = ProcessInfo.processInfo.environment
         let devices = MTLCopyAllDevices()
@@ -1838,15 +2039,17 @@ final class ImageUpscaler: ObservableObject {
     /// is a proper Lanczos pass, not a display-time scale.
     nonisolated static func halve(_ url: URL) {
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
-              let w = props[kCGImagePropertyPixelWidth] as? Int else { return }
+            let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+            let w = props[kCGImagePropertyPixelWidth] as? Int
+        else { return }
         let opts: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceThumbnailMaxPixelSize: max(1, w / 2),
             kCGImageSourceCreateThumbnailWithTransform: true,
         ]
         guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary),
-              let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil)
+            let dest = CGImageDestinationCreateWithURL(
+                url as CFURL, "public.png" as CFString, 1, nil)
         else { return }
         CGImageDestinationAddImage(dest, cg, nil)
         CGImageDestinationFinalize(dest)
@@ -1857,7 +2060,8 @@ final class ImageUpscaler: ObservableObject {
         for raw in text.split(whereSeparator: \.isNewline) {
             let line = String(raw)
             guard line.contains("s/it"),
-                  let r = line.range(of: #"(\d+)/(\d+)"#, options: .regularExpression) else { continue }
+                let r = line.range(of: #"(\d+)/(\d+)"#, options: .regularExpression)
+            else { continue }
             let parts = line[r].split(separator: "/")
             if parts.count == 2, let a = Int(parts[0]), let b = Int(parts[1]), b > 0 {
                 progress = Double(a) / Double(b)

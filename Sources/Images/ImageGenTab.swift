@@ -355,7 +355,7 @@ struct ImageControls: View {
         VStack(alignment: .leading, spacing: 8) {
             Label(loc.t("El chat comparte GPU con una instancia", "Chat shares a GPU with an instance"),
                   systemImage: "exclamationmark.triangle.fill")
-                .font(.callout.weight(.medium)).foregroundStyle(.orange)
+                .font(.callout.weight(.medium)).foregroundStyle(Color(red: 0.5, green: 0.7, blue: 0.3))
             Text(loc.t("Generar mientras el chat usa la misma GPU puede colgar la tarjeta en Macs AMD.",
                        "Generating while chat uses the same GPU can hang the card on AMD Macs."))
                 .font(.caption).foregroundStyle(.secondary)
@@ -367,7 +367,8 @@ struct ImageControls: View {
                         "Frees the GPU by stopping the chat server."))
         }
         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+        .background(
+            Color(red: 0.5, green: 0.7, blue: 0.3).opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
     }
 
     private var serverGPUOverlap: Bool {
@@ -1168,8 +1169,8 @@ struct ImageInstanceForm: View {
                 .frame(maxWidth: 200)
                 .help(
                     loc.t(
-                        "sd-cli (Checkpoint): modelo completo. sd-cli (Diffusion): solo difusión. iopaint (LaMa): restauración rápida. Flex.2 (Control): con ControlNet.",
-                        "sd-cli (Checkpoint): full model. sd-cli (Diffusion): diffusion only. iopaint (LaMa): fast restoration. Flex.2 (Control): with ControlNet."
+                        "sd-cli (Checkpoint): modelo completo. sd-cli (Diffusion): solo difusión. iopaint (LaMa): restauración rápida. sd-cli (Control): con ControlNet.",
+                        "sd-cli (Checkpoint): full model. sd-cli (Diffusion): diffusion only. iopaint (LaMa): fast restoration. sd-cli (Control): with ControlNet."
                     ))
             }
 
@@ -1212,7 +1213,7 @@ struct ImageInstanceForm: View {
                                 "SD 3.x/Flux models require T5-XXL. Without it, generation may fail or produce poor results."
                             ),
                             systemImage: "exclamationmark.triangle",
-                            color: .orange)
+                            color: Color(red: 0.5, green: 0.7, blue: 0.3))
                     }
                 } else {
                     // Обычный sd-cli: один энкодер
@@ -1637,9 +1638,10 @@ struct ImageInstanceForm: View {
         Label(loc.t("Ese tamaño no cabe en la VRAM de esta GPU. Usa un formato no cuadrado o un tamaño menor.",
                     "That size does not fit this GPU's VRAM. Use a non-square ratio or a smaller size."),
               systemImage: "exclamationmark.triangle.fill")
-            .font(.caption).foregroundStyle(.orange)
+            .font(.caption).foregroundStyle(Color(red: 0.5, green: 0.7, blue: 0.3))
             .padding(10).frame(maxWidth: .infinity, alignment: .leading)
-            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+            .background(
+            Color(red: 0.5, green: 0.7, blue: 0.3).opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
     }
 
     private var dimensionsFootnote: some View {
@@ -2551,7 +2553,7 @@ struct ImageCanvas: View {
         VStack(alignment: .leading, spacing: 12) {
             Label(loc.t("Motor de imagen no incluido en esta build",
                         "Image engine not in this build"), systemImage: "exclamationmark.triangle")
-                .font(.headline).foregroundStyle(.orange)
+                .font(.headline).foregroundStyle(Color(red: 0.5, green: 0.7, blue: 0.3))
             Text(loc.t("Compila los motores (`./scripts/build-engines.sh`) para incluir la generación de imágenes.",
                        "Build the engines (`./scripts/build-engines.sh`) to include image generation."))
                 .font(.callout).foregroundStyle(.secondary)

@@ -17,8 +17,8 @@ elif [ -z "$CI" ] && [ "$TOSH_NO_BUMP" != "1" ]; then
     # bumping the minor, which is what incrementing its last component would do
     if [ "${VERSION//[^.]/}" = "." ]; then
         VERSION="$VERSION.1"
-    else
-        VERSION="${VERSION%.*}.$(( ${VERSION##*.} + 1 ))"
+#    else
+#        VERSION="${VERSION%.*}.$(( ${VERSION##*.} + 1 ))"
     fi
     echo "$VERSION" > VERSION
 else

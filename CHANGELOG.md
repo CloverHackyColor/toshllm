@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Improved
+
+- **LLMs: Qwen 3.5 to 3.8 models start a follow-up answer sooner.** Keeping their state for the next turn no longer reads it twice or a row at a time; on a Radeon RX 6700 XT the prompt of a short turn takes half as long (Qwen3.8-9B 500 to 250 ms, Qwen3.5-4B 430 to 180 ms) and an agent's turn about 14% less.
+
 ### Fixed
 
 - **LLMs on Radeon RX 400/500, Vega, Radeon VII and Radeon Pro Vega/WX: Q2_K models no longer write past an array in the matrix-vector kernel.** The engine build warned about it. Reported by [SergeySlice](https://github.com/SergeySlice) in [#131](https://github.com/engeldlgado/toshllm/issues/131).

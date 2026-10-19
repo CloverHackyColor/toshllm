@@ -425,17 +425,27 @@ struct ImageControls: View {
 
     /// An instance can run: model installed, an (own or inherited) prompt, and
     /// a frame that fits its GPU(s).
-    private func runnable(_ c: ImageInstanceConfig) -> Bool {
-        let model = c.resolvedModel(for: hardware)
-        let v = ImageControls.vram(of: c.gpuIndex)
-        let aux = c.auxGPU(gpuCount: hardware.gpus.count)
-        let (w, h) = c.dimensions
-        return ImageGenerator.installed(model, in: models)
-            && !pool.effectivePrompt(for: c).isEmpty
-            && model.fitsGPU(mainVRAM: v, auxVRAM: aux.map { ImageControls.vram(of: $0) })
-            && ImageGenLimits.fits(width: w, height: h, vramGB: v,
-                                   residentGB: model.residentGB, attnVRAMSq: model.attnVRAMSq)
+private func runnable(_ c: ImageInstanceConfig) -> Bool {
+    let model = c.resolvedModel(for: hardware)
+    let v = ImageControls.vram(of: c.gpuIndex)
+    let aux = c.auxGPU(gpuCount: hardware.gpus.count)
+    let (w, h) = c.dimensions
+    
+    // 1. Проверка установки модели: для кастомных проверяем существование файла, для каталожных - через ModelStore
+    let isModelReady: Bool
+    if c.isCustom {
+        // Проверяем, что основной файл модели существует на диске
+        isModelReady = !c.modelName.isEmpty && FileManager.default.fileExists(atPath: c.modelName)
+    } else {
+        isModelReady = ImageGenerator.installed(model, in: models)
     }
+    
+    return isModelReady
+        && !pool.effectivePrompt(for: c).isEmpty
+        && model.fitsGPU(mainVRAM: v, auxVRAM: aux.map { ImageControls.vram(of: $0) })
+        && ImageGenLimits.fits(width: w, height: h, vramGB: v,
+                               residentGB: model.residentGB, attnVRAMSq: model.attnVRAMSq)
+}
 
     /// VRAM of a specific GPU slot, for per-instance fit checks.
     static func vram(of index: Int) -> Double {
@@ -463,13 +473,20 @@ struct ImageControls: View {
                         gpuIndex: c.gpuIndex,
                         auxGPUIndex: c.auxGPU(gpuCount: hardware.gpus.count) ?? -1,
                         initImagePath: c.initImagePath, maskPath: c.maskPath,
-
                         strength: c.strength,
-                        inpaintEngine: c.inpaintEngine,
-                        textEncoderPath: c.textEncoderPath,
-                        t5EncoderPath: c.t5EncoderPath,
-                        controlImagePath: c.controlImagePath,  // <-- ДОБАВЛЕНО
-                        controlStrength: c.controlStrength,  // <-- ДОБАВЛЕНО
+
+                    // --- ОБНОВЛЕННЫЕ ПАРАМЕТРЫ КАСТОМНОЙ МОДЕЛИ ---
+                    engine: c.engine,
+                    sdcliMode: c.sdcliMode,
+                    modelName: c.modelName,
+                    vaeModelName: c.vaeModelName,
+                    textEncoderLLMPath: c.textEncoderLLMPath,
+                    textEncoderT5Path: c.textEncoderT5Path,
+                    textEncoderCLIPPath: c.textEncoderCLIPPath,
+                    // ----------------------------------------------
+                     
+                        controlImagePath: c.controlImagePath,  
+                        controlStrength: c.controlStrength,  
 
                         referenceImagePaths: c.referenceImagePaths,
                         fastMode: c.fastModeValue)
@@ -1156,57 +1173,102 @@ struct ImageInstanceForm: View {
     private var customSetup: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Переключатель движка для Custom моделей
-            HStack(spacing: 8) {
-                Text(loc.t("Motor", "Engine")).font(.caption)
-                Spacer(minLength: 8)
-                Picker("", selection: $cfg.inpaintEngine) {
-                    ForEach(InpaintEngine.allCases, id: \.self) { engine in
-                        Text(engine.label).tag(engine)
-                    }
+    // 1. Выбор движка
+    Picker(loc.t("Motor", "Engine"), selection: $cfg.engine) {
+        ForEach(ImageEngine.allCases) { engine in
+            Text(engine.label(loc)).tag(engine)
+        }
+    }
+    .pickerStyle(.menu)
+        .onChange(of: cfg.engine) { oldValue, newValue in
+            if cfg.modelName.isEmpty || cfg.modelName == "big-lama" || cfg.modelName == oldValue.defaultModelName {
+                cfg.modelName = newValue.defaultModelName
+            }
+        }
+        // 2. Выбор типа модели (только если выбран sd-cli)
+    if cfg.engine == .sdcli {
+        Picker(loc.t("Tipo de modelo", "Model type"), selection: $cfg.sdcliMode) {
+            ForEach(SDCLIMode.allCases) { mode in
+                Text(mode.label(loc)).tag(mode)
+            }
+        }
+        .pickerStyle(.menu)
+    }
+
+    // 3. Имя или путь к модели
+    HStack {
+        TextField(
+            cfg.engine == .iopaint 
+                ? loc.t("Nombre del modelo (en silencio. big-lama)", "Model name (default big-lama)") 
+                : loc.t("Nombre o ruta del modelo", "Model name or path"), 
+            text: $cfg.modelName
+        )
+        .textFieldStyle(.roundedBorder)
+        
+        Button(loc.t("Explorar...", "Browse...")) {
+            let panel = NSOpenPanel()
+                panel.allowedContentTypes = ["gguf", "safetensors", "pth", "bin"]
+                    .compactMap { UTType(filenameExtension: $0) }
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = false
+            
+            if panel.runModal() == .OK, let url = panel.url {
+                cfg.modelName = url.path
+            }
+        }
+        .buttonStyle(GlassIconButtonStyle()) // Замените на ваш стандартный стиль кнопки, если нужно
+        .iconHelp(loc.t("Seleccionar archivo del modelo", "Select model file"))
+    }
+
+        // 4. Имя или путь к VAE модели (только для типа diffusion)
+    if cfg.engine == .sdcli && cfg.sdcliMode == .diffusion {
+        HStack {
+            TextField(loc.t("Nombre o ruta del modelo VAE", "VAE model name or path"), text: $cfg.vaeModelName)
+                .textFieldStyle(.roundedBorder)
+            
+            Button(loc.t("Explorar...", "Browse...")) {
+                let panel = NSOpenPanel()
+                panel.allowedContentTypes = [
+                    UTType(filenameExtension: "gguf") ?? .data,
+                    UTType(filenameExtension: "safetensors") ?? .data,
+                    UTType(filenameExtension: "pth") ?? .data
+                ].compactMap { $0 }
+                if panel.runModal() == .OK, let url = panel.url {
+                    cfg.vaeModelName = url.path
                 }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .frame(maxWidth: 200)
-                .help(
-                    loc.t(
-                        "sd-cli (Checkpoint): modelo completo. sd-cli (Diffusion): solo difusión. iopaint (LaMa): restauración rápida. sd-cli (Control): con ControlNet.",
-                        "sd-cli (Checkpoint): full model. sd-cli (Diffusion): diffusion only. iopaint (LaMa): fast restoration. sd-cli (Control): with ControlNet."
-                    ))
             }
+            .buttonStyle(GlassIconButtonStyle())
+        }
+    }
 
-            // Поля Model file и VAE — показываются только для sd-cli типов
-            if cfg.inpaintEngine != .iopaint {
-                filePickRow(
-                    loc.t("Archivo del modelo", "Model file"), path: $cfg.customModelPath,
-                    types: ["safetensors", "gguf", "ckpt"])
-                filePickRow(
-                    loc.t("VAE (opcional)", "VAE (optional)"),
-                    path: $cfg.customVAEPath, types: ["safetensors", "gguf"])
-            }
-            // Условные поля для энкодеров в зависимости от выбранного движка
-            if cfg.inpaintEngine.requiresEncoders {
-                if cfg.inpaintEngine.requiresT5 {
-                    // Flex.2 или SD 3.x/Flux: два энкодера (CLIP_L + T5-XXL)
-                    filePickRow(
-                        loc.t("CLIP_L encoder", "CLIP_L encoder"),
-                        path: $cfg.textEncoderPath, types: ["safetensors", "gguf"]
-                    )
-                    .help(
-                        loc.t(
-                            "Modelo CLIP_L para Flex.2 o SD 3.x/Flux.",
-                            "CLIP_L model for Flex.2 or SD 3.x/Flux."))
-
-                    filePickRow(
-                        loc.t("T5-XXL encoder", "T5-XXL encoder"),
-                        path: $cfg.t5EncoderPath, types: ["safetensors", "gguf"]
-                    )
-                    .help(
+    // 5. Текстовые энкодеры (сгруппированы для аккуратности)
+    DisclosureGroup(loc.t("Codificadores de texto", "Text Encoders")) {
+        HStack {
+            Text(loc.t("LLM Codificador", "LLM Encoder")).frame(width: 100, alignment: .leading)
+            TextField(loc.t("Ruta al LLM", "LLM path"), text: $cfg.textEncoderLLMPath)
+                .textFieldStyle(.roundedBorder)
+            Button(loc.t("Explorar...", "Browse...")) {
+                let panel = NSOpenPanel()
+                if panel.runModal() == .OK, let url = panel.url { cfg.textEncoderLLMPath = url.path }
+            }.buttonStyle(GlassIconButtonStyle())
+        }
+        .padding(.top, 4)
+        
+        HStack {
+            Text(loc.t("T5-XXL Codificador", "T5-XXL Encoder")).frame(width: 100, alignment: .leading)
+            TextField(loc.t("Ruta al T5", "T5 path"), text: $cfg.textEncoderT5Path)
+                .textFieldStyle(.roundedBorder)
+            Button(loc.t("Explorar...", "Browse...")) {
+                let panel = NSOpenPanel()
+                if panel.runModal() == .OK, let url = panel.url { cfg.textEncoderT5Path = url.path }
+            }.buttonStyle(GlassIconButtonStyle())
+            .help(
                         loc.t(
                             "Modelo T5-XXL para Flex.2 o SD 3.x/Flux. Proporciona comprensión semántica avanzada.",
                             "T5-XXL model for Flex.2 or SD 3.x/Flux. Provides advanced semantic understanding."
                         ))
-
-                    if cfg.t5EncoderPath.isEmpty {
+                    if cfg.textEncoderT5Path.isEmpty {
                         InfoLabel(
                             text: loc.t(
                                 "Para modelos SD 3.x/Flux se requiere T5-XXL. Sin él, la generación puede fallar o dar resultados pobres.",
@@ -1215,18 +1277,61 @@ struct ImageInstanceForm: View {
                             systemImage: "exclamationmark.triangle",
                             color: Color(red: 0.5, green: 0.7, blue: 0.3))
                     }
-                } else {
-                    // Обычный sd-cli: один энкодер
-                    filePickRow(
-                        loc.t("Codificador de texto (CLIP)", "Text encoder (CLIP)"),
-                        path: $cfg.textEncoderPath, types: ["safetensors", "gguf"]
-                    )
-                    .help(
+        }
+        
+        HStack {
+            Text(loc.t("CLIP_L Codificador", "CLIP_L Encoder")).frame(width: 100, alignment: .leading)
+            TextField(loc.t("Ruta al CLIP_L", "CLIP_L path"), text: $cfg.textEncoderCLIPPath)
+                .textFieldStyle(.roundedBorder)
+            Button(loc.t("Explorar...", "Browse...")) {
+                let panel = NSOpenPanel()
+                if panel.runModal() == .OK, let url = panel.url { cfg.textEncoderCLIPPath = url.path }
+            }.buttonStyle(GlassIconButtonStyle())
+            .help(
                         loc.t(
                             "Modelo CLIP para guiar la generación. Requerido para todos los modelos sd-cli.",
                             "CLIP model to guide generation. Required for all sd-cli models."))
-                }
+        }
+    }
+    .padding(.top, 4)
+
+    // Внутри вашего customSetup, после выбора энкодеров:
+
+HStack(alignment: .top) {
+    Text(loc.t("Imágenes de Referencia", "Reference Images")).frame(width: 100, alignment: .leading)
+    VStack(alignment: .leading, spacing: 4) {
+        Button(loc.t("Seleccionar imágenes de referencia...", "Select reference images...")) {
+            let panel = NSOpenPanel()
+            panel.allowedContentTypes = [.png, .jpeg, .jpg, .webp].compactMap { UTType(filenameExtension: $0) }
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = true // <-- КЛЮЧЕВОЙ МОМЕНТ: разрешаем выбор нескольких файлов
+            
+            if panel.runModal() == .OK {
+                // Сохраняем массив путей
+                cfg.referenceImagePaths = panel.urls.map { $0.path }
             }
+        }
+        .buttonStyle(GlassIconButtonStyle())
+        
+        // Отображаем количество выбранных файлов или их имена
+        if !cfg.referenceImagePaths.isEmpty {
+            Text(loc.t("Seleccionado: %@ archivos", "Selected: %@ files", "\(cfg.referenceImagePaths.count)"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            
+            // Опционально: кнопка очистки
+            Button(loc.t("Limpiar", "Clear")) {
+                cfg.referenceImagePaths = []
+            }
+            .font(.caption2)
+            .foregroundStyle(.red)
+            .buttonStyle(.plain)
+        }
+    }
+}
+.padding(.top, 4)
+
             HStack(spacing: 6) {
                 Text("CFG").font(.callout)
                 Spacer(minLength: 8)

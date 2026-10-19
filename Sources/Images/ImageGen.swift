@@ -60,6 +60,41 @@ struct ImageGenComponent: Identifiable {
     }
 }
 
+enum ImageEngine: String, CaseIterable, Codable, Identifiable {
+    case sdcli = "sd-cli"
+    case iopaint = "iopaint"
+    case llama = "llama" // Для Qwen-Image и подобных
+    
+    var id: String { self.rawValue }
+    
+    var defaultModelName: String {
+        if self == .iopaint { return "big-lama" }
+        return ""
+    }
+        
+    func label(_ loc: Localizer) -> String {
+        switch self {
+        case .sdcli: return loc.t("sd-cli", "sd-cli")
+        case .iopaint: return loc.t("iopaint", "iopaint")
+        case .llama: return loc.t("llama", "llama")
+        }
+    }
+}
+
+enum SDCLIMode: String, CaseIterable, Codable, Identifiable {
+    case checkpoint = "checkpoint"
+    case diffusion = "diffusion"
+    
+    var id: String { self.rawValue }
+    
+    func label(_ loc: Localizer) -> String {
+        switch self {
+        case .checkpoint: return loc.t("Checkpoint (Полная модель)", "Checkpoint (Full model)")
+        case .diffusion: return loc.t("Diffusion (Только диффузия)", "Diffusion (Diffusion only)")
+        }
+    }
+}
+
 enum InpaintEngine: String, CaseIterable, Codable, Identifiable {
     case sdcliCheckpoint = "sd-cli-checkpoint"  // sd-cli --model (полный чекпоинт)
     case sdcliDiffusion = "sd-cli-diffusion"  // sd-cli --diffusion-model (только диффузия)
@@ -961,13 +996,26 @@ final class ImageGenerator: ObservableObject {
         auxGPUIndex: Int = -1,
         initImagePath: String = "", maskPath: String = "",
         strength: Double = 0.75,
-        inpaintEngine: InpaintEngine = .iopaint,  // <-- ДОБАВЛЕНО
-        textEncoderPath: String = "",  // <-- ДОБАВЛЕНО
-        t5EncoderPath: String = "",  // <-- ДОБАВЛЕНО
+        cfgScale: Double = 7.0,
+
+        // --- НОВЫЕ ПАРАМЕТРЫ ДЛЯ КАСТОМНЫХ МОДЕЛЕЙ ---
+    engine: ImageEngine = .sdcli,
+    sdcliMode: SDCLIMode = .checkpoint,
+    modelName: String = "",
+    vaeModelName: String = "",
+    textEncoderLLMPath: String = "",
+    textEncoderT5Path: String = "",
+    textEncoderCLIPPath: String = "",
+    // -----------------------------------------------
+
+     //   inpaintEngine: InpaintEngine = .iopaint,  // <-- ДОБАВЛЕНО
+     //   textEncoderPath: String = "",  // <-- ДОБАВЛЕНО
+     //   t5EncoderPath: String = "",  // <-- ДОБАВЛЕНО
         controlImagePath: String = "",  // <-- ДОБАВЛЕНО
         controlStrength: Double = 0.5,  // <-- ДОБАВЛЕНО
         referenceImagePaths: [String] = [],
-        fastMode: ImageFastMode = .off
+        fastMode: ImageFastMode = .off,
+        onFinish: (() -> Void)? = nil
     ) {
         guard !isBusy else { return }
         let steps = model.steps(steps)
@@ -994,8 +1042,17 @@ final class ImageGenerator: ObservableObject {
         let out = outputDir.appendingPathComponent(
             "toshllm_\(fmt.string(from: Date()))_\(token).\(format.ext)")
 
+        let modelsDir = ServerSettings.modelsDirectory.appendingPathComponent("imagen", isDirectory: true).path
+
+    // Вспомогательная функция для резолвинга путей (если пользователь ввел только имя файла, а не полный путь)
+    func resolvePath(_ path: String) -> String {
+        if path.isEmpty { return "" }
+        if path.hasPrefix("/") { return path } // Уже полный путь
+        return (modelsDir as NSString).appendingPathComponent(path)
+    }           
+
         // --- ВЕТКА IOPAINT (LaMa) ---
-        if inpaintEngine == .iopaint && !maskPath.isEmpty && !initImagePath.isEmpty {
+        if engine == .iopaint && !maskPath.isEmpty && !initImagePath.isEmpty {
             guard let iopaintPath = Self.findIOPaint() else {
                 state = .failed("IOPaint no encontrado. Ejecuta: pip install iopaint")
                 return
@@ -1130,23 +1187,55 @@ final class ImageGenerator: ObservableObject {
             args += [comp.flag, models.componentPath(comp).path]
         }
 
-        // --- ДОБАВЛЯЕМ ЯВНЫЕ ЭНКОДЕРЫ (для Flex.2 или кастомных сборок) ---
-        if !textEncoderPath.isEmpty
-            && !model.components.contains(where: { $0.kind == .clipL || $0.kind == .textEncoder })
-        {
-            args += ["--clip_l", textEncoderPath]
-        }
-        if !t5EncoderPath.isEmpty && !model.components.contains(where: { $0.kind == .t5 }) {
-            args += ["--t5xxl", t5EncoderPath]
+        if engine == .sdcli {
+            if sdcliMode == .checkpoint {
+                args.append("--model")
+                args.append(resolvePath(modelName))
+            } else if sdcliMode == .diffusion {
+                args.append("--diffusion-model")
+                args.append(resolvePath(modelName))
+                
+                if !vaeModelName.isEmpty {
+                    args.append("--vae")
+                    args.append(resolvePath(vaeModelName))
+                }
+                if !textEncoderLLMPath.isEmpty {
+                    args.append("--llm") // Или "--text-encoder", в зависимости от версии sd-cli
+                    args.append(resolvePath(textEncoderLLMPath))
+                }
+                if !textEncoderT5Path.isEmpty {
+                    args.append("--t5xxl")
+                    args.append(resolvePath(textEncoderT5Path))
+                }
+                if !textEncoderCLIPPath.isEmpty {
+                    args.append("--clip_l")
+                    args.append(resolvePath(textEncoderCLIPPath))
+                }
+            }
+        } else if engine == .llama {
+            // TODO: Если для Qwen-Image/llama нужен особый флаг или другой бинарник, добавьте его здесь.
+            // Пока можно использовать логику diffusion, так как Qwen-Image в sd-cli работает через те же флаги.
+            args.append("--diffusion-model")
+            args.append(resolvePath(modelName))
+            if !textEncoderLLMPath.isEmpty {
+                args.append("--llm")
+                args.append(resolvePath(textEncoderLLMPath))
+            }
         }
 
         // --- ДОБАВЛЯЕМ CONTROL ДЛЯ FLEX.2 ---
-        if !controlImagePath.isEmpty && inpaintEngine == .sdcliControl {
+        if !controlImagePath.isEmpty && engine == .sdcli {
             args += [
                 "--control-image", controlImagePath,
                 "--control-strength", String(format: "%.2f", controlStrength),
             ]
         }
+
+            // 5. Аргументы для Reference Images (Qwen-Image 2.1)
+    for refPath in referenceImagePaths where !refPath.isEmpty {
+        args.append("--reference-image")
+        args.append(resolvePath(refPath))
+    }
 
         // sd-cli picks a LoRA up from the prompt, as <lora:file:weight>, but only when it knows
         // where to look. The folder is only passed when it holds something, so an empty one
@@ -1428,6 +1517,51 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
     var controlImagePath: String = ""
     var controlStrength: Double = 0.5  // Значение по умолчанию (обычно от 0.0 до 1.0)
 
+       // --- НОВАЯ ЛОГИКА ВЫБОРА КАСТОМНОЙ МОДЕЛИ ---
+    var engine: ImageEngine = .sdcli
+    var sdcliMode: SDCLIMode = .checkpoint
+    var modelName: String = ""          // Имя модели или путь к ней (например, "SDXL", "big-lama")
+    var vaeModelName: String = ""       // Имя/путь VAE (актуально только для diffusion)
+    var textEncoderLLMPath: String = "" // Путь к LLM энкодеру
+    var textEncoderT5Path: String = ""  // Путь к T5 энкодеру
+    var textEncoderCLIPPath: String = ""// Путь к CLIP энкодеру
+
+    // --- КОНВЕРТЕР ДЛЯ МИГРАЦИИ ---
+    // Вычисляемое свойство, которое конвертирует старые значения в новые при чтении
+    var migratedEngine: ImageEngine {
+        // Если в JSON были старые поля и они не пустые, используем их для определения движка
+        if inpaintEngine == .iopaint {
+            return .iopaint
+        }
+        if inpaintEngine == .sdcliDiffusion || inpaintEngine == .sdcliDual || inpaintEngine == .sdcliControl {
+            return .sdcli
+        }
+        return engine
+    }
+    
+    var migratedSdcliMode: SDCLIMode {
+        if inpaintEngine == .sdcliDiffusion || inpaintEngine == .sdcliDual || inpaintEngine == .sdcliControl {
+            return .diffusion
+        }
+        return sdcliMode
+    }
+    
+    // Миграция путей энкодеров из старых полей в новые
+    var migratedTextEncoderLLMPath: String {
+        if !textEncoderPath.isEmpty && textEncoderLLMPath.isEmpty {
+            return textEncoderPath
+        }
+        return textEncoderLLMPath
+    }
+    
+    var migratedTextEncoderT5Path: String {
+        if !t5EncoderPath.isEmpty && textEncoderT5Path.isEmpty {
+            return t5EncoderPath
+        }
+        return textEncoderT5Path
+    }
+    
+
     init() {}
 
     init(from decoder: Decoder) throws {
@@ -1456,13 +1590,73 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
         offloadCPU = (try? c.decode(Bool.self, forKey: .offloadCPU)) ?? false
         fastMode = (try? c.decode(String.self, forKey: .fastMode)) ?? ImageFastMode.off.rawValue
 
-        // --- НОВОЕ ДЕКОДИРОВАНИЕ ---
+        // Читаем НОВЫЕ поля (их может не быть в старых JSON)
+        engine = (try? c.decode(ImageEngine.self, forKey: .engine)) ?? .sdcli
+        sdcliMode = (try? c.decode(SDCLIMode.self, forKey: .sdcliMode)) ?? .checkpoint
+        modelName = (try? c.decode(String.self, forKey: .modelName)) ?? ""
+        vaeModelName = (try? c.decode(String.self, forKey: .vaeModelName)) ?? ""
+        textEncoderLLMPath = (try? c.decode(String.self, forKey: .textEncoderLLMPath)) ?? ""
+        textEncoderT5Path = (try? c.decode(String.self, forKey: .textEncoderT5Path)) ?? ""
+        textEncoderCLIPPath = (try? c.decode(String.self, forKey: .textEncoderCLIPPath)) ?? ""
+        
+        // Читаем СТАРЫЕ поля (для миграции)
         inpaintEngine = (try? c.decode(InpaintEngine.self, forKey: .inpaintEngine)) ?? .iopaint
         textEncoderPath = (try? c.decode(String.self, forKey: .textEncoderPath)) ?? ""
         t5EncoderPath = (try? c.decode(String.self, forKey: .t5EncoderPath)) ?? ""
         controlImagePath = (try? c.decode(String.self, forKey: .controlImagePath)) ?? ""
         controlStrength = (try? c.decode(Double.self, forKey: .controlStrength)) ?? 0.5
+        
+        // --- НОВОЕ ДЕКОДИРОВАНИЕ ---
+        // --- АВТОМИГРАЦИЯ: если новые поля пустые, но старые заполнены ---
+        if modelName.isEmpty && !customModelPath.isEmpty {
+            modelName = customModelPath
+        }
+        if vaeModelName.isEmpty && !customVAEPath.isEmpty {
+            vaeModelName = customVAEPath
+        }
+        if textEncoderLLMPath.isEmpty && !customTextEncoderPath.isEmpty {
+            textEncoderLLMPath = customTextEncoderPath
+        }
+        
+            // Применяем миграцию из старых полей inpaintEngine
+        let oldEngine = inpaintEngine
+        if oldEngine == .iopaint {
+            engine = .iopaint
+            if modelName.isEmpty {
+                modelName = "big-lama"
+            }
+        } else if oldEngine == .sdcliDiffusion {
+            engine = .sdcli
+            sdcliMode = .diffusion
+        } else if oldEngine == .sdcliCheckpoint {
+            engine = .sdcli
+            sdcliMode = .checkpoint
+        }
 
+             // Миграция путей энкодеров
+        if textEncoderLLMPath.isEmpty && !textEncoderPath.isEmpty {
+            textEncoderLLMPath = textEncoderPath
+        }
+        if textEncoderT5Path.isEmpty && !t5EncoderPath.isEmpty {
+            textEncoderT5Path = t5EncoderPath
+        }       
+    }
+
+        // Обновляем resolvedModel для использования новых полей
+    func resolvedModel(for hw: HardwareInfo) -> ImageGenModel {
+        if isCustom {
+            return ImageGenCatalog.custom(
+                modelPath: modelName, // Можно добавить логику конкатенации с ServerSettings.modelsDirectory, если modelName - это только имя файла
+                vaePath: vaeModelName,
+                textEncoderPath: textEncoderLLMPath,
+                isDiffusion: engine == .sdcli && sdcliMode == .diffusion,
+                steps: steps, 
+                cfg: customCfg
+            )
+        }
+        return ImageGenCatalog.model(id: modelID)
+            ?? ImageGenCatalog.recommended(for: hw)
+            ?? ImageGenCatalog.zImageTurbo
     }
 
     var isCustom: Bool { modelID == ImageGenCatalog.customID }
@@ -1734,10 +1928,20 @@ final class ImageGenPool: ObservableObject {
                 offloadToCPU: c.offloadCPU, gpuIndex: c.gpuIndex, auxGPUIndex: aux ?? -1,
                 initImagePath: job.initImagePath ?? c.initImagePath,
                 maskPath: c.maskPath, strength: c.strength,
+
+                        // --- ПЕРЕДАЧА НОВЫХ ПАРАМЕТРОВ ---
+            engine: c.engine,
+            sdcliMode: c.sdcliMode,
+            modelName: c.modelName,
+            vaeModelName: c.vaeModelName,
+            textEncoderLLMPath: c.textEncoderLLMPath,
+            textEncoderT5Path: c.textEncoderT5Path,
+            textEncoderCLIPPath: c.textEncoderCLIPPath,
+            // ---------------------------------    
                 // --- НОВЫЕ ПАРАМЕТРЫ ---
-                inpaintEngine: c.inpaintEngine,
-                textEncoderPath: c.textEncoderPath,
-                t5EncoderPath: c.t5EncoderPath,
+            //    inpaintEngine: c.inpaintEngine,
+            //    textEncoderPath: c.textEncoderPath,
+            //    t5EncoderPath: c.t5EncoderPath,
                 controlImagePath: c.controlImagePath,
                 controlStrength: c.controlStrength,
 
@@ -1785,8 +1989,16 @@ final class ImageGenPool: ObservableObject {
     }
 
     private func save() {
+            // Очищаем старые поля перед сохранением
+    var configsToSave = configs
+    for i in 0..<configsToSave.count {
+        configsToSave[i].inpaintEngine = .iopaint // Сбрасываем в дефолт
+        configsToSave[i].textEncoderPath = ""
+        configsToSave[i].t5EncoderPath = ""
+    }
+
         UserDefaults.standard.set(
-            try? JSONEncoder().encode(configs),
+            try? JSONEncoder().encode(configsToSave),
             forKey: SettingsKeys.imagenInstances)
     }
 }

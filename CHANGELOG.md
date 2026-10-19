@@ -25,6 +25,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Engine: API keys and the agent's key are compared in constant time.** How long a refusal takes no longer depends on how much of a guessed key is right.
 - **MCP: calls waiting for a server that is slow to start can be cancelled, and a start that fails is not retried by each of them.** Every queued call used to wait the full timeout again; now they fail together, and the start is tried again a few seconds later.
 - **MCP: a server that stops answering is replaced.** After two calls in a row time out and it misses a ping, new calls go to a fresh process while the old one finishes the calls it had; one that hangs again waits 10 s, then 20 and so on up to 5 minutes before it starts again.
+- **Math: an API client that only reads the text no longer gets words the agent took back.** Text of a pass that may still end in a tool call goes out as a draft, which the app and the web chat show as before until the answer replaces it; cancelling a turn also stops every request the agent has in flight.
 
 ## [0.87.26] - 2026-10-17
 

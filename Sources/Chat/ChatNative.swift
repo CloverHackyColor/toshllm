@@ -894,6 +894,8 @@ final class ChatStore: ObservableObject {
             var availableTools = agentRun?.tools ?? []
             var hold = holdText
             var dropLeadingSpace = false
+            // text of an agent pass that may still end in tool calls: shown live, replaced by the answer
+            var drafted = false
             var gate = false
             var agentTurn = false
             var retryWithoutAgent = false
@@ -948,6 +950,12 @@ final class ChatStore: ObservableObject {
                        let tosh = object["tosh"] as? [String: Any] {
                         guard let event = tosh["event"] as? [String: Any] else {
                             agentMeta = tosh
+                            // a turn that ends with no answer after a draft keeps none of it
+                            if drafted {
+                                accumulator.visible = ""
+                                drafted = false
+                                flush()
+                            }
                             if let event = try accumulator.consume(line), event.completed { return true }
                             continue
                         }
@@ -959,13 +967,22 @@ final class ChatStore: ObservableObject {
                             hold = event["live"] as? Bool != true
                         } else if event["type"] as? String == "retract" {
                             accumulator.visible = ""
+                            drafted = false
                             dropLeadingSpace = true
                             lastFlush = .distantPast
+                            flush()
+                        } else if event["type"] as? String == "draft", let text = event["content"] as? String, !text.isEmpty {
+                            drafted = true
+                            accumulator.visible += text
                             flush()
                         }
                         let owner = self
                         await MainActor.run { owner?.agentEvent(event, conversation: convID) }
                         continue
+                    }
+                    if drafted, line.hasPrefix("data: "), line.contains("\"content\":\""), !line.contains("\"content\":\"\"") {
+                        accumulator.visible = ""
+                        drafted = false
                     }
                     guard let event = try accumulator.consume(line) else { continue }
                     // the engine separates the answer from retracted text for clients that keep it

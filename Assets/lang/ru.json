@@ -932,6 +932,8 @@
   "Live dictation with macOS's built-in service. It reserves no VRAM.": "Диктовка в реальном времени с использованием встроенного сервиса macOS. Не резервирует видеопамять (VRAM).",
   "Live usage · GPU capacity": "Текущее использование · ёмкость GPU",
   "Live · no VRAM reserved": "Вживую · без резерва VRAM",
+  "LLM Encoder":"LLM энкодер",
+  "LLM path": "Путь к LLM энкодеру",
 
   "Load %@ earlier lines": "Загрузить %@ предыдущих строк",
   "Load 20 more": "Загрузить ещё 20",
@@ -1821,6 +1823,7 @@
   "Text colour": "Цвет текста",
 
   "Text encoder": "Кодировщик текста",
+  "Text Encoders": "Кодировщики текста",
   "Text only": "Только текст",
   "Text that will replace all matches.": "Текст, который заменит все найденные совпадения.",
   "That folder no longer exists": "Эта папка больше не существует",
@@ -2062,6 +2065,7 @@
 
   "VAD reduces weak voices, but cannot isolate a main voice when background speech is also clearly audible.": "VAD (детектор активности голоса) ослабляет слабые голоса, но не может выделить основной голос, если фоновая речь тоже отчётливо слышна.",
   "VAE (optional)": "VAE (необязательно)",
+  "VAE model name or path", "Имя или путь к модели VAE",
   "VRAM as Metal reports it, not the number on the box. It only adds up when you split a model across several GPUs; a model that is not split has to fit in one.\n\n%@": "Объём VRAM — такой, какой сообщает Metal, а не указанный на упаковке видеокарты. Суммирование объёмов имеет смысл только при распределении модели между несколькими GPU; неразделённая модель должна целиком помещаться в памяти одной видеокарты.\n\n%@",
   "VRAM in use (all GPUs).": "Используемая VRAM (по всем GPU).",
   "VRAM in use on %@.": "Используемая VRAM на %@.",

@@ -1246,7 +1246,7 @@ final class ChatStore: ObservableObject {
             let ttft: Double? = tFirst.map { $0.timeIntervalSince(tSent) * 1000 }
             let hasVisibleAnswer = !accumulator.visible.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             // a turn that ended inside its reasoning keeps it, under the warning, instead of losing it
-            let keepsReasoning = !accumulator.reasoning.isEmpty && !cancelled && !reportedError
+            let keepsReasoning = !accumulator.reasoning.isEmpty && !reportedError
             let streamedText = hasVisibleAnswer || keepsReasoning ? composed() : ""
             let finalUsage = accumulator.usage
             let finalAccept = accumulator.mtpAccept

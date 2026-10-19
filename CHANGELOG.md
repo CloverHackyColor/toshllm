@@ -18,6 +18,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **LLMs: GLM-4-0414 models call tools instead of writing the call as text.** The name and arguments of a tool came out in the answer, sometimes with a result the model made up; the call now runs and the answer uses what it returned. Reported by [andruwa13](https://github.com/andruwa13) in [#129](https://github.com/engeldlgado/toshllm/issues/129).
 - **LLMs: Qwen 3.5 to 3.8 models split across GPUs by tensor start again with MTP.** They stopped at startup since 0.87.13. Reported by [Basten7](https://github.com/Basten7) in [#130](https://github.com/engeldlgado/toshllm/issues/130).
 - **LLMs on Radeon RX 400/500, Vega, Radeon VII and Radeon Pro Vega/WX: Q2_K models no longer write past an array in the matrix-vector kernel.** Reported by [SergeySlice](https://github.com/SergeySlice) in [#131](https://github.com/engeldlgado/toshllm/issues/131).
 - **Engine and math: the agent answers on a server that listens on an IPv6 address.** Every turn failed on an address such as `::1`.

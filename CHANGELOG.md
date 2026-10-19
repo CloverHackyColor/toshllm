@@ -7,6 +7,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **MCP: each server is told how long the engine waits for a call.** It gets `TOSH_MCP_TIMEOUT_MS` in its environment, so an agent can end its turn and answer before the engine gives up on it.
 - **Settings: with two or more concurrent requests, each one can keep its own share of the context.** "Separate context per request" generates 7 to 11% faster with several requests at once on a Radeon RX 6700 XT, but no conversation can grow past its share. It is off by default.
 
 ### Improved
@@ -22,6 +23,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Engine and math: the agent answers on a server that listens on an IPv6 address.** Every turn failed on an address such as `::1`.
 - **Engine: API keys and the agent's key are compared in constant time.** How long a refusal takes no longer depends on how much of a guessed key is right.
 - **MCP: calls waiting for a server that is slow to start can be cancelled, and a start that fails is not retried by each of them.** Every queued call used to wait the full timeout again; now they fail together, and the start is tried again a few seconds later.
+- **MCP: a server that stops answering is replaced.** After two calls in a row time out and it misses a ping, new calls go to a fresh process while the old one finishes the calls it had; one that hangs again waits 10 s, then 20 and so on up to 5 minutes before it starts again.
 
 ## [0.87.26] - 2026-10-17
 

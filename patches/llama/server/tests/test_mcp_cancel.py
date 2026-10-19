@@ -314,6 +314,13 @@ class McpCancelTest(EngineTest):
         self.assertEqual(clients, {"llama.cpp"})
         self.assertServing(engine)
 
+    def test_a_server_is_told_how_long_the_engine_waits_for_a_call(self):
+        engine = self.engine(LONG_MS)
+        engine.call("echo", message="hello")
+        started = [e for e in engine.entries() if e.get("started")]
+        self.assertTrue(started)
+        self.assertEqual({e["timeout_ms"] for e in started}, {str(LONG_MS)})
+
     def test_a_caller_that_goes_away_cancels_its_call(self):
         engine = self.engine(LONG_MS)
         caller = engine.start_call("hang", message="gone")
@@ -448,6 +455,72 @@ class McpCancelTest(EngineTest):
         # a failed handshake is sent again after a few seconds, to the same process
         self.assertTrue(wait_for(lambda: engine.call("echo", message="back")[0] == {"plain_text_response": "back"}, 15))
         self.assertServing(engine)
+
+    def test_a_client_that_reads_only_content_gets_the_answer_and_never_a_draft(self):
+        engine = self.engine(LONG_MS, agent=True)
+        connection = http.client.HTTPConnection(HOST, engine.port, timeout=30)
+        connection.request("POST", "/v1/chat/completions",
+                           json.dumps({"messages": [{"role": "user", "content": "hi"}], "stream": True}),
+                           {"Content-Type": "application/json", "X-Tosh-Agent": "on"})
+        content, events = "", []
+        for raw in connection.getresponse():
+            line = raw.decode().strip()
+            if not line.startswith("data: ") or line == "data: [DONE]":
+                continue
+            chunk = json.loads(line[6:])
+            for choice in chunk.get("choices") or []:
+                content += (choice.get("delta") or {}).get("content") or ""
+            if (chunk.get("tosh") or {}).get("event"):
+                events.append(chunk["tosh"]["event"]["type"])
+        connection.close()
+        self.assertEqual(content, "The answer is 42.")
+        self.assertIn("draft", events)
+        self.assertIn("retract", events)
+
+    def hang_twice(self, engine, tag):
+        """Two calls that time out while the probe stops reading; the third, queued behind the second, is returned."""
+        body, _ = engine.call("slow", timeout=15, message=tag + "-stuck", seconds=30)
+        self.assertIn("timed out", body.get("error", ""), body)
+        second, second_result = in_background(engine.call, "slow", 30, message=tag + "-again", seconds=30)
+        time.sleep(0.3)
+        return in_background(engine.call, "echo", 30, message=tag + "-queued")
+
+    def test_a_server_that_stops_answering_is_replaced_and_a_queued_call_runs_once_on_the_fresh_one(self):
+        engine = self.engine(1000)
+        engine.call("echo", message="warm")
+        old = {pid for pid, _, _, _ in engine.calls()}
+        queued, result = self.hang_twice(engine, "first")
+        queued.join(30)
+        self.assertEqual(result.get("value", (result.get("error"),))[0], {"plain_text_response": "first-queued"})
+        ran = [pid for pid, _, _, message in engine.calls() if message == "first-queued"]
+        self.assertEqual(len(ran), 1, "the queued call ran %d times" % len(ran))
+        self.assertNotIn(ran[0], old, "the queued call reached the hung process")
+        self.assertTrue(wait_for(lambda: len(engine.live_probes()) == 1, 10), engine.live_probes())
+        self.assertServing(engine)
+
+    def test_a_slow_server_that_answers_a_ping_is_kept(self):
+        engine = self.engine(1000)
+        engine.call("echo", message="warm")
+        for i in range(2):
+            body, _ = engine.call("hang", message="hang %d" % i)
+            self.assertIn("timed out", body.get("error", ""), body)
+        body, _ = engine.call("echo", message="still")
+        self.assertEqual(body, {"plain_text_response": "still"})
+        self.assertEqual(len({pid for pid, _, _, _ in engine.calls()}), 1, "a slow server was restarted")
+        self.assertTrue(engine.received("ping"))
+
+    def test_a_server_that_hangs_again_after_a_restart_waits_before_the_next_start(self):
+        engine = self.engine(1000)
+        engine.call("echo", message="warm")
+        # two calls time out on the first process and two on the fresh one, with no answer in between
+        for i in range(4):
+            body, _ = engine.call("slow", timeout=15, message="stuck %d" % i, seconds=30)
+            self.assertIn("timed out", body.get("error", ""), body)
+        body, elapsed = engine.call("echo", message="during the wait")
+        self.assertIn("unavailable", body.get("error", ""), body)
+        self.assertLess(elapsed, 1)
+        self.assertTrue(wait_for(lambda: "plain_text_response" in engine.call("echo", message="after")[0], 15),
+                        "the server was not started again after its wait")
 
     def test_chat_turns_queued_behind_the_agents_handshake_fail_with_it(self):
         # the agent's server takes calls in parallel, so its turns wait for the handshake itself, not for a call

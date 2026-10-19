@@ -1345,12 +1345,43 @@ struct ServerSettings {
     }
 
     /// Whether to offer the projector control for a model: it has a paired or
-    /// pinned projector, an explicit choice (incl. off), or is a catalog vision model.
+    /// pinned projector, an explicit choice (incl. off), a projector beside it that
+    /// matches its dimension, or is a catalog vision model.
     nonisolated static func mightSupportVision(modelPath: String) -> Bool {
         if mmprojOverride(forModel: modelPath) != nil { return true }
         if mmprojPath(forModel: modelPath) != nil { return true }
+        if !compatibleProjectors(forModel: modelPath).isEmpty { return true }
         let name = URL(fileURLWithPath: modelPath).lastPathComponent
         return Catalog.models.contains { $0.fileName == name && $0.isVision }
+    }
+
+    /// Whether a projector named after this model sits beside it, as a download saves it.
+    nonisolated static func hasOwnProjector(forModel modelPath: String) -> Bool {
+        func core(_ s: String) -> String {
+            String(s.lowercased().replacingOccurrences(of: "mmproj", with: "").filter { $0.isLetter || $0.isNumber })
+        }
+        let url = URL(fileURLWithPath: modelPath)
+        let mn = core(url.deletingPathExtension().lastPathComponent)
+        guard !mn.isEmpty,
+              let files = try? FileManager.default.contentsOfDirectory(at: url.deletingLastPathComponent(), includingPropertiesForKeys: nil)
+        else { return false }
+        return files.contains {
+            $0.pathExtension.lowercased() == "gguf" && $0.lastPathComponent.lowercased().contains("mmproj")
+                && core($0.deletingPathExtension().lastPathComponent) == mn
+        }
+    }
+
+    /// Projectors beside the model whose output matches its embedding, by name. Auto-pairing
+    /// also asks for a matching name, so these are the ones a user may pick by hand.
+    nonisolated static func compatibleProjectors(forModel modelPath: String) -> [String] {
+        guard !modelPath.isEmpty, let embd = ggufUInt32("embedding_length", at: modelPath) else { return [] }
+        let dir = URL(fileURLWithPath: modelPath).deletingLastPathComponent()
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return [] }
+        return files
+            .filter { $0.pathExtension.lowercased() == "gguf" && $0.lastPathComponent.lowercased().contains("mmproj") }
+            .filter { ggufUInt32("projection_dim", at: $0.path) == embd && !isIncompatibleMmproj(model: modelPath, projector: $0.path) }
+            .map(\.path)
+            .sorted { URL(fileURLWithPath: $0).lastPathComponent < URL(fileURLWithPath: $1).lastPathComponent }
     }
 
     /// The DFlash draft downloaded for a model, saved as `<model>.dflash.gguf`.

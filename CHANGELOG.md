@@ -14,7 +14,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 - **LLMs: Qwen 3.5 to 3.8 models start a follow-up answer sooner.** On a Radeon RX 6700 XT the prompt of a short turn takes half as long (Qwen3.8-9B 500 to 250 ms, Qwen3.5-4B 430 to 180 ms), and an agent's turn about 14% less.
 - **LLMs: with two or more requests at once, a long prompt no longer stops the others for seconds.** A reply in progress pauses under a second instead of up to three, and first words come 15 to 35% sooner; a single request runs as before.
-- **LLMs: requests that start alike, such as an agent's passes with their instructions and tools, reuse that start from one another while they run.** With four agent turns at once on Qwen3.8-9B, 31% more turns per minute and the slowest one 43% shorter.
+- **LLMs: requests that start alike, such as an agent's passes with their instructions and tools, reuse that start from one another while they run.** With four agent turns at once on Qwen3.8-9B, 25% more turns per minute and the slowest one 45% shorter.
 - **Models: a vision projector beside a model can be picked for it when it matches the model's dimension, even from another family.** One projector serves several models without a copy for each, and a catalog model can still download its own.
 
 ### Fixed

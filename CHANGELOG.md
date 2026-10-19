@@ -7,20 +7,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
-- **Settings: with two or more concurrent requests, each one can keep its own share of the context.** "Separate context per request" generates 7 to 11% faster with several requests at once on a Radeon RX 6700 XT, but no conversation can grow past its share; it is off by default.
+- **Settings: with two or more concurrent requests, each one can keep its own share of the context.** "Separate context per request" generates 7 to 11% faster with several requests at once on a Radeon RX 6700 XT, but no conversation can grow past its share. It is off by default.
 
 ### Improved
 
-- **LLMs: Qwen 3.5 to 3.8 models start a follow-up answer sooner.** Keeping their state for the next turn no longer reads it twice or a row at a time; on a Radeon RX 6700 XT the prompt of a short turn takes half as long (Qwen3.8-9B 500 to 250 ms, Qwen3.5-4B 430 to 180 ms) and an agent's turn about 14% less.
-- **LLMs: with two or more requests at once, a long prompt no longer stops the others for seconds.** Prompts advance a slice per step while others answer, so a reply in progress pauses under a second instead of up to three, and first words come 15 to 35% sooner; a single request runs as before.
-- **LLMs: requests that start alike, such as the passes of agents with their instructions and tools, reuse that start from one another while they run.** With four agent turns at once on Qwen3.8-9B, 31% more turns per minute and the slowest one 43% shorter.
+- **LLMs: Qwen 3.5 to 3.8 models start a follow-up answer sooner.** On a Radeon RX 6700 XT the prompt of a short turn takes half as long (Qwen3.8-9B 500 to 250 ms, Qwen3.5-4B 430 to 180 ms), and an agent's turn about 14% less.
+- **LLMs: with two or more requests at once, a long prompt no longer stops the others for seconds.** A reply in progress pauses under a second instead of up to three, and first words come 15 to 35% sooner; a single request runs as before.
+- **LLMs: requests that start alike, such as an agent's passes with their instructions and tools, reuse that start from one another while they run.** With four agent turns at once on Qwen3.8-9B, 31% more turns per minute and the slowest one 43% shorter.
 
 ### Fixed
 
-- **LLMs: Qwen 3.5 to 3.8 models split across GPUs by tensor start again with MTP.** Since 0.87.13 the guess head scored a shortened vocabulary that a tensor split cannot take, and the engine stopped at startup; with the model split that way it scores the whole vocabulary. Reported by [Basten7](https://github.com/Basten7) in [#130](https://github.com/engeldlgado/toshllm/issues/130).
-- **LLMs on Radeon RX 400/500, Vega, Radeon VII and Radeon Pro Vega/WX: Q2_K models no longer write past an array in the matrix-vector kernel.** The engine build warned about it. Reported by [SergeySlice](https://github.com/SergeySlice) in [#131](https://github.com/engeldlgado/toshllm/issues/131).
-- **Engine and math: the agent answers on a server that listens on an IPv6 address.** It was handed an address it could not read, such as `http://::1:8080`, and every turn failed; it now gets `http://[::1]:8080`, with the zone of a link-local address written as `%25`.
-- **MCP: calls waiting for a server that is slow to start can be cancelled, and a start that fails is not retried by each of them.** A failed start used to make every queued call wait the full timeout again; now they fail together, and the start is tried again a few seconds later.
+- **LLMs: Qwen 3.5 to 3.8 models split across GPUs by tensor start again with MTP.** They stopped at startup since 0.87.13. Reported by [Basten7](https://github.com/Basten7) in [#130](https://github.com/engeldlgado/toshllm/issues/130).
+- **LLMs on Radeon RX 400/500, Vega, Radeon VII and Radeon Pro Vega/WX: Q2_K models no longer write past an array in the matrix-vector kernel.** Reported by [SergeySlice](https://github.com/SergeySlice) in [#131](https://github.com/engeldlgado/toshllm/issues/131).
+- **Engine and math: the agent answers on a server that listens on an IPv6 address.** Every turn failed on an address such as `::1`.
+- **MCP: calls waiting for a server that is slow to start can be cancelled, and a start that fails is not retried by each of them.** Every queued call used to wait the full timeout again; now they fail together, and the start is tried again a few seconds later.
 
 ## [0.87.26] - 2026-10-17
 

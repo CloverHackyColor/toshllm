@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **Settings: with two or more concurrent requests, each one can keep its own share of the context.** "Separate context per request" generates 7 to 11% faster with several requests at once on a Radeon RX 6700 XT, but no conversation can grow past its share; it is off by default.
+
 ### Improved
 
 - **LLMs: Qwen 3.5 to 3.8 models start a follow-up answer sooner.** Keeping their state for the next turn no longer reads it twice or a row at a time; on a Radeon RX 6700 XT the prompt of a short turn takes half as long (Qwen3.8-9B 500 to 250 ms, Qwen3.5-4B 430 to 180 ms) and an agent's turn about 14% less.

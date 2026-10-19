@@ -1017,6 +1017,18 @@ final class ServerSettingsTests: XCTestCase {
         try data.write(to: url)
     }
 
+    func testSlotsShareOneContextUnlessSeparated() {
+        var s = makeSettings()
+        s.parallelSlots = 4
+        XCTAssertEqual(s.arguments[s.arguments.firstIndex(of: "--parallel")! + 1], "4")
+        XCTAssertTrue(s.arguments.contains("--kv-unified"), "one pool keeps the chat's full window")
+        s.separateKV = true
+        XCTAssertFalse(s.arguments.contains("--kv-unified"))
+        s.parallelSlots = 1
+        s.separateKV = false
+        XCTAssertFalse(s.arguments.contains("--kv-unified"), "one slot has nothing to share")
+    }
+
     func testBaseArguments() {
         let args = makeSettings().arguments
         XCTAssertEqual(args[args.firstIndex(of: "--load-mode")! + 1], "none")

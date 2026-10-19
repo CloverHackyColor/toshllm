@@ -74,6 +74,9 @@ struct ServerSettings {
     /// for the GPU, and a prefill aborted by a client timeout stays in the slot so
     /// the retry resumes where it left off.
     var parallelSlots: Int = 1
+    /// Each slot gets its own share of the context: faster with several requests at once, but
+    /// no single conversation can grow past its share.
+    var separateKV: Bool = false
     var apiKeyEnabled: Bool = false
     /// Serve beyond loopback and advertise with Bonjour. Off by default: it opens
     /// the API to the whole local network, so it wants `apiKeyEnabled` alongside.
@@ -330,9 +333,9 @@ struct ServerSettings {
         }
         if parallelSlots > 0 { args += ["--parallel", String(parallelSlots)] }
         // An explicit --parallel N splits the context pool across slots instead of
-        // sharing it (only "auto" unifies), so ask for one pool ourselves: the chat
-        // keeps its full window and API requests don't multiply KV memory.
-        if parallelSlots > 1 { args.append("--kv-unified") }
+        // sharing it (only "auto" unifies), so ask for one pool ourselves unless the user
+        // chose separate shares: the chat then keeps its full window.
+        if parallelSlots > 1 && !separateKV { args.append("--kv-unified") }
         // Which devices to split across is decided by the env vars below.
         if isSplitting { args += ["--split-mode", effectiveSplitMode] }
         if let counts = layerBalancedTensorSplit {
@@ -492,7 +495,7 @@ struct ServerSettings {
             lines.append("cache-ram = \(cacheRAM)")
             if cacheReuse && mmproj == nil { lines.append("cache-reuse = 256") }
             if parallelSlots > 0 { lines.append("parallel = \(parallelSlots)") }
-            if parallelSlots > 1 { lines.append("kv-unified = true") }
+            if parallelSlots > 1 && !separateKV { lines.append("kv-unified = true") }
             if isSplitting { lines.append("split-mode = \(effectiveSplitMode)") }
             if persistCache && effectiveFaAmd {
                 // the engine rejects a slot path that isn't an existing directory
@@ -879,6 +882,7 @@ struct ServerSettings {
             defaultReasoning: d.string(forKey: SettingsKeys.serverDefaultReasoning) ?? "model",
             defaultMaxTokens: int(SettingsKeys.serverDefaultMaxTokens, 0),
             parallelSlots: int(SettingsKeys.parallelSlots, 1),
+            separateKV: bool(SettingsKeys.separateKV, false),
             apiKeyEnabled: bool(SettingsKeys.apiKeyEnabled, false),
             localNetworkDiscovery: bool(SettingsKeys.localNetworkDiscovery, false),
             specMTP: bool(SettingsKeys.specMTP, false),

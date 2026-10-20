@@ -1413,52 +1413,19 @@ struct ImageInstanceForm: View {
             }
 
             // 3. Имя или путь к модели
-
+            let modelsDir = ServerSettings.modelsDirectory
+                .appendingPathComponent("imagen", isDirectory: true)
             filePickRow(
                 loc.t("Nombre del modelo", "Model name"),
-                path: $cfg.modelName, types: ["gguf", "safetensors", "pth"]
+                path: $cfg.modelName, types: ["gguf", "safetensors", "pth"],
+                startDirectory: modelsDir 
             )
-            // .help(
-            //     loc.t(
-            //         "Introduzca el nombre del archivo del modelo. El archivo debe estar en la carpeta imagen",
-            //         "Enter the model file name. The file must be in the imagen folder."
-            //     ))
-            // HStack {
-            //     TextField(
-            //         cfg.engine == .iopaint
-            //             ? loc.t(
-            //                 "Nombre del modelo (en silencio. big-lama)",
-            //                 "Model name (default big-lama)")
-            //             : loc.t("Nombre del modelo", "Model name"),
-            //         text: $cfg.modelName.fileNameOnly  // <-- Используем кастомный Binding
-            //     )
-            //     .textFieldStyle(.roundedBorder)
-            //     .onTapGesture { pickModelFile(into: $cfg.modelName) }
-            //     .help(
-            //         loc.t(
-            //             "Introduzca el nombre del archivo del modelo. El archivo debe estar en la carpeta imagen",
-            //             "Enter the model file name. The file must be in the imagen folder."
-            //         ))
+            .help(
+                loc.t(
+                    "Introduzca el nombre del archivo del modelo. El archivo debe estar en la carpeta imagen",
+                    "Enter the model file name. The file must be in the imagen folder."
+                ))
 
-            //     // Кнопка "Обзор"
-            //     Button(loc.t("Explorar...", "Browse...")) {
-            //         pickModelFile(into: $cfg.modelName)
-            //     }
-            //     .buttonStyle(GlassIconButtonStyle())
-            //     .iconHelp(loc.t("Seleccionar archivo del modelo", "Select model file"))
-
-            //     // Кнопка очистки (крестик)
-            //     if !cfg.modelName.isEmpty {
-            //         Button {
-            //             cfg.modelName = ""
-            //         } label: {
-            //             Image(systemName: "xmark.circle.fill")
-            //                 .foregroundStyle(.secondary)
-            //         }
-            //         .buttonStyle(.plain)
-            //         .help(loc.t("Borrar el nombre del modelo", "Clear model name"))
-            //     }    
-            // }
             // Подсказка о расположении файлов
             Text(
                 loc.t(
@@ -1474,173 +1441,65 @@ struct ImageInstanceForm: View {
 
             // 4. Имя или путь к VAE модели (только для типа diffusion)
             if cfg.engine == .sdcli && cfg.sdcliMode == .diffusion {
-                HStack {
-                    TextField(
-                        loc.t("Nombre del modelo VAE", "VAE model name"),
-                        text: $cfg.vaeModelName.fileNameOnly)
-                        .textFieldStyle(.roundedBorder)
-                        .onTapGesture {
-                            pickModelFile(
-                                into: $cfg.vaeModelName, extensions: ["gguf", "safetensors", "pth"])
-                        }
-                        .help(
-                                loc.t(
-                                    "Ingrese el nombre del archivo VAE. El archivo debe estar en la carpeta imagen.",
-                                    "Enter the VAE file name. The file must be in the imagen folder."
-                               ))
-                            
-                    Button(loc.t("Explorar...", "Browse...")) {
-                        pickModelFile(
-                            into: $cfg.vaeModelName, extensions: ["gguf", "safetensors", "pth"])
-                    }
-                    .buttonStyle(GlassIconButtonStyle())
-
-                    if !cfg.vaeModelName.isEmpty {
-                        Button {
-                            cfg.vaeModelName = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help(loc.t("Borrar el nombre del modelo VAE", "Clear VAE name"))
-                    }
-                }
+                filePickRow(
+                    loc.t("VAE", "VAE"),
+                    path: $cfg.vaePath, types: ["gguf", "safetensors", "pth"],
+                    startDirectory: modelsDir.appendingPathComponent("vae", isDirectory: true)
+                )                        
+                .help(
+                        loc.t(
+                                "Ingrese el nombre del archivo VAE. El archivo debe estar en la carpeta imagen/vae.",
+                                "Enter the VAE file name. The file must be in the imagen/vae folder."
+                            ))
             }
 
             // 5. Текстовые энкодеры (сгруппированы для аккуратности)
             if cfg.engine != .iopaint {
                 DisclosureGroup(loc.t("Codificadores de texto", "Text Encoders")) {
-                    HStack {
-                        Text(loc.t("LLM Codificador", "LLM Encoder")).frame(
-                            width: 100, alignment: .leading)
-                        TextField(
-                            loc.t("Nombre de archivo LLM", "LLM file name"),
-                            text: $cfg.textEncoderLLMPath.fileNameOnly
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .onTapGesture {
-                            pickModelFile(into: $cfg.textEncoderLLMPath)
-                        }
-                        Button(loc.t("Explorar...", "Browse...")) {
-                            pickModelFile(into: $cfg.textEncoderLLMPath)
-                        }.buttonStyle(GlassIconButtonStyle())
-                            .help(
+                    filePickRow(
+                        loc.t("LLM text encoder", "LLM text encoder"),
+                        path: $cfg.textEncoderLLMPath, types: ["gguf", "safetensors", "pth"],
+                        startDirectory: modelsDir.appendingPathComponent("text_encoders", isDirectory: true)
+                    )
+                    .help(
                                 loc.t(
                                     "Modelo LLM para Flex.2 o SD 3.x/Flux. Proporciona comprensión semántica avanzada.",
                                     "LLM model for Flex.2 or SD 3.x/Flux. Provides advanced semantic understanding."
-                                ))
-                        if !cfg.textEncoderLLMPath.isEmpty {
-                            Button {
-                                cfg.textEncoderLLMPath = ""
-                            } label: {
-                                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .help(loc.t("Borrar el nombre del modelo LLM", "Clear LLM name"))
-                        }
-                    }
-                    .padding(.top, 4)
-
-                    HStack {
-                        Text(loc.t("T5-XXL Codificador", "T5-XXL Encoder")).frame(
-                            width: 100, alignment: .leading)
-                        TextField(
-                            loc.t("Nombre de archivo T5", "T5 file name"),
-                            text: $cfg.textEncoderT5Path.fileNameOnly
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .onTapGesture {
-                            pickModelFile(into: $cfg.textEncoderT5Path)
-                        }
-                        Button(loc.t("Explorar...", "Browse...")) {
-                            pickModelFile(into: $cfg.textEncoderT5Path)
-                        }.buttonStyle(GlassIconButtonStyle())
-                            .help(
+                                )) 
+                    filePickRow(
+                        loc.t("T5-XXL Codificador", "T5-XXL Encoder"),
+                        path: $cfg.textEncoderT5Path, types: ["gguf", "safetensors", "pth"],
+                        startDirectory: modelsDir.appendingPathComponent("text_encoders", isDirectory: true)
+                    )                                
+                    .help(
                                 loc.t(
                                     "Modelo T5-XXL para Flex.2 o SD 3.x/Flux. Proporciona comprensión semántica avanzada.",
                                     "T5-XXL model for Flex.2 or SD 3.x/Flux. Provides advanced semantic understanding."
                                 ))
-                        if !cfg.textEncoderT5Path.isEmpty {
-                            Button {
-                                cfg.textEncoderT5Path = ""
-                            } label: {
-                                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .help(loc.t("Borrar el nombre del modelo T5", "Clear T5 name"))
-                        }
-                    }
-                    .padding(.top, 4)
-
-                    HStack {
-                        Text(loc.t("CLIP_L Codificador", "CLIP_L Encoder")).frame(
-                            width: 100, alignment: .leading)
-                        TextField(
-                            loc.t("Nombre de archivo CLIP_L", "CLIP_L file name"),
-                            text: $cfg.textEncoderCLIPPath.fileNameOnly
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .onTapGesture {
-                            pickModelFile(into: $cfg.textEncoderCLIPPath)
-                        }
-                        Button(loc.t("Explorar...", "Browse...")) {
-                            pickModelFile(into: $cfg.textEncoderCLIPPath)
-                        }.buttonStyle(GlassIconButtonStyle())
+                    filePickRow(
+                        loc.t("CLIP_L Codificador", "CLIP_L Encoder"),
+                        path: $cfg.textEncoderCLIPPath, types: ["gguf", "safetensors", "pth"],
+                        startDirectory: modelsDir.appendingPathComponent("text_encoders", isDirectory: true)
+                    )                                  
                             .help(
                                 loc.t(
                                     "Modelo CLIP para guiar la generación. Requerido para todos los modelos sd-cli.",
                                     "CLIP model to guide generation. Required for all sd-cli models."
                                 ))
-                        // Кнопка очистки (крестик)
-                        if !cfg.textEncoderCLIPPath.isEmpty {
-                            Button {
-                                cfg.textEncoderCLIPPath = ""
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .help(loc.t("Borrar el nombre del modelo", "Clear model name"))
-                        }
-                    }.padding(.top, 4)
                 }
 
                 // --- НОВЫЙ БЛОК: Визуальный проектор ---
-                HStack {
-                    Text(loc.t("Proyector de Visión", "Vision Projector"))
-                        .frame(width: 140, alignment: .leading)
-                    TextField(
-                        loc.t(
-                            "Nombre de archivo mmproj (para Qwen-Image)",
-                            "mmproj file name (for Qwen-Image)"),
-                        text: $cfg.visionProjectorPath.fileNameOnly
-                    )
-                    .textFieldStyle(.roundedBorder)
-                    .onTapGesture {
-                        pickModelFile(into: $cfg.visionProjectorPath, extensions: ["gguf"])
-                    }
-                    Button(loc.t("Explorar...", "Browse...")) {
-                        pickModelFile(into: $cfg.visionProjectorPath, extensions: ["gguf"])
-                    }
-                    .buttonStyle(GlassIconButtonStyle())
+                filePickRow(
+                        loc.t("Proyector de Visión", "Vision Projector"),
+                        path: $cfg.visionProjectorPath, types: ["gguf", "safetensors", "pth"],
+                        startDirectory: modelsDir 
+                    ) 
                     .help(
                         loc.t(
                             "Archivo de proyector de visión (mmproj -*.gguf) para modelos multimodales como Qwen-Image. Permite que el modelo entienda las imágenes de referencia.",
                             "Vision projector file (mmproj-*.gguf) for multimodal models like Qwen-Image. Allows the model to understand reference images."
                         ))
-                    if !cfg.visionProjectorPath.isEmpty {
-                        Button {
-                            cfg.visionProjectorPath = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help(loc.t("Borrar el nombre del modelo", "Clear model name"))
-                    }
-                }
-                .padding(.top, 4)
+
                 if cfg.engine == .llama || cfg.modelName.localizedCaseInsensitiveContains("qwen") {
                     if cfg.visionProjectorPath.isEmpty {
                         InfoLabel(
@@ -2243,7 +2102,7 @@ struct ImageInstanceForm: View {
         }
     }
 
-    private func filePickRow(_ title: String, path: Binding<String>, types: [String]) -> some View {
+    private func filePickRow(_ title: String, path: Binding<String>, types: [String], startDirectory: URL? = nil) -> some View {
         HStack(spacing: 6) {
             Text(title).font(.caption)
             Spacer(minLength: 6)
@@ -2252,7 +2111,7 @@ struct ImageInstanceForm: View {
                     ? loc.t("Elegir…", "Choose…")
                     : (path.wrappedValue as NSString).lastPathComponent
             ) {
-                pickFile(types: types) { path.wrappedValue = $0 }
+                pickFile(types: types, startDirectory: startDirectory) { path.wrappedValue = $0 }
             }
             .font(.caption).lineLimit(1).truncationMode(.middle).frame(
                 maxWidth: 150, alignment: .trailing)
@@ -2269,10 +2128,14 @@ struct ImageInstanceForm: View {
         }
     }
 
-    private func pickFile(types: [String], onPick: @escaping (String) -> Void) {
+    private func pickFile(types: [String], startDirectory: URL? = nil, onPick: @escaping (String) -> Void) {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = types.compactMap { UTType(filenameExtension: $0) }
         panel.allowsMultipleSelection = false
+                    // Устанавливаем начальную директорию ТОЛЬКО если она явно передана
+            if let startDirectory = startDirectory {
+                panel.directoryURL = startDirectory
+            }
         if panel.runModal() == .OK, let url = panel.url { onPick(url.path) }
     }
 }

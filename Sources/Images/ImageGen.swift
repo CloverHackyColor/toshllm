@@ -89,8 +89,8 @@ enum SDCLIMode: String, CaseIterable, Codable, Identifiable {
 
     func label(_ loc: Localizer) -> String {
         switch self {
-        case .checkpoint: return loc.t("Checkpoint (Полная модель)", "Checkpoint (Full model)")
-        case .diffusion: return loc.t("Diffusion (Только диффузия)", "Diffusion (Diffusion only)")
+        case .checkpoint: return loc.t("Checkpoint", "Checkpoint")
+        case .diffusion: return loc.t("Diffusion", "Diffusion")
         }
     }
 }

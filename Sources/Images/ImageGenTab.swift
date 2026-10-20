@@ -1418,7 +1418,7 @@ struct ImageInstanceForm: View {
             filePickRow(
                 loc.t("Nombre del modelo", "Model name"),
                 path: $cfg.modelName, types: ["gguf", "safetensors", "pth"],
-                startDirectory: modelsDir 
+                startDirectory: modelsDir
             )
             .help(
                 loc.t(
@@ -1443,14 +1443,14 @@ struct ImageInstanceForm: View {
             if cfg.engine == .sdcli && cfg.sdcliMode == .diffusion {
                 filePickRow(
                     loc.t("VAE", "VAE"),
-                    path: $cfg.vaePath, types: ["gguf", "safetensors", "pth"],
+                    path: $cfg.vaeModelName, types: ["gguf", "safetensors", "pth"],
                     startDirectory: modelsDir.appendingPathComponent("vae", isDirectory: true)
-                )                        
+                )
                 .help(
-                        loc.t(
-                                "Ingrese el nombre del archivo VAE. El archivo debe estar en la carpeta imagen/vae.",
-                                "Enter the VAE file name. The file must be in the imagen/vae folder."
-                            ))
+                    loc.t(
+                        "Ingrese el nombre del archivo VAE. El archivo debe estar en la carpeta imagen/vae.",
+                        "Enter the VAE file name. The file must be in the imagen/vae folder."
+                    ))
             }
 
             // 5. Текстовые энкодеры (сгруппированы для аккуратности)
@@ -1459,46 +1459,49 @@ struct ImageInstanceForm: View {
                     filePickRow(
                         loc.t("LLM text encoder", "LLM text encoder"),
                         path: $cfg.textEncoderLLMPath, types: ["gguf", "safetensors", "pth"],
-                        startDirectory: modelsDir.appendingPathComponent("text_encoders", isDirectory: true)
+                        startDirectory: modelsDir.appendingPathComponent(
+                            "text_encoders", isDirectory: true)
                     )
                     .help(
-                                loc.t(
-                                    "Modelo LLM para Flex.2 o SD 3.x/Flux. Proporciona comprensión semántica avanzada.",
-                                    "LLM model for Flex.2 or SD 3.x/Flux. Provides advanced semantic understanding."
-                                )) 
+                        loc.t(
+                            "Modelo LLM para Flex.2 o SD 3.x/Flux. Proporciona comprensión semántica avanzada.",
+                            "LLM model for Flex.2 or SD 3.x/Flux. Provides advanced semantic understanding."
+                        ))
                     filePickRow(
                         loc.t("T5-XXL Codificador", "T5-XXL Encoder"),
                         path: $cfg.textEncoderT5Path, types: ["gguf", "safetensors", "pth"],
-                        startDirectory: modelsDir.appendingPathComponent("text_encoders", isDirectory: true)
-                    )                                
+                        startDirectory: modelsDir.appendingPathComponent(
+                            "text_encoders", isDirectory: true)
+                    )
                     .help(
-                                loc.t(
-                                    "Modelo T5-XXL para Flex.2 o SD 3.x/Flux. Proporciona comprensión semántica avanzada.",
-                                    "T5-XXL model for Flex.2 or SD 3.x/Flux. Provides advanced semantic understanding."
-                                ))
+                        loc.t(
+                            "Modelo T5-XXL para Flex.2 o SD 3.x/Flux. Proporciona comprensión semántica avanzada.",
+                            "T5-XXL model for Flex.2 or SD 3.x/Flux. Provides advanced semantic understanding."
+                        ))
                     filePickRow(
                         loc.t("CLIP_L Codificador", "CLIP_L Encoder"),
                         path: $cfg.textEncoderCLIPPath, types: ["gguf", "safetensors", "pth"],
-                        startDirectory: modelsDir.appendingPathComponent("text_encoders", isDirectory: true)
-                    )                                  
-                            .help(
-                                loc.t(
-                                    "Modelo CLIP para guiar la generación. Requerido para todos los modelos sd-cli.",
-                                    "CLIP model to guide generation. Required for all sd-cli models."
-                                ))
+                        startDirectory: modelsDir.appendingPathComponent(
+                            "text_encoders", isDirectory: true)
+                    )
+                    .help(
+                        loc.t(
+                            "Modelo CLIP para guiar la generación. Requerido para todos los modelos sd-cli.",
+                            "CLIP model to guide generation. Required for all sd-cli models."
+                        ))
                 }
 
                 // --- НОВЫЙ БЛОК: Визуальный проектор ---
                 filePickRow(
-                        loc.t("Proyector de Visión", "Vision Projector"),
-                        path: $cfg.visionProjectorPath, types: ["gguf", "safetensors", "pth"],
-                        startDirectory: modelsDir 
-                    ) 
-                    .help(
-                        loc.t(
-                            "Archivo de proyector de visión (mmproj -*.gguf) para modelos multimodales como Qwen-Image. Permite que el modelo entienda las imágenes de referencia.",
-                            "Vision projector file (mmproj-*.gguf) for multimodal models like Qwen-Image. Allows the model to understand reference images."
-                        ))
+                    loc.t("Proyector de Visión", "Vision Projector"),
+                    path: $cfg.visionProjectorPath, types: ["gguf", "safetensors", "pth"],
+                    startDirectory: modelsDir
+                )
+                .help(
+                    loc.t(
+                        "Archivo de proyector de visión (mmproj -*.gguf) para modelos multimodales como Qwen-Image. Permite que el modelo entienda las imágenes de referencia.",
+                        "Vision projector file (mmproj-*.gguf) for multimodal models like Qwen-Image. Allows the model to understand reference images."
+                    ))
 
                 if cfg.engine == .llama || cfg.modelName.localizedCaseInsensitiveContains("qwen") {
                     if cfg.visionProjectorPath.isEmpty {
@@ -2102,7 +2105,9 @@ struct ImageInstanceForm: View {
         }
     }
 
-    private func filePickRow(_ title: String, path: Binding<String>, types: [String], startDirectory: URL? = nil) -> some View {
+    private func filePickRow(
+        _ title: String, path: Binding<String>, types: [String], startDirectory: URL? = nil
+    ) -> some View {
         HStack(spacing: 6) {
             Text(title).font(.caption)
             Spacer(minLength: 6)
@@ -2128,14 +2133,16 @@ struct ImageInstanceForm: View {
         }
     }
 
-    private func pickFile(types: [String], startDirectory: URL? = nil, onPick: @escaping (String) -> Void) {
+    private func pickFile(
+        types: [String], startDirectory: URL? = nil, onPick: @escaping (String) -> Void
+    ) {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = types.compactMap { UTType(filenameExtension: $0) }
         panel.allowsMultipleSelection = false
-                    // Устанавливаем начальную директорию ТОЛЬКО если она явно передана
-            if let startDirectory = startDirectory {
-                panel.directoryURL = startDirectory
-            }
+        // Устанавливаем начальную директорию ТОЛЬКО если она явно передана
+        if let startDirectory = startDirectory {
+            panel.directoryURL = startDirectory
+        }
         if panel.runModal() == .OK, let url = panel.url { onPick(url.path) }
     }
 }

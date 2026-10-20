@@ -11,7 +11,7 @@ index 61825ed89..c8909c947 100644
 -            // the four shorts this lane reads are contiguous, so an aligned stride turns
 -            // them into two words
 +            // the two shorts this lane reads are contiguous, so an aligned stride reads them as one word
-             ushort qw[2];
+             ushort qw[4];
              if (FC_mul_mv_row8) {
 -                const uint2 t = *(device const uint2 *)qs;
 -                qw[0] = (ushort)(t.x); qw[1] = (ushort)(t.x >> 16);

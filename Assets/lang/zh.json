@@ -541,6 +541,7 @@
   "Draws on a map what the answer looked up.": "在地图上绘制回答所查询的内容。",
   "Drop a movie, recording, or audio track here to transcribe it locally on the GPU.": "把影片、录音或音轨拖到这里，即可在本机 GPU 上转录。",
   "Drop here": "拖放到此处",
+  "Drop to attach": "",
   "Drops tokens whose probability is below this fraction of the top token's. A steadier alternative to Top P.": "剔除概率低于最高词元这一比例的词元。相比 Top P 更稳定的替代方案。",
   "Dynamic MoE (bounded RAM)": "Dynamic MoE（受限 RAM）",
   "Dynamic MoE (experimental)": "Dynamic MoE（实验性）",

@@ -2501,6 +2501,9 @@ private struct ChatComposerTextEditor: NSViewRepresentable {
     var isFocused: FocusState<Bool>.Binding
     let fontSize: CGFloat
     let onSubmit: () -> Void
+    /// Files dropped on the text become attachments; dropped text is inserted as before.
+    var onDropFiles: ([URL]) -> Void = { _ in }
+    var onDragTargeted: (Bool) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -2517,6 +2520,8 @@ private struct ChatComposerTextEditor: NSViewRepresentable {
         let textView = ComposerTextView()
         textView.delegate = context.coordinator
         textView.onSubmit = onSubmit
+        textView.onDropFiles = onDropFiles
+        textView.onDragTargeted = onDragTargeted
         textView.isRichText = false
         textView.importsGraphics = false
         textView.allowsUndo = true
@@ -2540,6 +2545,8 @@ private struct ChatComposerTextEditor: NSViewRepresentable {
         guard let textView = scrollView.documentView as? ComposerTextView else { return }
         context.coordinator.parent = self
         textView.onSubmit = onSubmit
+        textView.onDropFiles = onDropFiles
+        textView.onDragTargeted = onDragTargeted
         textView.font = .systemFont(ofSize: fontSize)
         textView.textColor = .labelColor
         textView.insertionPointColor = .controlAccentColor
@@ -2580,6 +2587,37 @@ private struct ChatComposerTextEditor: NSViewRepresentable {
 
     final class ComposerTextView: NSTextView {
         var onSubmit: (() -> Void)?
+        var onDropFiles: (([URL]) -> Void)?
+        var onDragTargeted: ((Bool) -> Void)?
+
+        private func droppedFiles(_ sender: NSDraggingInfo) -> [URL] {
+            sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
+                                                  options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        }
+
+        // A plain text view inserts a dropped file's path; the chat attaches the file instead.
+        override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+            guard !droppedFiles(sender).isEmpty else { return super.draggingEntered(sender) }
+            onDragTargeted?(true)
+            return .copy
+        }
+
+        override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+            droppedFiles(sender).isEmpty ? super.draggingUpdated(sender) : .copy
+        }
+
+        override func draggingExited(_ sender: NSDraggingInfo?) {
+            onDragTargeted?(false)
+            super.draggingExited(sender)
+        }
+
+        override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+            let files = droppedFiles(sender)
+            guard !files.isEmpty else { return super.performDragOperation(sender) }
+            onDragTargeted?(false)
+            onDropFiles?(files)
+            return true
+        }
 
         override func keyDown(with event: NSEvent) {
             let isReturn = event.keyCode == 36 || event.keyCode == 76
@@ -2643,6 +2681,8 @@ struct NativeChatView: View {
     @State private var attachments: [ChatAttachment] = []
     @State private var images: [String] = []   // attached images as data URIs (vision models)
     @State private var attachError: String?
+    @State private var chatDropTargeted = false
+    @State private var textDropTargeted = false
     @State private var ocrPending = 0
     @State private var transcriptionPending = 0
     @State private var transcriptionQueue: [PendingSpeechTranscription] = []
@@ -2868,6 +2908,26 @@ struct NativeChatView: View {
             conversationHeader
             messagesScroll
             inputArea
+        }
+        // Files dropped anywhere on the chat become attachments.
+        .dropDestination(for: URL.self) { urls, _ in
+            addAttachments(urls: urls)
+            return true
+        } isTargeted: { chatDropTargeted = $0 }
+        .overlay {
+            if chatDropTargeted || textDropTargeted {
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [8, 5]))
+                    .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                    .overlay {
+                        Label(loc.t("Suelta para adjuntar", "Drop to attach"), systemImage: "paperclip")
+                            .font(.headline)
+                            .padding(.horizontal, 14).padding(.vertical, 8)
+                            .background(.regularMaterial, in: Capsule())
+                    }
+                    .padding(8)
+                    .allowsHitTesting(false)
+            }
         }
     }
 
@@ -3350,11 +3410,6 @@ struct NativeChatView: View {
         .padding(.horizontal, 18)
         .padding(.top, 8)
         .padding(.bottom, 16)
-        // Files dropped anywhere on the composer become attachments.
-        .dropDestination(for: URL.self) { urls, _ in
-            addAttachments(urls: urls)
-            return true
-        }
         .onChange(of: attachments) { scheduleDraftSave() }
         .onChange(of: images) { scheduleDraftSave() }
             .alert(loc.t("Problema con la voz", "Voice problem"),
@@ -3469,7 +3524,9 @@ struct NativeChatView: View {
                 text: $draft,
                 isFocused: $inputFocused,
                 fontSize: ChatFont.Base.body.points * chatFontScale,
-                onSubmit: send)
+                onSubmit: send,
+                onDropFiles: { addAttachments(urls: $0) },
+                onDragTargeted: { textDropTargeted = $0 })
         }
             .frame(height: 64)
             .onChange(of: draft) { _, value in
@@ -4476,6 +4533,8 @@ struct NativeChatView: View {
 
     private func addAttachments(urls: [URL]) {
         var errors: [String] = []
+        // pages picked or dropped together arrive in any order; a document's pages read in their names' order
+        let urls = urls.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
         for url in urls {
             let name = url.lastPathComponent
             let ext = (name as NSString).pathExtension.lowercased()

@@ -541,6 +541,7 @@
   "Draws on a map what the answer looked up.": "Disegna su una mappa ciò che la risposta ha consultato.",
   "Drop a movie, recording, or audio track here to transcribe it locally on the GPU.": "Trascina un filmato, una registrazione o una traccia audio qui per trascriverlo localmente sulla GPU.",
   "Drop here": "Rilascia qui",
+  "Drop to attach": "",
   "Drops tokens whose probability is below this fraction of the top token's. A steadier alternative to Top P.": "Elimina i token la cui probabilità è inferiore a questa frazione del token principale. Un'alternativa più stabile a Top P.",
   "Dynamic MoE (bounded RAM)": "Dynamic MoE (RAM limitata)",
   "Dynamic MoE (experimental)": "MoE dinamico (sperimentale)",

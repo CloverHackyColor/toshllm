@@ -541,6 +541,7 @@
   "Draws on a map what the answer looked up.": "Показує на карті те, що знайшла відповідь.",
   "Drop a movie, recording, or audio track here to transcribe it locally on the GPU.": "Перетягніть сюди відео, запис або аудіодоріжку, щоб транскрибувати локально на GPU.",
   "Drop here": "Перетягніть сюди",
+  "Drop to attach": "",
   "Drops tokens whose probability is below this fraction of the top token's. A steadier alternative to Top P.": "Відкидає токени, ймовірність яких нижча за цю частку від найімовірнішого токена. Більш стабільна альтернатива Top P.",
   "Dynamic MoE (bounded RAM)": "Dynamic MoE (обмежена RAM)",
   "Dynamic MoE (experimental)": "Dynamic MoE (експериментально)",

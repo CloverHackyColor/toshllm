@@ -541,6 +541,7 @@
   "Draws on a map what the answer looked up.": "回答が参照した内容を地図上に描画します。",
   "Drop a movie, recording, or audio track here to transcribe it locally on the GPU.": "動画・録音・音声トラックをここにドロップすると、GPUでローカルに文字起こしします。",
   "Drop here": "ここにドロップ",
+  "Drop to attach": "",
   "Drops tokens whose probability is below this fraction of the top token's. A steadier alternative to Top P.": "最有力トークンの確率に対して、この割合を下回るトークンを除外します。Top Pより安定した代替です。",
   "Dynamic MoE (bounded RAM)": "Dynamic MoE（RAM 制限あり）",
   "Dynamic MoE (experimental)": "動的MoE(実験的)",

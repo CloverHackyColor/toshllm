@@ -541,6 +541,7 @@
   "Draws on a map what the answer looked up.": "",
   "Drop a movie, recording, or audio track here to transcribe it locally on the GPU.": "",
   "Drop here": "",
+  "Drop to attach": "",
   "Drops tokens whose probability is below this fraction of the top token's. A steadier alternative to Top P.": "",
   "Dynamic MoE (bounded RAM)": "",
   "Dynamic MoE (experimental)": "",

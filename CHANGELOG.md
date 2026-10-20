@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Improved
 
 - **Web chat: an agent shows what it is doing while it works**, such as the page it is reading, until its answer starts.
+- **Chat: files dropped anywhere on the chat are attached, with a visible target while one is dragged over it.** A file dropped on the message field came in as its path; dropped text still goes into the field.
+- **Chat: pages attached together keep their names' order.** A document's pages picked or dropped at once could arrive in any order and be read out of sequence.
 - **Settings: requests that set no response limit get the chat's own by default.** The web chat and API clients without `max_tokens` stop where the in-app chat does, instead of writing until the context runs out; "No limit" is still available.
 
 ### Fixed

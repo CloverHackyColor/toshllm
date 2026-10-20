@@ -3,6 +3,31 @@
 All notable changes to ToshLLM are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.87.27] - 2026-10-19
+
+### Added
+
+- **MCP: each server is told how long the engine waits for a call.** It gets `TOSH_MCP_TIMEOUT_MS` in its environment, so an agent can end its turn and answer before the engine gives up on it.
+- **Settings: with two or more concurrent requests, each one can keep its own share of the context.** "Separate context per request" generates 7 to 11% faster with several requests at once on a Radeon RX 6700 XT, but no conversation can grow past its share. It is off by default.
+
+### Improved
+
+- **LLMs: Qwen 3.5 to 3.8 models start a follow-up answer sooner.** On a Radeon RX 6700 XT the prompt of a short turn takes half as long (Qwen3.8-9B 500 to 250 ms, Qwen3.5-4B 430 to 180 ms), and an agent's turn about 14% less.
+- **LLMs: with two or more requests at once, a long prompt no longer stops the others for seconds.** A reply in progress pauses under a second instead of up to three, and first words come 15 to 35% sooner; a single request runs as before.
+- **LLMs: requests that start alike, such as an agent's passes with their instructions and tools, reuse that start from one another while they run.** With four agent turns at once on Qwen3.8-9B, 25% more turns per minute and the slowest one 45% shorter.
+- **Models: a vision projector beside a model can be picked for it when it matches the model's dimension, even from another family.** One projector serves several models without a copy for each, and a catalog model can still download its own.
+
+### Fixed
+
+- **LLMs: GLM-4-0414 models call tools instead of writing the call as text.** The name and arguments of a tool came out in the answer, sometimes with a result the model made up; the call now runs and the answer uses what it returned. Reported by [andruwa13](https://github.com/andruwa13) in [#129](https://github.com/engeldlgado/toshllm/issues/129).
+- **LLMs: Qwen 3.5 to 3.8 models split across GPUs by tensor start again with MTP.** They stopped at startup since 0.87.13. Reported by [Basten7](https://github.com/Basten7) in [#130](https://github.com/engeldlgado/toshllm/issues/130).
+- **LLMs on Radeon RX 400/500, Vega, Radeon VII and Radeon Pro Vega/WX: Q2_K models no longer write past an array in the matrix-vector kernel.** Reported by [SergeySlice](https://github.com/SergeySlice) in [#131](https://github.com/engeldlgado/toshllm/issues/131).
+- **Engine and math: the agent answers on a server that listens on an IPv6 address.** Every turn failed on an address such as `::1`.
+- **Engine: API keys and the agent's key are compared in constant time.** How long a refusal takes no longer depends on how much of a guessed key is right.
+- **MCP: calls waiting for a server that is slow to start can be cancelled, and a start that fails is not retried by each of them.** Every queued call used to wait the full timeout again; now they fail together, and the start is tried again a few seconds later.
+- **MCP: a server that stops answering is replaced.** After two calls in a row time out and it misses a ping, new calls go to a fresh process while the old one finishes the calls it had; one that hangs again waits 10 s, then 20 and so on up to 5 minutes before it starts again.
+- **Math: an API client that only reads the text no longer gets words the agent took back.** Text of a pass that may still end in a tool call goes out as a draft, which the app and the web chat show as before until the answer replaces it; cancelling a turn also stops every request the agent has in flight.
+
 ## [0.87.26] - 2026-10-17
 
 ### Added

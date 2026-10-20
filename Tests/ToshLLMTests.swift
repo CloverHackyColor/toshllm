@@ -1017,6 +1017,18 @@ final class ServerSettingsTests: XCTestCase {
         try data.write(to: url)
     }
 
+    func testSlotsShareOneContextUnlessSeparated() {
+        var s = makeSettings()
+        s.parallelSlots = 4
+        XCTAssertEqual(s.arguments[s.arguments.firstIndex(of: "--parallel")! + 1], "4")
+        XCTAssertTrue(s.arguments.contains("--kv-unified"), "one pool keeps the chat's full window")
+        s.separateKV = true
+        XCTAssertFalse(s.arguments.contains("--kv-unified"))
+        s.parallelSlots = 1
+        s.separateKV = false
+        XCTAssertFalse(s.arguments.contains("--kv-unified"), "one slot has nothing to share")
+    }
+
     func testBaseArguments() {
         let args = makeSettings().arguments
         XCTAssertEqual(args[args.firstIndex(of: "--load-mode")! + 1], "none")
@@ -1297,6 +1309,34 @@ final class ServerSettingsTests: XCTestCase {
         s.modelPath = model.path
         XCTAssertFalse(s.isMultimodal, "Qwen3-8B must not pair with Qwen3.5-9B's projector")
         XCTAssertNil(ServerSettings.mmprojPath(forModel: model.path))
+    }
+
+    func testAProjectorOfAnotherFamilyIsOfferedWhenItMatchesTheDimension() throws {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("toshllm-share-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        func gguf(_ name: String, _ key: String, _ value: UInt32) -> String {
+            var data = Data("GGUF".utf8)
+            func u32(_ v: UInt32) { withUnsafeBytes(of: v.littleEndian) { data.append(contentsOf: $0) } }
+            func u64(_ v: UInt64) { withUnsafeBytes(of: v.littleEndian) { data.append(contentsOf: $0) } }
+            u32(3); u64(0); u64(1)
+            u64(UInt64(key.utf8.count)); data.append(contentsOf: key.utf8); u32(4); u32(value)
+            let url = dir.appendingPathComponent(name)
+            FileManager.default.createFile(atPath: url.path, contents: data)
+            return url.path
+        }
+        let model = gguf("Qwen3.8-9B-Q4_K_M.gguf", "qwen35.embedding_length", 4096)
+        let shared = gguf("Qwen3.5-9B-Q4_K_M.mmproj.gguf", "clip.vision.projection_dim", 4096)
+        _ = gguf("gemma-4-12b-it-Q4_K_M.mmproj.gguf", "clip.vision.projection_dim", 3840)
+
+        func resolved(_ p: [String]) -> [String] { p.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path } }
+        XCTAssertNil(ServerSettings.mmprojPath(forModel: model), "another family is never paired on its own")
+        XCTAssertEqual(resolved(ServerSettings.compatibleProjectors(forModel: model)), resolved([shared]))
+        XCTAssertTrue(ServerSettings.mightSupportVision(modelPath: model), "the control shows so the user can pick it")
+        XCTAssertFalse(ServerSettings.hasOwnProjector(forModel: model), "a shared projector is not the model's own")
+        _ = gguf("Qwen3.8-9B-Q4_K_M.mmproj.gguf", "clip.vision.projection_dim", 4096)
+        XCTAssertTrue(ServerSettings.hasOwnProjector(forModel: model))
     }
 
     func testRenamedProjectorsPairUnambiguouslyInSharedFolder() throws {

@@ -53,6 +53,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.cacheRAM) private var cacheRAM = 2048
     @AppStorage(SettingsKeys.imageMaxTokens) private var imageMaxTokens = 0
     @AppStorage(SettingsKeys.parallelSlots) private var parallelSlots = 1
+    @AppStorage(SettingsKeys.separateKV) private var separateKV = false
     @AppStorage(SettingsKeys.reasoningInline) private var reasoningInline = false
     @AppStorage(SettingsKeys.serverDefaultReasoning) private var serverDefaultReasoning = "model"
     @AppStorage(SettingsKeys.serverDefaultMaxTokens) private var serverDefaultMaxTokens = 0
@@ -977,6 +978,11 @@ struct SettingsView: View {
                 }
                 .infoTip(loc.t("Cuántas peticiones procesa el motor a la vez. Con 1, las peticiones hacen cola en vez de competir por la GPU, y un prompt enorme interrumpido por el timeout de un cliente (VS Code) se retoma donde iba al reintentar. Sube el valor solo si varios clientes usan el servidor a la vez.",
                             "How many requests the engine processes at once. With 1, requests queue instead of competing for the GPU, and a huge prompt interrupted by a client timeout (VS Code) resumes where it was on retry. Raise it only if several clients use the server at the same time."))
+                if parallelSlots > 1 {
+                    Toggle(loc.t("Contexto separado por petición", "Separate context per request"), isOn: $separateKV)
+                        .infoTip(loc.t("Cada petición simultánea tiene su propia parte del contexto (el contexto dividido entre las peticiones) en vez de compartirlo. Medido en una Radeon RX 6700 XT con varias peticiones a la vez: entre un 7 y un 11% más rápido al generar y entre un 11 y un 18% menos de espera con prompts largos. A cambio, ninguna conversación puede pasar de su parte; apagado, el chat conserva su ventana completa.",
+                                    "Each simultaneous request gets its own share of the context (the context divided by the requests) instead of sharing it. Measured on a Radeon RX 6700 XT with several requests at once: 7 to 11% faster generation and 11 to 18% less wait with long prompts. In exchange, no conversation can grow past its share; off, the chat keeps its full window."))
+                }
                 Toggle(loc.t("Razonamiento como texto (clientes externos)",
                              "Reasoning as plain text (external clients)"), isOn: $reasoningInline)
                     .settingsGlyph("brain")

@@ -52,24 +52,26 @@ class Cancelled(Exception):
 class Engine:
     def __init__(self, base_url, api_key, agent_key=""):
         parsed = urllib.parse.urlparse(base_url)
-        self.host, self.port = parsed.hostname or "127.0.0.1", parsed.port or 80
+        # an IPv6 host comes in brackets with its zone's % as %25, and connects without them
+        self.host, self.port = urllib.parse.unquote(parsed.hostname or "127.0.0.1"), parsed.port or 80
         self.api_key = api_key or ""
         # what /tools asks before it lists or runs the tools of a server only the agent may use
         self.agent_key = agent_key or ""
         self.cancelled = threading.Event()
         self._lock = threading.Lock()
-        self._connection = None
+        self._connections = set()
 
     def cancel(self):
-        """Stops the request in flight: the engine sees the connection close and stops generating."""
+        """Stops the requests in flight: the engine sees each connection close and stops generating."""
         with self._lock:
             self.cancelled.set()
-            connection = self._connection
-        if connection is not None and connection.sock is not None:
-            try:
-                connection.sock.shutdown(socket.SHUT_RDWR)
-            except OSError:
-                pass
+            connections = list(self._connections)
+        for connection in connections:
+            if connection.sock is not None:
+                try:
+                    connection.sock.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
 
     def _send(self, method, path, body=None, timeout=3600, on_line=None):
         """The engine's JSON reply. With on_line, a 200 reply is read as server-sent events, each line to
@@ -89,7 +91,7 @@ class Engine:
             if self.cancelled.is_set():
                 connection.close()
                 raise Cancelled()
-            self._connection = connection
+            self._connections.add(connection)
         try:
             connection.request(method, path, None if body is None else json.dumps(body), headers)
             response = connection.getresponse()
@@ -105,7 +107,7 @@ class Engine:
             raise
         finally:
             with self._lock:
-                self._connection = None
+                self._connections.discard(connection)
             connection.close()
         if self.cancelled.is_set():
             raise Cancelled()
@@ -277,11 +279,13 @@ class Turn:
         self.passes += 1
         self.emit({"type": "pass", "n": self.passes, "state": "start", "live": live})
         shown = False
+        # text of a pass that may still end in tool calls is a draft: a client that only reads content gets the answer
+        drafting = bool(body.get("tools")) and body.get("tool_choice") != "none"
 
         def on_delta(field, text):
             nonlocal shown
             shown = shown or field == "content"
-            self.emit({"type": "delta", field: text})
+            self.emit({"type": "draft" if drafting and field == "content" else "delta", field: text})
 
         reply = self.engine.stream(body, on_delta) if live else self.engine.complete(body)
         if not isinstance(reply, dict) or not reply.get("choices"):

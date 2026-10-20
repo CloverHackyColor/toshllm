@@ -74,6 +74,9 @@ struct ServerSettings {
     /// for the GPU, and a prefill aborted by a client timeout stays in the slot so
     /// the retry resumes where it left off.
     var parallelSlots: Int = 1
+    /// Each slot gets its own share of the context: faster with several requests at once, but
+    /// no single conversation can grow past its share.
+    var separateKV: Bool = false
     var apiKeyEnabled: Bool = false
     /// Serve beyond loopback and advertise with Bonjour. Off by default: it opens
     /// the API to the whole local network, so it wants `apiKeyEnabled` alongside.
@@ -330,9 +333,9 @@ struct ServerSettings {
         }
         if parallelSlots > 0 { args += ["--parallel", String(parallelSlots)] }
         // An explicit --parallel N splits the context pool across slots instead of
-        // sharing it (only "auto" unifies), so ask for one pool ourselves: the chat
-        // keeps its full window and API requests don't multiply KV memory.
-        if parallelSlots > 1 { args.append("--kv-unified") }
+        // sharing it (only "auto" unifies), so ask for one pool ourselves unless the user
+        // chose separate shares: the chat then keeps its full window.
+        if parallelSlots > 1 && !separateKV { args.append("--kv-unified") }
         // Which devices to split across is decided by the env vars below.
         if isSplitting { args += ["--split-mode", effectiveSplitMode] }
         if let counts = layerBalancedTensorSplit {
@@ -492,7 +495,7 @@ struct ServerSettings {
             lines.append("cache-ram = \(cacheRAM)")
             if cacheReuse && mmproj == nil { lines.append("cache-reuse = 256") }
             if parallelSlots > 0 { lines.append("parallel = \(parallelSlots)") }
-            if parallelSlots > 1 { lines.append("kv-unified = true") }
+            if parallelSlots > 1 && !separateKV { lines.append("kv-unified = true") }
             if isSplitting { lines.append("split-mode = \(effectiveSplitMode)") }
             if persistCache && effectiveFaAmd {
                 // the engine rejects a slot path that isn't an existing directory
@@ -879,6 +882,7 @@ struct ServerSettings {
             defaultReasoning: d.string(forKey: SettingsKeys.serverDefaultReasoning) ?? "model",
             defaultMaxTokens: int(SettingsKeys.serverDefaultMaxTokens, 0),
             parallelSlots: int(SettingsKeys.parallelSlots, 1),
+            separateKV: bool(SettingsKeys.separateKV, false),
             apiKeyEnabled: bool(SettingsKeys.apiKeyEnabled, false),
             localNetworkDiscovery: bool(SettingsKeys.localNetworkDiscovery, false),
             specMTP: bool(SettingsKeys.specMTP, false),
@@ -1341,12 +1345,43 @@ struct ServerSettings {
     }
 
     /// Whether to offer the projector control for a model: it has a paired or
-    /// pinned projector, an explicit choice (incl. off), or is a catalog vision model.
+    /// pinned projector, an explicit choice (incl. off), a projector beside it that
+    /// matches its dimension, or is a catalog vision model.
     nonisolated static func mightSupportVision(modelPath: String) -> Bool {
         if mmprojOverride(forModel: modelPath) != nil { return true }
         if mmprojPath(forModel: modelPath) != nil { return true }
+        if !compatibleProjectors(forModel: modelPath).isEmpty { return true }
         let name = URL(fileURLWithPath: modelPath).lastPathComponent
         return Catalog.models.contains { $0.fileName == name && $0.isVision }
+    }
+
+    /// Whether a projector named after this model sits beside it, as a download saves it.
+    nonisolated static func hasOwnProjector(forModel modelPath: String) -> Bool {
+        func core(_ s: String) -> String {
+            String(s.lowercased().replacingOccurrences(of: "mmproj", with: "").filter { $0.isLetter || $0.isNumber })
+        }
+        let url = URL(fileURLWithPath: modelPath)
+        let mn = core(url.deletingPathExtension().lastPathComponent)
+        guard !mn.isEmpty,
+              let files = try? FileManager.default.contentsOfDirectory(at: url.deletingLastPathComponent(), includingPropertiesForKeys: nil)
+        else { return false }
+        return files.contains {
+            $0.pathExtension.lowercased() == "gguf" && $0.lastPathComponent.lowercased().contains("mmproj")
+                && core($0.deletingPathExtension().lastPathComponent) == mn
+        }
+    }
+
+    /// Projectors beside the model whose output matches its embedding, by name. Auto-pairing
+    /// also asks for a matching name, so these are the ones a user may pick by hand.
+    nonisolated static func compatibleProjectors(forModel modelPath: String) -> [String] {
+        guard !modelPath.isEmpty, let embd = ggufUInt32("embedding_length", at: modelPath) else { return [] }
+        let dir = URL(fileURLWithPath: modelPath).deletingLastPathComponent()
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return [] }
+        return files
+            .filter { $0.pathExtension.lowercased() == "gguf" && $0.lastPathComponent.lowercased().contains("mmproj") }
+            .filter { ggufUInt32("projection_dim", at: $0.path) == embd && !isIncompatibleMmproj(model: modelPath, projector: $0.path) }
+            .map(\.path)
+            .sorted { URL(fileURLWithPath: $0).lastPathComponent < URL(fileURLWithPath: $1).lastPathComponent }
     }
 
     /// The DFlash draft downloaded for a model, saved as `<model>.dflash.gguf`.

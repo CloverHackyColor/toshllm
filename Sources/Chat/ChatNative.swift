@@ -1899,10 +1899,13 @@ final class ChatStore: ObservableObject {
             }
             let text = m.role == "assistant" ? m.parts.body : m.wireContent
             if m.role == "assistant", let calls = m.toolCalls, !calls.isEmpty {
+                // the engine rejects the whole request over one call whose arguments are not a JSON object,
+                // as when the model cut it short; the call's result already tells it that it failed
                 let payload: [[String: Any]] = calls.map { call in
                     ["id": call.serverID ?? call.id.uuidString,
                      "type": "function",
-                     "function": ["name": call.name, "arguments": call.arguments]]
+                     "function": ["name": call.name,
+                                  "arguments": (try? ChatToolsService.parseArguments(call.arguments)) == nil ? "{}" : call.arguments]]
                 }
                 let said = [text, m.settledInterim ?? ""].filter { !$0.isEmpty }.joined(separator: "\n\n")
                 return ["role": "assistant", "content": said, "tool_calls": payload]
@@ -2221,7 +2224,7 @@ final class ChatStore: ObservableObject {
 
     /// Maps llama-server HTTP errors ({"error":{"message":…}}) to readable,
     /// actionable text, following the same bilingual style as Server.diagnose.
-    nonisolated private static func describeServerError(status: Int, body: String) -> String {
+    nonisolated static func describeServerError(status: Int, body: String) -> String {
         var message = body
         if let data = body.data(using: .utf8),
            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -2234,7 +2237,9 @@ final class ChatStore: ObservableObject {
             || message.lowercased().contains("reasoning_effort") {
             return "El modelo no acepta ese esfuerzo de razonamiento; elige otro o «Predeterminado del modelo» en los ajustes del chat. El motor respondió: \(message.prefix(200)) / the model does not accept that reasoning effort; pick another one or “Model default” in the chat settings. The engine answered: \(message.prefix(200))"
         }
-        if message.lowercased().contains("context") {
+        // only the engine's own wording: other errors may quote the model's text, which can say anything
+        if message.range(of: #"(?i)^(the )?(request|input) .{0,40}(exceeds the available|is larger than the max) context size|^context size has been exceeded"#,
+                         options: .regularExpression) != nil {
             return "Contexto lleno: el mensaje, los archivos adjuntos y el historial juntos superan el contexto. Sube el contexto en Ajustes, adjunta menos o inicia un chat nuevo / context full: your message, attached files and history together exceed the context. Raise the context size in Settings, attach less, or start a new chat"
         }
         // std::bad_function_call comes from both a context overflow on a tool turn

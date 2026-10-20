@@ -568,6 +568,9 @@ def test_malformed_or_unknown_calls_never_run():
         assert engine.calls == [], engine.calls
         assert [c["state"] for c in turn.calls] == ["failed"] * 3, turn.calls
         assert "invalid_arguments" in turn.calls[0]["result"] and "no such tool" in turn.calls[1]["result"]
+        # the next pass sends the cut call as an empty object, or the engine refuses the whole history
+        sent = next(m for m in engine.bodies[1]["messages"] if m.get("tool_calls"))["tool_calls"]
+        assert [c["function"]["arguments"] for c in sent][:2] == ["{}", json.dumps({"layer": "parks"})], sent
     with_approved(["gis"], check)
 
 

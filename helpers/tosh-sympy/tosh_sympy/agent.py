@@ -570,7 +570,7 @@ class Turn:
                 maths = [e for e in entries if policy.is_math(e["name"])]
                 kept = content if all(policy.succeeded(e) for e in maths) else ""
                 self.messages.append({"role": "assistant", "content": kept, "tool_calls": [
-                    {"id": e["id"], "type": "function", "function": {"name": e["name"], "arguments": e["arguments"]}}
+                    {"id": e["id"], "type": "function", "function": {"name": e["name"], "arguments": _readable(e["arguments"])}}
                     for e in entries]})
                 self.messages += [{"role": "tool", "tool_call_id": e["id"], "content": e["result"][:20000]} for e in entries]
                 if self.guard.next == "stop":
@@ -595,6 +595,16 @@ class Turn:
                 finalizing, note = True, value
         results = policy.ledger(self.calls)
         return policy.safe_answer(results, [c for c in self.calls if policy.is_math(c["name"])], self.lang), "turn_limit"
+
+
+def _readable(arguments):
+    # the engine refuses a history holding a call it cannot parse, such as one the model cut short
+    if isinstance(arguments, dict):
+        return arguments
+    try:
+        return arguments if isinstance(json.loads(arguments), dict) else "{}"
+    except (TypeError, ValueError):
+        return "{}"
 
 
 def _describe(call):

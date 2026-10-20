@@ -1983,6 +1983,17 @@ final class ChatMessageTests: XCTestCase {
         XCTAssertEqual(history[1]["tool_call_id"] as? String, "call_1")
     }
 
+    func testToolCallWithBrokenArgumentsGoesBackAsEmptyObject() throws {
+        let cut = ChatToolCall(serverID: "call_1", name: "run_python", arguments: #"{"code": "print(1"#,
+                               result: "invalid arguments", state: .failed)
+        let kept = ChatToolCall(serverID: "call_2", name: "get_datetime", arguments: #"{"tz":"UTC"}"#,
+                                result: "2026-07-21", state: .completed)
+        let history = ChatStore.requestHistory(system: "", summary: nil,
+                                               messages: [ChatMessage(role: "assistant", content: "", toolCalls: [cut, kept])], from: 0)
+        let calls = try XCTUnwrap(history.first?["tool_calls"] as? [[String: Any]])
+        XCTAssertEqual(calls.map { ($0["function"] as? [String: Any])?["arguments"] as? String }, ["{}", #"{"tz":"UTC"}"#])
+    }
+
     func testBuiltinToolMetadataPreservesDefinition() throws {
         let json: [String: Any] = [
             "display_name": "Read file", "tool": "read_file", "type": "builtin",
@@ -2455,6 +2466,11 @@ final class CompactionTests: XCTestCase {
         let context = ChatStore.streamedError(from: ["error": ["type": "exceed_context_size_error", "n_prompt_tokens": 22300,
                                                                 "n_ctx": 16384, "message": "request exceeds"]]) ?? ""
         XCTAssertTrue(context.contains("22300") && context.contains("16384"), context)
+        // an error that quotes the model's text is not a full context because that text mentions one
+        let quoted = #"{"error":{"code":500,"message":"Failed to parse tool call arguments as JSON: last read: 'raise the context size'"}}"#
+        XCTAssertTrue(ChatStore.describeServerError(status: 500, body: quoted).hasPrefix("HTTP 500: Failed to parse"))
+        let full = #"{"error":{"code":400,"message":"request (70000 tokens) exceeds the available context size (65536 tokens), try increasing it"}}"#
+        XCTAssertTrue(ChatStore.describeServerError(status: 400, body: full).hasPrefix("Contexto lleno"))
         // a server error inside the stream ends the turn: the app does not try to resume it
         var accumulator = ChatStreamAccumulator()
         XCTAssertThrowsError(try accumulator.consume(#"data: {"error":{"message":"Compute error."}}"#)) { error in

@@ -18,6 +18,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Chat: an error the server sends during an answer is shown as it is**, not replaced by a failed attempt to resume the stream.
 - **Math: the engine's failures are told as such.** A request larger than the context says how many tokens it needs and the context holds, and a GPU that fails says the request did not finish; neither comes out as "I couldn't validate the mathematical interpretation". An answer cut at its token limit says it is incomplete, in the app, the web chat and the API.
 - **Engine: after a GPU job times out, the server restarts by itself.** The engine kept failing every request until it was restarted by hand.
+- **LLMs: GLM-4-0414 models keep a tool's name as declared when they call it.** In a conversation that already held a call written as text, the model copied it with another case or a space in the name, and the call came out as text again; once a name is begun it can only be finished as declared. Reported by [andruwa13](https://github.com/andruwa13) in [#129](https://github.com/engeldlgado/toshllm/issues/129).
 
 ## [0.87.27] - 2026-10-19
 

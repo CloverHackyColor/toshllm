@@ -2186,12 +2186,41 @@ final class ChatMessageTests: XCTestCase {
             return PDFDocument(data: data as Data)!
         }
         let course = "Thence North 29 degrees 52 minutes 04 seconds East 540.79 feet to the TRUE POINT OF BEGINNING"
-        let layer = try XCTUnwrap(NativeChatView.pdfTextLayer(pdf([course, course]), maxPages: 20, maxChars: 100_000))
+        let layer = try XCTUnwrap(NativeChatView.pdfTextLayer(pdf([course, course]), maxChars: 100_000))
         XCTAssertTrue(layer.hasPrefix("[Page 1]\nThence North 29 degrees"))
         XCTAssertTrue(layer.contains("\n[Page 2]\n"))
-        XCTAssertTrue(layer.hasSuffix("\n[End of text layer]"))
+        XCTAssertTrue(layer.hasSuffix("\n[Page 2]\n\(course)\n[End of text layer]"))
+        XCTAssertEqual(layer.components(separatedBy: "[Page ").count - 1, 2)
         // a scan has no text of its own to send
-        XCTAssertNil(NativeChatView.pdfTextLayer(pdf(["", ""]), maxPages: 20, maxChars: 100_000))
+        XCTAssertNil(NativeChatView.pdfTextLayer(pdf(["", ""]), maxChars: 100_000))
+    }
+
+    func testAPDFTextLayerPastThePageImagesKeepsEveryPageAndACutOneSaysWhere() throws {
+        func pdf(_ count: Int) -> PDFDocument {
+            let data = NSMutableData()
+            var box = CGRect(x: 0, y: 0, width: 612, height: 792)
+            let context = CGContext(consumer: CGDataConsumer(data: data)!, mediaBox: &box, nil)!
+            for page in 1...count {
+                context.beginPDFPage(nil)
+                let line = CTLineCreateWithAttributedString(NSAttributedString(
+                    string: "Course \(page): thence South 12 degrees 30 minutes West 100.00 feet", attributes: [
+                        .font: NSFont.systemFont(ofSize: 10)]))
+                context.textPosition = CGPoint(x: 36, y: 700)
+                CTLineDraw(line, context)
+                context.endPDFPage()
+            }
+            context.closePDF()
+            return PDFDocument(data: data as Data)!
+        }
+        // more pages than the 20 sent as images: the text of every one goes
+        let whole = try XCTUnwrap(NativeChatView.pdfTextLayer(pdf(36), maxChars: 400_000))
+        XCTAssertTrue(whole.contains("[Page 36]\nCourse 36: thence"))
+        XCTAssertTrue(whole.hasSuffix("100.00 feet\n[End of text layer]"))
+        XCTAssertFalse(whole.contains("cut"))
+        // past the size limit it ends where it was cut and says so before the end line
+        let cut = try XCTUnwrap(NativeChatView.pdfTextLayer(pdf(36), maxChars: 700))
+        XCTAssertTrue(cut.hasSuffix("\n[Text layer cut in page 10 of 36]\n[End of text layer]"), cut)
+        XCTAssertFalse(cut.contains("[Page 11]"))
     }
 
     func testMultimediaFormatsMatchLlamaWebUICompatibilityRules() {

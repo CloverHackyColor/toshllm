@@ -4667,7 +4667,7 @@ struct NativeChatView: View {
                 }
                 if pdfAsImages && visionAvailable {
                     // the PDF's own text goes with its pages: what an image blurs, the text layer still says
-                    if let layer = Self.pdfTextLayer(pdf, maxPages: 20, maxChars: Self.maxAttachChars) {
+                    if let layer = Self.pdfTextLayer(pdf, maxChars: Self.maxAttachChars) {
                         let digest = FileHash.sha256(of: data) + ".text"
                         if !attachments.contains(where: { $0.digest == digest }) {
                             attachments.append(ChatAttachment(name: name + " (text layer)", content: layer, digest: digest))
@@ -4808,14 +4808,24 @@ struct NativeChatView: View {
     }
 
     /// The PDF's own text page by page, "[Page N]" before each and an end line after it, or nil when it has too
-    /// little text to be a text layer, as a scan without one has.
-    nonisolated static func pdfTextLayer(_ document: PDFDocument, maxPages: Int, maxChars: Int) -> String? {
-        let pages = (0..<min(document.pageCount, maxPages)).map {
+    /// little text to be a text layer, as a scan without one has. A layer cut at `maxChars` says in which page, so
+    /// nothing takes it for the whole document.
+    nonisolated static func pdfTextLayer(_ document: PDFDocument, maxChars: Int) -> String? {
+        let pages = (0..<document.pageCount).map {
             document.page(at: $0)?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
         guard pages.joined().filter({ !$0.isWhitespace }).count >= 80 else { return nil }
-        let text = pages.enumerated().map { "[Page \($0.offset + 1)]\n\($0.element)" }.joined(separator: "\n")
-        return String(text.prefix(maxChars)) + "\n[End of text layer]"
+        var text = "", length = 0
+        for (index, body) in pages.enumerated() {
+            let block = (index == 0 ? "" : "\n") + "[Page \(index + 1)]\n" + body
+            if length + block.count > maxChars {
+                text += block.prefix(maxChars - length)
+                return text + "\n[Text layer cut in page \(index + 1) of \(pages.count)]\n[End of text layer]"
+            }
+            text += block
+            length += block.count
+        }
+        return text + "\n[End of text layer]"
     }
 
     @MainActor

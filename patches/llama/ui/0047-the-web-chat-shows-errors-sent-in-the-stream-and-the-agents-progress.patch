@@ -14,7 +14,7 @@ index 7977dfe56..489c3f1ba 100644
  			<ToshSketches sketches={tosh.sketches} />
  		{/if}
 diff --git a/tools/ui/src/lib/services/chat.service.ts b/tools/ui/src/lib/services/chat.service.ts
-index 8bf7c2944..886a34a12 100644
+index 8bf7c2944..1b5de8e8c 100644
 --- a/tools/ui/src/lib/services/chat.service.ts
 +++ b/tools/ui/src/lib/services/chat.service.ts
 @@ -485,6 +485,9 @@ export class ChatService {
@@ -34,7 +34,7 @@ index 8bf7c2944..886a34a12 100644
 +								const failure = (parsed as unknown as { error?: ApiErrorResponse['error'] }).error;
 +
 +								if (failure && typeof failure === 'object') {
-+									streamError = new Error(failure.message || 'Server error');
++									streamError = new Error(ChatService.toldFailure(failure.message || 'Server error'));
 +									streamError.name = 'ServerError';
 +
 +									if ('n_prompt_tokens' in failure && 'n_ctx' in failure) {
@@ -68,11 +68,20 @@ index 8bf7c2944..886a34a12 100644
  								const reasoningContent = choice?.delta?.reasoning_content;
  								const toolCalls = choice?.delta?.tool_calls;
  								const timings = parsed.timings;
-@@ -785,6 +815,21 @@ export class ChatService {
+@@ -785,6 +815,30 @@ export class ChatService {
  					ChatService.clearStreamState(conversationId);
  				}
  
 +				if (streamError) {
++					// what arrived before the error stays, said to be incomplete
++					if (aggregatedContent.trim()) {
++						const note = '\n\n_The answer stopped with an error before it ended, so it is incomplete._';
++
++						aggregatedContent += note;
++
++						if (!abortSignal?.aborted) onChunk?.(note);
++					}
++
 +					onError?.(streamError);
 +
 +					return;
@@ -90,6 +99,29 @@ index 8bf7c2944..886a34a12 100644
  				const finalToolCalls =
  					aggregatedToolCalls.length > 0 ? JSON.stringify(aggregatedToolCalls) : undefined;
  
+@@ -1626,6 +1680,13 @@ export class ChatService {
+ 		onTimingsCallback(timings, promptProgress);
+ 	}
+ 
++	/** The engine's own words for a GPU that failed say nothing to the user; an agent's text for it is kept. */
++	private static toldFailure(message: string): string {
++		return /^compute error|error state|kIOAccel|failed to process mtmd/i.test(message)
++			? 'The engine failed on the GPU while processing the request, so it did not finish. Send the message again once the server is back.'
++			: message;
++	}
++
+ 	/**
+ 	 * Parses error response and creates appropriate error with context information
+ 	 * @param response - HTTP response object
+@@ -1637,7 +1698,7 @@ export class ChatService {
+ 		try {
+ 			const errorText = await response.text();
+ 			const errorData: ApiErrorResponse = JSON.parse(errorText);
+-			const message = errorData.error?.message || 'Unknown server error';
++			const message = ChatService.toldFailure(errorData.error?.message || 'Unknown server error');
+ 			const error = new Error(message) as Error & {
+ 				contextInfo?: { n_prompt_tokens: number; n_ctx: number };
+ 			};
 diff --git a/tools/ui/src/lib/stores/chat/index.svelte.ts b/tools/ui/src/lib/stores/chat/index.svelte.ts
 index c0f8c8353..2dc72b75d 100644
 --- a/tools/ui/src/lib/stores/chat/index.svelte.ts

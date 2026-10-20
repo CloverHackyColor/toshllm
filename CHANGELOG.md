@@ -16,7 +16,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
-- **Web chat: an error the server sends during an answer is shown.** It used to leave an empty message, or keep a draft as the answer.
+- **Web chat: an error the server sends during an answer is shown.** It used to leave an empty message, or keep a draft as the answer; what arrived before it is now marked as incomplete, and a GPU failure is told as such instead of "Compute error.".
 - **Chat: an error the server sends during an answer is shown as it is**, not replaced by a failed attempt to resume the stream.
 - **Math: the engine's failures are told as such.** A request larger than the context says how many tokens it needs and the context holds, and a GPU that fails says the request did not finish; neither comes out as "I couldn't validate the mathematical interpretation". An answer cut at its token limit says it is incomplete, in the app, the web chat and the API.
 - **Engine: after a GPU job times out, the server restarts by itself**, at most once every ten minutes, and not if it was stopped or restarted by hand in the meantime. The engine kept failing every request until it was restarted by hand.

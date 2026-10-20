@@ -880,7 +880,9 @@ struct ServerSettings {
             cacheRAM: int(SettingsKeys.cacheRAM, 2048),
             reasoningInline: bool(SettingsKeys.reasoningInline, false),
             defaultReasoning: d.string(forKey: SettingsKeys.serverDefaultReasoning) ?? "model",
-            defaultMaxTokens: int(SettingsKeys.serverDefaultMaxTokens, 0),
+            // -1 is "same as the chat": the web chat and API clients get the in-app chat's limit
+            defaultMaxTokens: int(SettingsKeys.serverDefaultMaxTokens, -1) < 0
+                ? int(SettingsKeys.chatMaxTokens, 2048) : int(SettingsKeys.serverDefaultMaxTokens, -1),
             parallelSlots: int(SettingsKeys.parallelSlots, 1),
             separateKV: bool(SettingsKeys.separateKV, false),
             apiKeyEnabled: bool(SettingsKeys.apiKeyEnabled, false),
@@ -1707,6 +1709,8 @@ final class ServerController: ObservableObject {
     @Published var autoPlanNote: String?
     /// A starved host executor leaves the backend unusable; one restart per launch recovers it.
     private var recoveredFromExecutorFailure = false
+    /// A GPU job that timed out leaves the Metal backend failing every request until the process restarts.
+    private var lastGPURecovery: Date?
 
     private var process: Process?
     private var healthTask: Task<Void, Never>?
@@ -2482,6 +2486,19 @@ final class ServerController: ObservableObject {
                     ? "El sistema dejó sin CPU a Dynamic MoE; el servidor se reinició."
                     : "The system starved Dynamic MoE of CPU; the server was restarted."
                 restartAfterFailure(settings)
+            }
+            if line.contains("kIOAccelCommandBufferCallbackErrorTimeout") || line.contains("backend is in error state"),
+               state == .running, let settings = launchedSettings,
+               lastGPURecovery.map({ Date().timeIntervalSince($0) > 600 }) ?? true {
+                lastGPURecovery = Date()
+                autoPlanNote = (UserDefaults.standard.string(forKey: SettingsKeys.language) ?? "en") == "es"
+                    ? "Un trabajo de la GPU no terminó a tiempo y el motor dejó de poder usarla; el servidor se reinició. Vuelve a enviar el último mensaje."
+                    : "A GPU job did not finish in time and the engine could no longer use the GPU; the server was restarted. Send the last message again."
+                // the request in flight gets its error before the process goes
+                Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(3))
+                    self?.restartAfterFailure(settings)
+                }
             }
             if line.contains("draft acceptance ="),
                let m = line.range(of: #"draft acceptance = ([0-9]+\.[0-9]+)"#, options: .regularExpression) {

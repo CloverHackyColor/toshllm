@@ -233,6 +233,8 @@ struct ChatProject: Identifiable, Codable, Equatable {
 
 struct StreamError: LocalizedError {
     let message: String
+    /// The server ended the turn with this error: resuming the stream would only replace it.
+    var fromServer = false
     var errorDescription: String? { message }
 }
 
@@ -256,6 +258,8 @@ final class LiveStream: ObservableObject {
     @Published var speed: Double?
     /// Prompt-processing progress 0…1 before the first token; nil otherwise.
     @Published var prefillProgress: Double?
+    /// What the server's agent says it is doing, such as reading a page, until the answer starts.
+    @Published var agentStatus: String?
 
     private var latestReasoning = ""
     private var lastReasoningPublish = Date.distantPast
@@ -274,6 +278,7 @@ final class LiveStream: ObservableObject {
         lastTailPublish = .distantPast
         speed = nil
         prefillProgress = nil
+        agentStatus = nil
     }
 
     var snapshot: StreamSnapshot {
@@ -441,6 +446,8 @@ final class ChatStore: ObservableObject {
         switch event["type"] as? String {
         case "intent":
             lastMathIntent = (event["intent"] as? String).flatMap(MathIntent.init(rawValue:))
+        case "progress":
+            if let label = event["label"] as? String, !label.isEmpty { live.agentStatus = String(label.prefix(120)) }
         case "tool_call":
             guard let call = event["call"] as? [String: Any],
                   let i = conversations.firstIndex(where: { $0.id == id }),
@@ -1179,7 +1186,7 @@ final class ChatStore: ObservableObject {
                 do {
                     completed = try await drain(bytes)
                 } catch {
-                    if error is CancellationError { throw error }
+                    if error is CancellationError || (error as? StreamError)?.fromServer == true { throw error }
                     resumeError = error
                 }
 
@@ -1303,6 +1310,11 @@ final class ChatStore: ObservableObject {
                 if !wasCancelled && !didReportError && hadReasoning && !hasVisibleAnswer
                     && finalToolCalls.isEmpty && closing == nil {
                     store?.lastError = Self.emptyResponseMessage(finishReason: finalFinishReason)
+                } else if !wasCancelled && !didReportError && hasVisibleAnswer && finalToolCalls.isEmpty
+                            && finalFinishReason == "length" && !answer.hasSuffix("incomplete._")
+                            && !answer.hasSuffix("incompleta._") {
+                    // an answer cut at its token limit must not read as a finished one
+                    store?.lastError = Self.cutAnswerMessage()
                 }
                 store?.lastTurnUsedServerAgent = wasAgentTurn
                 if wasAgentTurn, let passTokens {
@@ -2184,6 +2196,7 @@ final class ChatStore: ObservableObject {
            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let err = obj["error"] as? [String: Any],
            let m = err["message"] as? String {
+            if let told = failureMessage(err) { return told }
             message = m
         }
         if message.lowercased().contains("reasoning effort")
@@ -2205,10 +2218,38 @@ final class ChatStore: ObservableObject {
         guard let error = object["error"] else { return nil }
         if let details = error as? [String: Any],
            let message = details["message"] as? String, !message.isEmpty {
-            return message
+            return failureMessage(details) ?? message
         }
         if let message = error as? String, !message.isEmpty { return message }
         return "El motor interrumpió la respuesta / the engine interrupted the response"
+    }
+
+    /// The engine's own failures, by the type the server or its agent gives them: a request too large for the
+    /// context and a GPU that failed while working. An agent's message already says it; the engine's raw one does not.
+    nonisolated static func failureMessage(_ error: [String: Any]) -> String? {
+        let loc = Localizer()
+        let type = error["type"] as? String ?? ""
+        let message = error["message"] as? String ?? ""
+        if type == "engine_gpu_error" || message.range(of: #"(?i)^compute error|error state|kIOAccel|failed to process mtmd"#,
+                                                     options: .regularExpression) != nil {
+            let told = type == "engine_gpu_error" ? message
+                : loc.t("El motor falló en la GPU mientras procesaba la petición, así que no terminó.",
+                        "The engine failed on the GPU while processing the request, so it did not finish.")
+            return told + " " + loc.t("El servidor se reinicia solo; vuelve a enviar el mensaje cuando esté listo.",
+                                      "The server restarts by itself; send the message again once it is ready.")
+        }
+        if type == "exceed_context_size_error",
+           let tokens = (error["n_prompt_tokens"] as? NSNumber)?.intValue, let context = (error["n_ctx"] as? NSNumber)?.intValue {
+            return loc.t("La petición necesita \(tokens) tokens pero el contexto admite \(context): el mensaje, los adjuntos y el historial no caben. Sube el contexto en Ajustes, adjunta menos o inicia un chat nuevo.",
+                         "The request needs \(tokens) tokens but the context holds \(context): the message, attachments and history do not fit. Raise the context size in Settings, attach less, or start a new chat.")
+        }
+        return nil
+    }
+
+    nonisolated static func cutAnswerMessage() -> String {
+        let loc = Localizer()
+        return loc.t("La respuesta se cortó al llegar al máximo de tokens, así que está incompleta. Sube Máx. tokens o pulsa Continuar.",
+                     "The answer was cut at the max tokens limit, so it is incomplete. Raise Max tokens or press Continue.")
     }
 
     nonisolated static func emptyResponseMessage(finishReason: String?) -> String {

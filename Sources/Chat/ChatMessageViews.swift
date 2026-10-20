@@ -440,7 +440,11 @@ struct StreamingMessageBubble: View {
                         ProgressView().controlSize(.small)
                         // Label the prefill phase so the pre-first-token wait reads
                         // as work, not a hang. Reasoning/answer have their own labels.
-                        if !live.hasReasoning && visibleText.isEmpty {
+                        if let status = live.agentStatus, visibleText.isEmpty {
+                            Text(status + "…")
+                                .chatFont(.small)
+                                .foregroundStyle(.secondary)
+                        } else if !live.hasReasoning && visibleText.isEmpty {
                             PrefillStatusLabel(progress: live.prefillProgress)
                         }
                         if let speed = live.speed {

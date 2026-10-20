@@ -2417,8 +2417,27 @@ final class CompactionTests: XCTestCase {
     }
 
     func testStreamingErrorIsExtractedFromSuccessfulHTTPStream() {
-        let object: [String: Any] = ["error": ["message": "Compute error."]]
-        XCTAssertEqual(ChatStore.streamedError(from: object), "Compute error.")
+        let object: [String: Any] = ["error": ["message": "the model refused the request"]]
+        XCTAssertEqual(ChatStore.streamedError(from: object), "the model refused the request")
+    }
+
+    func testEngineFailuresAreToldAsSuch() throws {
+        // the engine's raw GPU failure says the request did not finish and the server restarts
+        let gpu = ChatStore.streamedError(from: ["error": ["code": 500, "message": "Compute error."]]) ?? ""
+        XCTAssertTrue(gpu.contains("GPU"), gpu)
+        XCTAssertNotEqual(gpu, "Compute error.")
+        // an agent's own text for it is kept, with what the app does about it
+        let told = ChatStore.streamedError(from: ["error": ["type": "engine_gpu_error", "message": "Agent text."]]) ?? ""
+        XCTAssertTrue(told.hasPrefix("Agent text. "), told)
+        let context = ChatStore.streamedError(from: ["error": ["type": "exceed_context_size_error", "n_prompt_tokens": 22300,
+                                                                "n_ctx": 16384, "message": "request exceeds"]]) ?? ""
+        XCTAssertTrue(context.contains("22300") && context.contains("16384"), context)
+        // a server error inside the stream ends the turn: the app does not try to resume it
+        var accumulator = ChatStreamAccumulator()
+        XCTAssertThrowsError(try accumulator.consume(#"data: {"error":{"message":"Compute error."}}"#)) { error in
+            XCTAssertEqual((error as? StreamError)?.fromServer, true)
+        }
+        XCTAssertFalse(ChatStore.cutAnswerMessage().isEmpty)
     }
 
     func testReasoningOnlyLengthMessageExplainsTokenLimit() {

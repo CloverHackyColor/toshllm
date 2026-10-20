@@ -3,6 +3,20 @@
 All notable changes to ToshLLM are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Improved
+
+- **Web chat: an agent shows what it is doing while it works**, such as the page it is reading, until its answer starts.
+- **Settings: requests that set no response limit get the chat's own by default.** The web chat and API clients without `max_tokens` stop where the in-app chat does, instead of writing until the context runs out; "No limit" is still available.
+
+### Fixed
+
+- **Web chat: an error the server sends during an answer is shown.** It used to leave an empty message, or keep a draft as the answer.
+- **Chat: an error the server sends during an answer is shown as it is**, not replaced by a failed attempt to resume the stream.
+- **Math: the engine's failures are told as such.** A request larger than the context says how many tokens it needs and the context holds, and a GPU that fails says the request did not finish; neither comes out as "I couldn't validate the mathematical interpretation". An answer cut at its token limit says it is incomplete, in the app, the web chat and the API.
+- **Engine: after a GPU job times out, the server restarts by itself.** The engine kept failing every request until it was restarted by hand.
+
 ## [0.87.27] - 2026-10-19
 
 ### Added

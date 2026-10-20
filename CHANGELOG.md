@@ -9,7 +9,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 - **Web chat: an agent shows what it is doing while it works**, such as the page it is reading, until its answer starts.
 - **Chat: files dropped anywhere on the chat are attached, with a visible target while one is dragged over it.** A file dropped on the message field came in as its path; dropped text still goes into the field.
-- **Chat: pages attached together keep their names' order.** A document's pages picked or dropped at once could arrive in any order and be read out of sequence.
+- **Chat: pages attached together keep their names' order.** A document's pages picked or dropped at once could arrive in any order and be read out of sequence; files whose names carry numbers ("page1", "page10", "735") go in their order, and others keep the order they came in.
+- **Chat: a file attached again is not added twice.** It is told by its contents, so two files with the same name and different contents are both attached.
 - **Chat: while an answer is prepared, the app says what is happening and for how long**: the prompt's progress when the server reports it, the model's pass and what an agent says it is doing, in the app's language, instead of phrases that rotated on their own.
 - **Settings: requests that set no response limit get the chat's own by default.** The web chat and API clients without `max_tokens` stop where the in-app chat does, instead of writing until the context runs out; "No limit" is still available.
 

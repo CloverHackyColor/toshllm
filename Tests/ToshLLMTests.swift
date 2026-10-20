@@ -2416,6 +2416,28 @@ final class CompactionTests: XCTestCase {
         XCTAssertEqual(decoded.wireContent, "hola")
     }
 
+    func testFilesAttachedTogetherGoInTheOrderTheirNamesGive() {
+        func order(_ names: [String]) -> [String] {
+            NativeChatView.pageOrder(names.map { URL(fileURLWithPath: "/tmp/" + $0) }).map(\.lastPathComponent)
+        }
+        XCTAssertEqual(order(["page10.png", "page2.png", "page1.png"]), ["page1.png", "page2.png", "page10.png"])
+        XCTAssertEqual(order(["739.jpg", "735.jpg", "737.jpg"]), ["735.jpg", "737.jpg", "739.jpg"])
+        XCTAssertEqual(order(["10.jpg", "9.jpg", "11.jpg"]), ["9.jpg", "10.jpg", "11.jpg"])
+        // names without a sequence keep the order they came in, never one made up from them
+        XCTAssertEqual(order(["scan.jpg", "back.jpg", "front.jpg"]), ["scan.jpg", "back.jpg", "front.jpg"])
+        XCTAssertEqual(order(["cover.jpg", "page2.jpg", "page1.jpg"]), ["cover.jpg", "page2.jpg", "page1.jpg"])
+    }
+
+    func testAnAttachmentIsToldApartByItsBytesNotItsName() throws {
+        // two scans named alike are different files; the same one attached again is not
+        let first = FileHash.sha256(of: Data("page one".utf8)), second = FileHash.sha256(of: Data("page two".utf8))
+        XCTAssertNotEqual(first, second)
+        XCTAssertEqual(first, FileHash.sha256(of: Data("page one".utf8)))
+        // attachments saved before the digest existed still load
+        let json = #"{"id":"00000000-0000-0000-0000-000000000002","name":"scan.pdf","content":"text"}"#
+        XCTAssertNil(try JSONDecoder().decode(ChatAttachment.self, from: Data(json.utf8)).digest)
+    }
+
     func testStreamingErrorIsExtractedFromSuccessfulHTTPStream() {
         let object: [String: Any] = ["error": ["message": "the model refused the request"]]
         XCTAssertEqual(ChatStore.streamedError(from: object), "the model refused the request")

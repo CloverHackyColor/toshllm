@@ -22,6 +22,8 @@ struct ChatAttachment: Identifiable, Codable, Equatable {
     var byteCount: Int? = nil
     var durationSeconds: Double? = nil
     var videoFrameArea: Int? = nil
+    /// SHA-256 of the file's bytes, which tells the same file attached again from another with its name.
+    var digest: String? = nil
 
     // mtmd samples video at ~4 fps with no cap; Qwen-VL bills each frame by its
     // pixels (≈1 token / 32x32) up to a per-frame cap.
@@ -4590,10 +4592,19 @@ struct NativeChatView: View {
     private static let maxAttachBytes = 40 * 1024 * 1024
     private static let maxAttachChars = 400_000
 
+    /// Files attached together: when every name carries a number ("page1", "page10", "735") they are a sequence and go
+    /// in its order; otherwise the names say none, so they keep the order they came in.
+    nonisolated static func pageOrder(_ urls: [URL]) -> [URL] {
+        let numbered = urls.allSatisfy {
+            $0.deletingPathExtension().lastPathComponent.rangeOfCharacter(from: .decimalDigits) != nil
+        }
+        guard numbered else { return urls }
+        return urls.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    }
+
     private func addAttachments(urls: [URL]) {
         var errors: [String] = []
-        // pages picked or dropped together arrive in any order; a document's pages read in their names' order
-        let urls = urls.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        let urls = Self.pageOrder(urls)
         for url in urls {
             let name = url.lastPathComponent
             let ext = (name as NSString).pathExtension.lowercased()
@@ -4639,7 +4650,9 @@ struct NativeChatView: View {
                 guard let uri = Self.imageDataURI(from: data, maxMegapixels: maxImageMegapixels) else {
                     errors.append(loc.t("%@: no se pudo procesar la imagen", "%@: couldn't process the image", "\(name)")); continue
                 }
-                images.append(uri); continue
+                // the same file dropped or picked again is already attached
+                if !images.contains(uri) { images.append(uri) }
+                continue
             }
 
             var text: String
@@ -4652,7 +4665,7 @@ struct NativeChatView: View {
                     Task { @MainActor in
                         let pages = Self.pdfImageURIs(pdf, maxPages: 20,
                                                       maxMegapixels: maxImageMegapixels)
-                        images.append(contentsOf: pages)
+                        images.append(contentsOf: pages.filter { !images.contains($0) })
                         ocrPending -= 1
                         if pages.isEmpty {
                             attachError = (attachError.map { $0 + "\n" } ?? "")
@@ -4666,9 +4679,11 @@ struct NativeChatView: View {
                 } else {
                     // No text layer (scanned PDF) → OCR the page images on-device
                     // (Vision framework), asynchronously so the UI doesn't block.
+                    let digest = FileHash.sha256(of: data)
+                    guard !attachments.contains(where: { $0.digest == digest }) else { continue }
                     let pendingID = UUID()
                     attachments.append(ChatAttachment(id: pendingID, name: name,
-                        content: loc.t("(extrayendo texto por OCR…)", "(extracting text via OCR…)")))
+                        content: loc.t("(extrayendo texto por OCR…)", "(extracting text via OCR…)"), digest: digest))
                     ocrPending += 1
                     Task { @MainActor in
                         let ocr = await Self.ocrPDF(data: data, maxPages: 20, maxChars: Self.maxAttachChars)

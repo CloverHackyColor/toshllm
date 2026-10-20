@@ -4666,6 +4666,13 @@ struct NativeChatView: View {
                     errors.append(loc.t("%@: no se pudo abrir el PDF", "%@: couldn't open the PDF", "\(name)")); continue
                 }
                 if pdfAsImages && visionAvailable {
+                    // the PDF's own text goes with its pages: what an image blurs, the text layer still says
+                    if let layer = Self.pdfTextLayer(pdf, maxPages: 20, maxChars: Self.maxAttachChars) {
+                        let digest = FileHash.sha256(of: data) + ".text"
+                        if !attachments.contains(where: { $0.digest == digest }) {
+                            attachments.append(ChatAttachment(name: name + " (text layer)", content: layer, digest: digest))
+                        }
+                    }
                     ocrPending += 1
                     Task { @MainActor in
                         let pages = Self.pdfImageURIs(pdf, maxPages: 20,
@@ -4798,6 +4805,17 @@ struct NativeChatView: View {
         let rep = NSBitmapImageRep(cgImage: out)
         guard let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) else { return nil }
         return "data:image/jpeg;base64," + jpeg.base64EncodedString()
+    }
+
+    /// The PDF's own text page by page, "[Page N]" before each and an end line after it, or nil when it has too
+    /// little text to be a text layer, as a scan without one has.
+    nonisolated static func pdfTextLayer(_ document: PDFDocument, maxPages: Int, maxChars: Int) -> String? {
+        let pages = (0..<min(document.pageCount, maxPages)).map {
+            document.page(at: $0)?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+        guard pages.joined().filter({ !$0.isWhitespace }).count >= 80 else { return nil }
+        let text = pages.enumerated().map { "[Page \($0.offset + 1)]\n\($0.element)" }.joined(separator: "\n")
+        return String(text.prefix(maxChars)) + "\n[End of text layer]"
     }
 
     @MainActor

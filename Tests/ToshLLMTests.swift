@@ -2,6 +2,9 @@
 // Copyright (C) 2026 Engelbert Delgado <engeldlgado@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import AppKit
+import CoreText
+import PDFKit
 import XCTest
 @testable import ToshLLM
 
@@ -2164,6 +2167,31 @@ final class ChatMessageTests: XCTestCase {
         XCTAssertEqual(inputAudio["format"] as? String, "wav")
         let inputVideo = try XCTUnwrap(parts[2]["input_video"] as? [String: Any])
         XCTAssertEqual(inputVideo["format"] as? String, "mp4")
+    }
+
+    func testAPDFSentAsImagesCarriesItsTextLayerPageByPage() throws {
+        func pdf(_ pages: [String]) -> PDFDocument {
+            let data = NSMutableData()
+            var box = CGRect(x: 0, y: 0, width: 612, height: 792)
+            let context = CGContext(consumer: CGDataConsumer(data: data)!, mediaBox: &box, nil)!
+            for text in pages {
+                context.beginPDFPage(nil)
+                let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [
+                    .font: NSFont.systemFont(ofSize: 10)]))
+                context.textPosition = CGPoint(x: 36, y: 700)
+                CTLineDraw(line, context)
+                context.endPDFPage()
+            }
+            context.closePDF()
+            return PDFDocument(data: data as Data)!
+        }
+        let course = "Thence North 29 degrees 52 minutes 04 seconds East 540.79 feet to the TRUE POINT OF BEGINNING"
+        let layer = try XCTUnwrap(NativeChatView.pdfTextLayer(pdf([course, course]), maxPages: 20, maxChars: 100_000))
+        XCTAssertTrue(layer.hasPrefix("[Page 1]\nThence North 29 degrees"))
+        XCTAssertTrue(layer.contains("\n[Page 2]\n"))
+        XCTAssertTrue(layer.hasSuffix("\n[End of text layer]"))
+        // a scan has no text of its own to send
+        XCTAssertNil(NativeChatView.pdfTextLayer(pdf(["", ""]), maxPages: 20, maxChars: 100_000))
     }
 
     func testMultimediaFormatsMatchLlamaWebUICompatibilityRules() {

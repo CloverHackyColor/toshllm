@@ -7,6 +7,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Improved
 
+- **Chat: a PDF sent as page images also carries its own text, page by page,** in the app and the web chat. A model or agent can read the figures the document writes instead of only what the images show; a scan without a text layer sends its images alone.
 - **Web chat: an agent shows what it is doing while it works**, such as the page it is reading, until its answer starts.
 - **Chat: files dropped anywhere on the chat are attached, with a visible target while one is dragged over it.** A file dropped on the message field came in as its path; dropped text still goes into the field.
 - **Chat: pages attached together keep their names' order.** A document's pages picked or dropped at once could arrive in any order and be read out of sequence; files whose names carry numbers ("page1", "page10", "735") go in their order, and others keep the order they came in.

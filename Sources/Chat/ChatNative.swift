@@ -235,6 +235,10 @@ struct StreamError: LocalizedError {
     let message: String
     /// The server ended the turn with this error: resuming the stream would only replace it.
     var fromServer = false
+    /// The engine failed on the GPU.
+    var gpu = false
+    /// The stream was cut before the answer ended and could not be resumed.
+    var cut = false
     var errorDescription: String? { message }
 }
 
@@ -260,6 +264,8 @@ final class LiveStream: ObservableObject {
     @Published var prefillProgress: Double?
     /// What the server's agent says it is doing, such as reading a page, until the answer starts.
     @Published var agentStatus: String?
+    private(set) var startedAt = Date()
+    private(set) var statusSince = Date()
 
     private var latestReasoning = ""
     private var lastReasoningPublish = Date.distantPast
@@ -279,6 +285,14 @@ final class LiveStream: ObservableObject {
         speed = nil
         prefillProgress = nil
         agentStatus = nil
+        startedAt = Date()
+        statusSince = startedAt
+    }
+
+    func setStatus(_ text: String) {
+        guard text != agentStatus else { return }
+        agentStatus = text
+        statusSince = Date()
     }
 
     var snapshot: StreamSnapshot {
@@ -447,7 +461,11 @@ final class ChatStore: ObservableObject {
         case "intent":
             lastMathIntent = (event["intent"] as? String).flatMap(MathIntent.init(rawValue:))
         case "progress":
-            if let label = event["label"] as? String, !label.isEmpty { live.agentStatus = String(label.prefix(120)) }
+            if let label = event["label"] as? String, !label.isEmpty { live.setStatus(String(label.prefix(120))) }
+        case "pass":
+            if event["state"] as? String == "start", let n = event["n"] as? Int {
+                live.setStatus(Localizer().t("El modelo está pensando (pasada %@)", "The model is thinking (pass %@)", String(n)))
+            }
         case "tool_call":
             guard let call = event["call"] as? [String: Any],
                   let i = conversations.firstIndex(where: { $0.id == id }),
@@ -1105,7 +1123,8 @@ final class ChatStore: ObservableObject {
                 }
                 if agentTurn {
                     body["messages"] = clientToolsAgent ? history : agentHistory
-                    var tosh: [String: Any] = ["max_rounds": agentTurnLimit]
+                    // the agent writes its progress in the app's language; its answer follows the user's
+                    var tosh: [String: Any] = ["max_rounds": agentTurnLimit, "locale": Localizer().language]
                     if !clientToolsAgent && Self.hasOwnTools(availableTools) { tosh["client_tools"] = true }
                     body["tosh"] = tosh
                 } else if let request, availableTools.contains(where: { MathTranscriptionService.isMathTool($0.name) }) {
@@ -1178,7 +1197,8 @@ final class ChatStore: ObservableObject {
                     }
                     // an engine started without the agent: this turn and the next ones run in the app
                     retryWithoutAgent = agentTurn && status == 400 && raw.contains("runs no Tosh agent")
-                    throw StreamError(message: Self.describeServerError(status: status, body: raw))
+                    throw StreamError(message: Self.describeServerError(status: status, body: raw),
+                                      gpu: Self.isGPUFailure(Self.errorObject(raw)))
                 }
 
                 var completed = false
@@ -1219,7 +1239,9 @@ final class ChatStore: ObservableObject {
                     }
                 }
                 if !completed {
-                    throw resumeError ?? StreamError(message: "The response stream ended before completion")
+                    if let server = resumeError as? StreamError, server.fromServer { throw server }
+                    throw StreamError(message: (resumeError ?? StreamError(message: "The response stream ended before completion"))
+                                        .localizedDescription, cut: true)
                 }
             } catch {
                 if error is CancellationError {
@@ -1231,12 +1253,19 @@ final class ChatStore: ObservableObject {
                     AppLog.chat.error("stream failed: \(error.localizedDescription)")
                     let store = self
                     let raw = error.localizedDescription
+                    let stream = error as? StreamError
                     // the engine kills the turn when the model writes the call in the wrong
                     // shape, and it does it on every tool, so the model stops getting them
                     let rejected = raw.contains("peg-native") && !availableTools.isEmpty
                     if rejected { ToolSupport.block(ToolSupport.currentModelIdentity) }
+                    // a stream cut by the restart that followed a GPU failure is that failure
+                    let gpu = stream?.gpu == true
+                        || (stream?.cut == true && GPURecovery.shared.restarted(port: port, since: tSent))
                     let message = rejected
                         ? "Este modelo escribe mal las llamadas a herramientas y el motor cortó la respuesta; se le han desactivado, vuelve a enviar / this model writes tool calls in the wrong shape and the engine stopped the answer; they are now off for it, send again"
+                        : gpu ? Self.gpuFailureMessage(told: stream?.gpu == true ? raw : nil,
+                                                       outlook: stream?.gpu == true ? GPURecovery.shared.outlook(port: port) : .restarting)
+                        : stream?.cut == true ? Self.cutConnectionMessage()
                         : raw
                     await MainActor.run { store?.lastError = message }
                 }
@@ -2214,6 +2243,37 @@ final class ChatStore: ObservableObject {
         return "HTTP \(status): \(message.prefix(300))"
     }
 
+    nonisolated static func errorObject(_ body: String) -> [String: Any]? {
+        guard let data = body.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return object["error"] as? [String: Any]
+    }
+
+    nonisolated static func isGPUFailure(_ error: [String: Any]?) -> Bool {
+        guard let error else { return false }
+        return error["type"] as? String == "engine_gpu_error"
+            || (error["message"] as? String ?? "").range(of: #"(?i)^compute error|error state|kIOAccel|failed to process mtmd"#,
+                                                        options: .regularExpression) != nil
+    }
+
+    /// What the user is told after a GPU failure: whether the server restarts, or already did so too recently to again.
+    nonisolated static func gpuFailureMessage(told: String?, outlook: GPURecovery.Outlook) -> String {
+        let loc = Localizer()
+        let failure = told ?? loc.t("El motor falló en la GPU mientras procesaba la petición, así que no terminó.",
+                                    "The engine failed on the GPU while processing the request, so it did not finish.")
+        let next = outlook == .restarting
+            ? loc.t("El servidor se reinicia solo; vuelve a enviar el mensaje cuando esté listo.",
+                    "The server restarts by itself; send the message again once it is ready.")
+            : loc.t("El servidor ya se reinició solo por un fallo de la GPU hace menos de 10 minutos, así que esta vez no: reinícialo desde el panel del servidor y vuelve a enviar el mensaje.",
+                    "The server already restarted by itself after a GPU failure less than 10 minutes ago, so it does not this time: restart it from the server panel and send the message again.")
+        return failure + " " + next
+    }
+
+    nonisolated static func cutConnectionMessage() -> String {
+        Localizer().t("La conexión con el servidor se cortó antes de que terminara la respuesta, así que está incompleta. Vuelve a enviar el mensaje.",
+                      "The connection to the server was cut before the answer ended, so it is incomplete. Send the message again.")
+    }
+
     nonisolated static func streamedError(from object: [String: Any]) -> String? {
         guard let error = object["error"] else { return nil }
         if let details = error as? [String: Any],
@@ -2230,18 +2290,17 @@ final class ChatStore: ObservableObject {
         let loc = Localizer()
         let type = error["type"] as? String ?? ""
         let message = error["message"] as? String ?? ""
-        if type == "engine_gpu_error" || message.range(of: #"(?i)^compute error|error state|kIOAccel|failed to process mtmd"#,
-                                                     options: .regularExpression) != nil {
-            let told = type == "engine_gpu_error" ? message
+        // whether the server restarts is told where the failure reaches the chat, which knows the server
+        if isGPUFailure(error) {
+            return type == "engine_gpu_error" ? message
                 : loc.t("El motor falló en la GPU mientras procesaba la petición, así que no terminó.",
                         "The engine failed on the GPU while processing the request, so it did not finish.")
-            return told + " " + loc.t("El servidor se reinicia solo; vuelve a enviar el mensaje cuando esté listo.",
-                                      "The server restarts by itself; send the message again once it is ready.")
         }
         if type == "exceed_context_size_error",
            let tokens = (error["n_prompt_tokens"] as? NSNumber)?.intValue, let context = (error["n_ctx"] as? NSNumber)?.intValue {
-            return loc.t("La petición necesita \(tokens) tokens pero el contexto admite \(context): el mensaje, los adjuntos y el historial no caben. Sube el contexto en Ajustes, adjunta menos o inicia un chat nuevo.",
-                         "The request needs \(tokens) tokens but the context holds \(context): the message, attachments and history do not fit. Raise the context size in Settings, attach less, or start a new chat.")
+            return loc.t("La petición necesita %@ tokens pero el contexto admite %@: el mensaje, los adjuntos y el historial no caben. Sube el contexto en Ajustes, adjunta menos o inicia un chat nuevo.",
+                         "The request needs %@ tokens but the context holds %@: the message, attachments and history do not fit. Raise the context size in Settings, attach less, or start a new chat.",
+                         String(tokens), String(context))
         }
         return nil
     }

@@ -2426,9 +2426,10 @@ final class CompactionTests: XCTestCase {
         let gpu = ChatStore.streamedError(from: ["error": ["code": 500, "message": "Compute error."]]) ?? ""
         XCTAssertTrue(gpu.contains("GPU"), gpu)
         XCTAssertNotEqual(gpu, "Compute error.")
-        // an agent's own text for it is kept, with what the app does about it
+        // an agent's own text for it is kept; what the app does about it is added where the server is known
         let told = ChatStore.streamedError(from: ["error": ["type": "engine_gpu_error", "message": "Agent text."]]) ?? ""
-        XCTAssertTrue(told.hasPrefix("Agent text. "), told)
+        XCTAssertEqual(told, "Agent text.")
+        XCTAssertTrue(ChatStore.gpuFailureMessage(told: told, outlook: .restarting).hasPrefix("Agent text. "))
         let context = ChatStore.streamedError(from: ["error": ["type": "exceed_context_size_error", "n_prompt_tokens": 22300,
                                                                 "n_ctx": 16384, "message": "request exceeds"]]) ?? ""
         XCTAssertTrue(context.contains("22300") && context.contains("16384"), context)
@@ -2436,8 +2437,39 @@ final class CompactionTests: XCTestCase {
         var accumulator = ChatStreamAccumulator()
         XCTAssertThrowsError(try accumulator.consume(#"data: {"error":{"message":"Compute error."}}"#)) { error in
             XCTAssertEqual((error as? StreamError)?.fromServer, true)
+            XCTAssertEqual((error as? StreamError)?.gpu, true)
         }
+        XCTAssertThrowsError(try accumulator.consume(#"data: {"error":{"message":"The slot was released."}}"#)) { error in
+            XCTAssertEqual((error as? StreamError)?.gpu, false)
+        }
+        XCTAssertTrue(ChatStore.isGPUFailure(ChatStore.errorObject(#"{"error":{"code":500,"message":"Compute error."}}"#)))
         XCTAssertFalse(ChatStore.cutAnswerMessage().isEmpty)
+    }
+
+    func testGPURecoveryRestartsOnceEveryTenMinutesAndSaysWhen() {
+        let recovery = GPURecovery()
+        let start = Date(timeIntervalSince1970: 1_000)
+        XCTAssertTrue(recovery.admit(port: 8080, at: start))
+        // one failure logs several lines: a single restart
+        XCTAssertFalse(recovery.admit(port: 8080, at: start.addingTimeInterval(1)))
+        XCTAssertEqual(recovery.outlook(port: 8080, at: start.addingTimeInterval(2)), .restarting)
+        // another failure within ten minutes is not restarted, and the chat does not promise it
+        XCTAssertFalse(recovery.admit(port: 8080, at: start.addingTimeInterval(120)))
+        XCTAssertEqual(recovery.outlook(port: 8080, at: start.addingTimeInterval(120)), .withheld)
+        XCTAssertNotEqual(ChatStore.gpuFailureMessage(told: nil, outlook: .withheld),
+                          ChatStore.gpuFailureMessage(told: nil, outlook: .restarting))
+        // each server counts its own
+        XCTAssertTrue(recovery.admit(port: 8081, at: start.addingTimeInterval(120)))
+        XCTAssertTrue(recovery.admit(port: 8080, at: start.addingTimeInterval(601)))
+        // a stream cut is the GPU's only when the restart came after its request was sent
+        XCTAssertTrue(recovery.restarted(port: 8080, since: start.addingTimeInterval(590)))
+        XCTAssertFalse(recovery.restarted(port: 8080, since: start.addingTimeInterval(650)))
+        XCTAssertFalse(recovery.restarted(port: 8082, since: start))
+        XCTAssertTrue(GPURecovery.reports("error: Caused GPU Timeout Error (00000002:kIOAccelCommandBufferCallbackErrorTimeout)"))
+        XCTAssertTrue(GPURecovery.reports("ggml_metal_graph_compute: backend is in error state from a previous command buffer failure"))
+        XCTAssertFalse(GPURecovery.reports("srv  log_server_r: request: POST /v1/chat/completions 127.0.0.1 200"))
+        // a cut connection is not told as a GPU failure
+        XCTAssertFalse(ChatStore.cutConnectionMessage().contains("GPU"))
     }
 
     func testReasoningOnlyLengthMessageExplainsTokenLimit() {

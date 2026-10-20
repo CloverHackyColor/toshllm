@@ -1709,8 +1709,6 @@ final class ServerController: ObservableObject {
     @Published var autoPlanNote: String?
     /// A starved host executor leaves the backend unusable; one restart per launch recovers it.
     private var recoveredFromExecutorFailure = false
-    /// A GPU job that timed out leaves the Metal backend failing every request until the process restarts.
-    private var lastGPURecovery: Date?
 
     private var process: Process?
     private var healthTask: Task<Void, Never>?
@@ -2482,22 +2480,26 @@ final class ServerController: ObservableObject {
             if line.contains("mixed expert execution failed"), !recoveredFromExecutorFailure,
                state == .running, let settings = launchedSettings {
                 recoveredFromExecutorFailure = true
-                autoPlanNote = (UserDefaults.standard.string(forKey: SettingsKeys.language) ?? "en") == "es"
-                    ? "El sistema dejó sin CPU a Dynamic MoE; el servidor se reinició."
-                    : "The system starved Dynamic MoE of CPU; the server was restarted."
+                autoPlanNote = Localizer().t("El sistema dejó sin CPU a Dynamic MoE; el servidor se reinició.",
+                                             "The system starved Dynamic MoE of CPU; the server was restarted.")
                 restartAfterFailure(settings)
             }
-            if line.contains("kIOAccelCommandBufferCallbackErrorTimeout") || line.contains("backend is in error state"),
-               state == .running, let settings = launchedSettings,
-               lastGPURecovery.map({ Date().timeIntervalSince($0) > 600 }) ?? true {
-                lastGPURecovery = Date()
-                autoPlanNote = (UserDefaults.standard.string(forKey: SettingsKeys.language) ?? "en") == "es"
-                    ? "Un trabajo de la GPU no terminó a tiempo y el motor dejó de poder usarla; el servidor se reinició. Vuelve a enviar el último mensaje."
-                    : "A GPU job did not finish in time and the engine could no longer use the GPU; the server was restarted. Send the last message again."
-                // the request in flight gets its error before the process goes
-                Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(3))
-                    self?.restartAfterFailure(settings)
+            if GPURecovery.reports(line), state == .running, let settings = launchedSettings, let failed = process {
+                if GPURecovery.shared.admit(port: currentPort) {
+                    autoPlanNote = Localizer().t(
+                        "Un trabajo de la GPU no terminó a tiempo y el motor dejó de poder usarla; el servidor se reinició. Vuelve a enviar el último mensaje.",
+                        "A GPU job did not finish in time and the engine could no longer use the GPU; the server was restarted. Send the last message again.")
+                    // the request in flight gets its error before the process goes
+                    Task { [weak self] in
+                        try? await Task.sleep(for: .seconds(3))
+                        // a server the user stopped or restarted meanwhile is left as it is
+                        guard let self, self.process === failed, self.state == .running else { return }
+                        self.restartAfterFailure(settings)
+                    }
+                } else {
+                    autoPlanNote = Localizer().t(
+                        "La GPU volvió a fallar menos de 10 minutos después del último reinicio automático, así que el servidor no se reinició: reinícialo a mano.",
+                        "The GPU failed again less than 10 minutes after the last automatic restart, so the server was not restarted: restart it by hand.")
                 }
             }
             if line.contains("draft acceptance ="),

@@ -10,6 +10,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Web chat: an agent shows what it is doing while it works**, such as the page it is reading, until its answer starts.
 - **Chat: files dropped anywhere on the chat are attached, with a visible target while one is dragged over it.** A file dropped on the message field came in as its path; dropped text still goes into the field.
 - **Chat: pages attached together keep their names' order.** A document's pages picked or dropped at once could arrive in any order and be read out of sequence.
+- **Chat: while an answer is prepared, the app says what is happening and for how long**: the prompt's progress when the server reports it, the model's pass and what an agent says it is doing, in the app's language, instead of phrases that rotated on their own.
 - **Settings: requests that set no response limit get the chat's own by default.** The web chat and API clients without `max_tokens` stop where the in-app chat does, instead of writing until the context runs out; "No limit" is still available.
 
 ### Fixed
@@ -17,7 +18,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Web chat: an error the server sends during an answer is shown.** It used to leave an empty message, or keep a draft as the answer.
 - **Chat: an error the server sends during an answer is shown as it is**, not replaced by a failed attempt to resume the stream.
 - **Math: the engine's failures are told as such.** A request larger than the context says how many tokens it needs and the context holds, and a GPU that fails says the request did not finish; neither comes out as "I couldn't validate the mathematical interpretation". An answer cut at its token limit says it is incomplete, in the app, the web chat and the API.
-- **Engine: after a GPU job times out, the server restarts by itself.** The engine kept failing every request until it was restarted by hand.
+- **Engine: after a GPU job times out, the server restarts by itself**, at most once every ten minutes, and not if it was stopped or restarted by hand in the meantime. The engine kept failing every request until it was restarted by hand.
+- **Chat: a GPU failure is told as such whatever reaches the app.** An answer cut by the restart no longer says "Could not connect to the server", a second failure within ten minutes says the server was not restarted and how to do it, and a connection cut for any other reason says the answer is incomplete.
 - **LLMs: GLM-4-0414 models keep a tool's name as declared when they call it.** In a conversation that already held a call written as text, the model copied it with another case or a space in the name, and the call came out as text again; once a name is begun it can only be finished as declared. Reported by [andruwa13](https://github.com/andruwa13) in [#129](https://github.com/engeldlgado/toshllm/issues/129).
 
 ## [0.87.27] - 2026-10-19

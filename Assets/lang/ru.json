@@ -1848,6 +1848,7 @@
 
   "The Tosh agent, the one this chat and the web chat use, also answers /v1/chat/completions clients that do not ask for it with the X-Tosh-Agent: on header, also remotely and without the app. Requests that bring tools of their own (VS Code, agents) or X-Tosh-Agent: off still go to the model as they are. Applies when the server restarts.": "Агент Tosh (тот, который используется в этом чате и в веб-чате) также отвечает клиентам /v1/chat/completions, даже если они не запрашивают его явно через заголовок X-Tosh-Agent: on — в том числе удалённо и без приложения. Запросы, которые передают собственные инструменты (например, из VSCode или других агентов), либо с заголовком X-Tosh-Agent: off, по-прежнему отправляются напрямую модели. Настройка вступает в силу после перезапуска сервера.",
   "The agent reached its 8-turn limit. Continue?": "Агент достиг лимита в 8 ходов. Продолжить?",
+  "The engine has no agent; the chat will run the math tools itself": "В движке нет агента; чат самостоятельно выполнит вызовы математических инструментов.",
   "The alias cannot exceed 80 characters.": "Псевдоним (alias) не может содержать более 80 символов.",
   "The answer is still being written off screen; jump to the end and follow it again.": "Ответ всё ещё генерируется за пределами видимой области экрана. Перейдите в конец и снова следите за ним.",
   "The attachments don't fit the configured context, so sending will fail with 'context full'. Raise the context in Settings, remove files or start a new chat.": "Вложения не помещаются в заданный контекст, поэтому отправка завершится ошибкой «контекст заполнен». Увеличьте лимит контекста в настройках, удалите файлы или начните новый чат.",
@@ -1927,6 +1928,7 @@
   "This model runs a fixed %@ steps: it ships its own noise schedule, and any other one spoils the image.": "Модель всегда выполняет %@ шагов: у неё свой встроенный график шума, и любой другой график испортит изображение.",
   "This model runs at CFG %@ and ignores the negative prompt. It needs a model with CFG above 1 (SD 1.5, Qwen-Image), or a higher CFG on your own model.": "Модель работает при CFG %@ и игнорирует негативный промпт. Требуется модель с CFG выше 1 (например, SD 1.5 или Qwen-Image) либо установите более высокий CFG для своей модели.",
   "This model was trained on square frames only (%@x%@): any other shape comes back with colour blotches however many steps you give it. That is the model's limit, not the app's.": "Модель обучалась только на квадратных кадрах (%@×%@): любые другие пропорции будут давать цветовые пятна, сколько бы шагов вы ни задали. Это ограничение самой модели, а не приложения.",
+  "This model writes tool calls in the wrong shape; the engine stopped the answer and disabled tools for this model. Send the message again.": "Эта модель формирует вызовы инструментов в неверном формате; движок остановил ответ и отключил инструменты для этой модели. Отправьте сообщение ещё раз.",
 
   "This older result did not store its quant": "В этом старом результате не сохранён тип квантования",
 

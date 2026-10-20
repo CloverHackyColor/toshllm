@@ -849,6 +849,12 @@ final class ChatStore: ObservableObject {
         let memoryToolsEnabled = ChatMemoryService.isEnabled
         let agentTurnLimit = Self.configuredAgentTurnLimit
         let enabledToolNames = conversations[i].enabledToolNames
+        let noAgentNotice = AppObjects.shared.loc.t(
+            "El motor no tiene un agente; el chat ejecutará las herramientas matemáticas por su cuenta.",
+            "The engine has no agent; the chat will run the math tools itself")
+        let rejectedToolCallNotice = AppObjects.shared.loc.t(
+            "Este modelo escribe las llamadas a herramientas en un formato incorrecto; el motor detuvo la respuesta y desactivó las herramientas para este modelo. Vuelve a enviar el mensaje.",
+            "This model writes tool calls in the wrong shape; the engine stopped the answer and disabled tools for this model. Send the message again.")
 
         // in a turn that already used math tools the answer shows only once it is checked
         let holdText = agentRun?.mathRequired == true || agentRun != nil && !MathLedger.calls(
@@ -1219,7 +1225,7 @@ final class ChatStore: ObservableObject {
                 if error is CancellationError {
                     cancelled = true
                 } else if retryWithoutAgent {
-                    AppLog.chat.notice("the engine runs no agent; the chat runs the math tools itself")
+                    AppLog.chat.notice("\(noAgentNotice, privacy: .public)")
                 } else {
                     reportedError = true
                     AppLog.chat.error("stream failed: \(error.localizedDescription)")
@@ -1230,7 +1236,7 @@ final class ChatStore: ObservableObject {
                     let rejected = raw.contains("peg-native") && !availableTools.isEmpty
                     if rejected { ToolSupport.block(ToolSupport.currentModelIdentity) }
                     let message = rejected
-                        ? "Este modelo escribe mal las llamadas a herramientas y el motor cortó la respuesta; se le han desactivado, vuelve a enviar / this model writes tool calls in the wrong shape and the engine stopped the answer; they are now off for it, send again"
+                        ? rejectedToolCallNotice
                         : raw
                     await MainActor.run { store?.lastError = message }
                 }

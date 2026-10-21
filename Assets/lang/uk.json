@@ -61,12 +61,9 @@
   "3 · Set the workload": "3 · Задайте навантаження",
   "4 · Choose what to measure": "4 · Виберіть, що вимірювати",
   "512 (default)": "512 (за замовчуванням)",
-<<<<<<< HEAD
-=======
   "A GPU job did not finish in time and the engine could no longer use the GPU; the server was restarted. Send the last message again.": "Завдання GPU не завершилося вчасно, і рушій більше не міг використовувати GPU; сервер перезапущено. Надішліть останнє повідомлення ще раз.",
   "A checkpoint (SD, SDXL) bundles its VAE and encoder. A bare diffusion model (Z-Image, Flux 2, Qwen-Image) also needs its VAE and text encoder.": "Чекпоїнт (SD, SDXL) містить у собі VAE та кодувальник. Базова дифузійна модель (Z-Image, Flux 2, Qwen-Image) також потребує своїх VAE і текстового кодувальника.",
   "A diffusion model renders nothing without its VAE and text encoder.": "Дифузійна модель нічого не рендерить без своїх VAE та текстового кодувальника.",
->>>>>>> upstream/main
   "A folder for your conversations. If you set a system prompt on the project, every conversation inside inherits it.": "Папка для ваших бесід. Якщо ви встановите системний промпт для проєкту, кожна бесіда всередині успадкує його.",
   "A fraction of the frame height, so it reads the same at 720p and at 4K.": "Частка від висоти кадру, завдяки чому текст читається однаково за 720p і за 4K.",
   "A high value rejects more weak voices; it can also miss a quiet main voice.": "Високе значення відсіює більше слабких голосів, але також може пропустити тихий основний голос.",
@@ -1735,11 +1732,7 @@
   "The connection to the server was cut before the answer ended, so it is incomplete. Send the message again.": "З'єднання із сервером перервалося до завершення відповіді, тому вона неповна. Надішліть повідомлення ще раз.",
   "The current matches are available in the carousel above.": "Поточні збіги доступні в каруселі вище.",
   "The definitions of the active tools take about %@k of it.": "Описи активних інструментів займають близько %@k з них.",
-<<<<<<< HEAD
-  "The engine has no agent; the chat will run the math tools itself": "",
-=======
   "The engine failed on the GPU while processing the request, so it did not finish.": "Рушій дав збій на GPU під час обробки запиту, тому його не завершено.",
->>>>>>> upstream/main
   "The engine measures free VRAM and RAM to decide how to split the model.": "Рушій вимірює вільну пам'ять VRAM і RAM, щоб вирішити, як розділити модель.",
   "The engine only loads 4x models, so x2 upscales and resamples to half.": "Рушій завантажує лише моделі 4x, тому x2 масштабує та передискретизує вдвічі менше.",
   "The estimated total exceeds half the context configured in Settings; with the history it could fill it.": "Орієнтовний обсяг перевищує половину контексту, налаштованого в Налаштуваннях; разом з історією він може заповнити його повністю.",

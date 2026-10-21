@@ -61,12 +61,9 @@
   "3 · Set the workload": "3 · ワークロードを設定",
   "4 · Choose what to measure": "4 · 測定する項目を選択",
   "512 (default)": "512（既定）",
-<<<<<<< HEAD
-=======
   "A GPU job did not finish in time and the engine could no longer use the GPU; the server was restarted. Send the last message again.": "GPU の処理が時間内に終わらず、エンジンが GPU を使えなくなったため、サーバーを再起動しました。最後のメッセージをもう一度送信してください。",
   "A checkpoint (SD, SDXL) bundles its VAE and encoder. A bare diffusion model (Z-Image, Flux 2, Qwen-Image) also needs its VAE and text encoder.": "チェックポイント(SD、SDXL)にはVAEとエンコーダーが含まれています。拡散モデル単体(Z-Image、Flux 2、Qwen-Image)には、VAEとテキストエンコーダーも必要です。",
   "A diffusion model renders nothing without its VAE and text encoder.": "拡散モデルはVAEとテキストエンコーダーがないと何も生成できません。",
->>>>>>> upstream/main
   "A folder for your conversations. If you set a system prompt on the project, every conversation inside inherits it.": "会話をまとめるフォルダーです。プロジェクトにシステムプロンプトを設定すると、中のすべての会話がそれを引き継ぎます。",
   "A fraction of the frame height, so it reads the same at 720p and at 4K.": "フレームの高さに対する割合なので、720p でも 4K でも同じ大きさに見えます。",
   "A high value rejects more weak voices; it can also miss a quiet main voice.": "値を高くすると弱い声をより多く除外しますが、小さな主音声も逃すことがあります。",
@@ -1735,11 +1732,7 @@
   "The connection to the server was cut before the answer ended, so it is incomplete. Send the message again.": "回答が終わる前にサーバーとの接続が切れたため、回答は不完全です。メッセージをもう一度送信してください。",
   "The current matches are available in the carousel above.": "現在の候補は上のカルーセルで確認できます。",
   "The definitions of the active tools take about %@k of it.": "有効なツールの定義がそのうち約 %@k を占めます。",
-<<<<<<< HEAD
-  "The engine has no agent; the chat will run the math tools itself": "",
-=======
   "The engine failed on the GPU while processing the request, so it did not finish.": "リクエストの処理中にエンジンが GPU で失敗したため、完了しませんでした。",
->>>>>>> upstream/main
   "The engine measures free VRAM and RAM to decide how to split the model.": "エンジンが空きVRAMとRAMを測定し、モデルの分け方を決めます。",
   "The engine only loads 4x models, so x2 upscales and resamples to half.": "エンジンは4倍のモデルしか読み込めないため、2倍は4倍にしてから半分に再標本化します。",
   "The estimated total exceeds half the context configured in Settings; with the history it could fill it.": "見積もりの合計が、設定したコンテキストの半分を超えています。履歴と合わせると埋まってしまう恐れがあります。",

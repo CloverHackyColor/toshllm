@@ -61,12 +61,9 @@
   "3 · Set the workload": "3 · Imposta il carico di lavoro",
   "4 · Choose what to measure": "4 · Scegli cosa misurare",
   "512 (default)": "512 (predefinito)",
-<<<<<<< HEAD
-=======
   "A GPU job did not finish in time and the engine could no longer use the GPU; the server was restarted. Send the last message again.": "Un lavoro della GPU non è terminato in tempo e il motore non poteva più usare la GPU; il server è stato riavviato. Invia di nuovo l'ultimo messaggio.",
   "A checkpoint (SD, SDXL) bundles its VAE and encoder. A bare diffusion model (Z-Image, Flux 2, Qwen-Image) also needs its VAE and text encoder.": "Un checkpoint (SD, SDXL) include già il suo VAE e il suo encoder. Un modello di diffusione da solo (Z-Image, Flux 2, Qwen-Image) richiede anche il suo VAE e il suo encoder di testo.",
   "A diffusion model renders nothing without its VAE and text encoder.": "Un modello di diffusione non genera nulla senza il suo VAE e il suo encoder di testo.",
->>>>>>> upstream/main
   "A folder for your conversations. If you set a system prompt on the project, every conversation inside inherits it.": "Una cartella per le tue conversazioni. Se imposti un prompt di sistema sul progetto, ogni conversazione al suo interno lo eredita.",
   "A fraction of the frame height, so it reads the same at 720p and at 4K.": "Una frazione dell'altezza del fotogramma, così si legge uguale a 720p e a 4K.",
   "A high value rejects more weak voices; it can also miss a quiet main voice.": "Un valore alto rifiuta più voci deboli; può anche perdere una voce principale silenziosa.",
@@ -1735,11 +1732,7 @@
   "The connection to the server was cut before the answer ended, so it is incomplete. Send the message again.": "La connessione al server si è interrotta prima della fine della risposta, quindi è incompleta. Invia di nuovo il messaggio.",
   "The current matches are available in the carousel above.": "Le corrispondenze attuali sono disponibili nel carosello qui sopra.",
   "The definitions of the active tools take about %@k of it.": "Le definizioni degli strumenti attivi ne occupano circa %@k.",
-<<<<<<< HEAD
-  "The engine has no agent; the chat will run the math tools itself": "",
-=======
   "The engine failed on the GPU while processing the request, so it did not finish.": "Il motore ha avuto un errore sulla GPU durante l'elaborazione della richiesta, quindi non è terminata.",
->>>>>>> upstream/main
   "The engine measures free VRAM and RAM to decide how to split the model.": "Il motore misura la VRAM e la RAM libere per decidere come suddividere il modello.",
   "The engine only loads 4x models, so x2 upscales and resamples to half.": "Il motore carica solo 4x modelli, quindi x2 fa upscale e resampling alla metà.",
   "The estimated total exceeds half the context configured in Settings; with the history it could fill it.": "La stima totale supera la metà del contesto configurato nelle Impostazioni; con la cronologia potrebbe riempirlo.",

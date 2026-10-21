@@ -86,6 +86,9 @@ enum ToolResultLimit {
             + "\n\n[… \(total - limit) of \(total) characters omitted …]\n\n"
             + String(text.suffix(tail))
     }
+
+    /// An older result as it goes once the context is nearly full: a few lines of each end.
+    nonisolated static func shortened(_ text: String) -> String { apply(text, limit: 2000) }
 }
 
 enum ChatToolsError: LocalizedError {

@@ -7,6 +7,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Chat: the context meter no longer reads "0k" for a full conversation.** It shows the server's count while it is current, tenths under ten thousand tokens, and an estimate marked "≈" after a turn the server did not count, such as an agent's answer by rules; the conversation is summarized on the larger of the two, so such turns no longer keep a full conversation from being summarized. Images count in the estimate.
+- **Chat: a conversation that did not fit the context can go on.** The meter shows what the request needed, the app summarizes the older messages, and the message says it can be sent again; a summary of a conversation too long to summarize in one request is made from each message cut to its share. Near the end of the context, older turns go without their images and with shorter tool results.
+- **Chat: an answer cut because the conversation filled the context says so,** instead of pointing to the limit of tokens per answer and Continue, which would not fit. A turn the server ended with no answer says so instead of leaving nothing, a draft of an agent turn that failed is not kept as its answer, and a stop is no longer reported as a cut connection.
+- **Chat: what an agent marks to keep of an answer survives the summary,** as written after it, so an agent still finds what that answer named, such as a document it traced.
 - **Agent: a conversation that no longer fits the model's context goes on.** The server's agent leaves out its oldest exchanges for that turn, as the engine's tokenizer counts them and with room kept for the answer, and the answer says how many; every message after the context filled used to fail. A message that alone does not fit still says so, with the tokens it needs.
 - **Agent: an answer cut when the conversation filled the context says so,** instead of blaming the limit of tokens per answer, and an answer streamed until its tokens ran out is marked as incomplete; only answers written in one piece were. The answer's `tosh.context` says how full the context is after the turn.
 

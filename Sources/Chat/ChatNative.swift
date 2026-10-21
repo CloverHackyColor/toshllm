@@ -97,11 +97,19 @@ struct ChatMessage: Identifiable, Codable, Equatable {
     var map: ChatMap? = nil
     /// A figure the agent drew with the answer in a plane of its own, such as a tract from its deed's calls.
     var sketches: [ChatSketch]? = nil
+    /// Lines of the answer a later turn needs, as the agent marked them: kept as written when the answer is summarized.
+    var kept: String? = nil
+
+    /// Tokens an image costs a vision model at the chat's largest image size, on the high side (Qwen-VL: a token per
+    /// 28x28 pixels).
+    static let tokensPerImageMegapixel = 1300
 
     var estimatedTokens: Int {
         let text = role == "assistant" ? parts.body + (settledInterim ?? "") : wireContent
         let attached = (attachments ?? []).reduce(0) { $0 + $1.estimatedTokens }
-        return max(1, text.count / 4) + attached
+        let megapixels = min(4, max(1, UserDefaults.standard.double(forKey: SettingsKeys.chatMaxImageMegapixels)))
+        let images = (imageURIs ?? []).count * Int(megapixels * Double(Self.tokensPerImageMegapixel))
+        return max(1, text.count / 4) + attached + images
     }
 
     /// The interim text once it may be shown and sent back: every math call of the round succeeded.
@@ -179,6 +187,10 @@ struct Conversation: Identifiable, Codable {
     /// Last exchange's context tokens, per chat so the bar follows the open
     /// conversation and persists with the KV cache. Optional for old JSON.
     var contextUsed: Int? = nil
+    /// How many messages the conversation had when the server counted `contextUsed`: past that it is stale.
+    var contextUsedAt: Int? = nil
+    /// What the agent marked to keep of the answers summarized so far, oldest first.
+    var kept: [String]? = nil
 }
 
 struct ChatBranch: Identifiable, Codable, Equatable {
@@ -241,6 +253,8 @@ struct StreamError: LocalizedError {
     var gpu = false
     /// The stream was cut before the answer ended and could not be resumed.
     var cut = false
+    /// The request did not fit the context: the tokens the engine counted for it.
+    var contextTokens: Int? = nil
     var errorDescription: String? { message }
 }
 
@@ -449,6 +463,43 @@ final class ChatStore: ObservableObject {
     func setContextUsed(_ value: Int?, for id: UUID) {
         guard let i = conversations.firstIndex(where: { $0.id == id }) else { return }
         conversations[i].contextUsed = value
+        conversations[i].contextUsedAt = value == nil ? nil : conversations[i].messages.count
+    }
+
+    /// The context the conversation takes: the server's count of its last exchange while no message came after it,
+    /// else an estimate from its text, attachments and images, said to be one.
+    var contextReading: (tokens: Int, estimated: Bool)? {
+        guard let i = currentIndex else { return nil }
+        return Self.contextReading(conversations[i], toolTokens: toolTokens)
+    }
+
+    nonisolated static func contextReading(_ c: Conversation, toolTokens: Int) -> (tokens: Int, estimated: Bool) {
+        if let used = c.contextUsed, c.contextUsedAt == c.messages.count { return (used, false) }
+        return (contextEstimate(c) + toolTokens, true)
+    }
+
+    /// What the next request sends, as the app can estimate it: the summary and what it kept, and the messages
+    /// after it that are not archived.
+    nonisolated static func contextEstimate(_ c: Conversation) -> Int {
+        let skipped = ChatMemoryService.archivedIndices(c.archived)
+        let start = min(c.summarizedCount ?? 0, c.messages.count)
+        let messages = c.messages.indices.filter { $0 >= start && !skipped.contains($0) }
+            .reduce(0) { $0 + c.messages[$1].estimatedTokens }
+        let summary = ((c.summary ?? "").count + (c.kept ?? []).reduce(0) { $0 + $1.count }) / 4
+        return messages + summary
+    }
+
+    /// The fill that decides when to summarize: the larger of the server's count and the estimate, so a turn that
+    /// reported nothing, such as an agent's answer by rules, never reads as an empty context.
+    nonisolated static func contextForDecisions(_ c: Conversation, toolTokens: Int = 0) -> Int {
+        let estimate = contextEstimate(c) + toolTokens
+        guard let used = c.contextUsed, c.contextUsedAt == c.messages.count else { return estimate }
+        return max(used, estimate)
+    }
+
+    /// Tokens as the context meter shows them: tenths under ten thousand, so a small conversation is not "0k".
+    nonisolated static func kiloTokens(_ tokens: Int) -> String {
+        tokens < 10_000 ? String(format: "%.1fk", Double(tokens) / 1000) : "\(tokens / 1000)k"
     }
 
     /// Set when the engine refuses the server agent, until the engine starts again.
@@ -866,7 +917,7 @@ final class ChatStore: ObservableObject {
         let request = agentRun == nil ? userTexts.last : nil
         let agentHistory = Self.agentHistory(system: systemWithCwd, summary: conversations[i].summary,
                                              messages: conversations[i].messages, from: conversations[i].summarizedCount ?? 0,
-                                             modalities: modalities)
+                                             modalities: modalities, kept: conversations[i].kept)
         // an agent that takes the chat's tools also gets the rounds after the chat runs the calls it handed back
         let clientToolsAgent = EngineExtensions.active().contains(where: \.agentTakesClientTools)
         let agentAllowed = (agentRun == nil || clientToolsAgent && agentRun?.instruction == nil && agentRun?.finalizing != true)
@@ -876,7 +927,9 @@ final class ChatStore: ObservableObject {
                                           messages: conversations[i].messages,
                                           from: conversations[i].summarizedCount ?? 0,
                                           archived: conversations[i].archived,
-                                          modalities: modalities)
+                                          modalities: modalities, kept: conversations[i].kept,
+                                          trimBefore: Self.trimStart(conversations[i], limit: Self.contextLimitSetting(),
+                                                                     toolTokens: toolTokens))
         if let note = continuationInstruction ?? agentRun?.instruction ?? (holdText ? MathGrounding.standingNote : nil) {
             history.append(["role": "user", "content": note])
         }
@@ -929,6 +982,8 @@ final class ChatStore: ObservableObject {
             // what the agent's last pass held, which is what the context meter shows; usage sums every pass
             var agentPassTokens: Int?
             var agentMeta: [String: Any]?
+            // tokens a request that did not fit the context needed, as the engine counted them
+            var contextNeeded: Int?
             var lastFlush = Date.distantPast
             var cancelled = false
             var reportedError = false
@@ -1200,7 +1255,8 @@ final class ChatStore: ObservableObject {
                     // an engine started without the agent: this turn and the next ones run in the app
                     retryWithoutAgent = agentTurn && status == 400 && raw.contains("runs no Tosh agent")
                     throw StreamError(message: Self.describeServerError(status: status, body: raw),
-                                      gpu: Self.isGPUFailure(Self.errorObject(raw)))
+                                      gpu: Self.isGPUFailure(Self.errorObject(raw)),
+                                      contextTokens: Self.contextTokens(Self.errorObject(raw)))
                 }
 
                 var completed = false
@@ -1246,7 +1302,8 @@ final class ChatStore: ObservableObject {
                                         .localizedDescription, cut: true)
                 }
             } catch {
-                if error is CancellationError {
+                // a stop cancels the task, and URLSession may report that as its own error or a cut stream
+                if error is CancellationError || Task.isCancelled || (error as? URLError)?.code == .cancelled {
                     cancelled = true
                 } else if retryWithoutAgent {
                     AppLog.chat.notice("the engine runs no agent; the chat runs the math tools itself")
@@ -1263,6 +1320,9 @@ final class ChatStore: ObservableObject {
                     // a stream cut by the restart that followed a GPU failure is that failure
                     let gpu = stream?.gpu == true
                         || (stream?.cut == true && GPURecovery.shared.restarted(port: port, since: tSent))
+                    // a draft that a failed turn leaves is no answer
+                    if drafted { accumulator.visible = "" }
+                    contextNeeded = stream?.contextTokens
                     let message = rejected
                         ? "Este modelo escribe mal las llamadas a herramientas y el motor cortó la respuesta; se le han desactivado, vuelve a enviar / this model writes tool calls in the wrong shape and the engine stopped the answer; they are now off for it, send again"
                         : gpu ? Self.gpuFailureMessage(told: stream?.gpu == true ? raw : nil,
@@ -1326,6 +1386,7 @@ final class ChatStore: ObservableObject {
             let wasAgentTurn = agentTurn
             let passTokens = agentPassTokens
             let finalMeta = agentMeta
+            let needed = contextNeeded
             let declined = wasAgentTurn && !wasCancelled && !didReportError && !hasVisibleAnswer
                 && finalToolCalls.isEmpty && Self.agentDeclined(finalMeta)
             let (shouldDeliverQueued, followed): (Bool, Bool) = await MainActor.run {
@@ -1344,13 +1405,21 @@ final class ChatStore: ObservableObject {
                 } else if !wasCancelled && !didReportError && hasVisibleAnswer && finalToolCalls.isEmpty
                             && finalFinishReason == "length" && !answer.hasSuffix("incomplete._")
                             && !answer.hasSuffix("incompleta._") {
-                    // an answer cut at its token limit must not read as a finished one
-                    store?.lastError = Self.cutAnswerMessage()
+                    // an answer cut at its token limit must not read as a finished one, nor one the context cut
+                    // as cut by its limit: Continue would not fit
+                    store?.lastError = Self.cutByContext(usage: finalUsage, maxTokens: maxTokens,
+                                                         context: Self.contextLimitSetting())
+                        ? Self.contextCutMessage() : Self.cutAnswerMessage()
+                } else if !wasCancelled && !didReportError && !hasVisibleAnswer && !hadReasoning
+                            && finalToolCalls.isEmpty && closing == nil {
+                    store?.lastError = Self.noAnswerMessage()
                 }
                 store?.lastTurnUsedServerAgent = wasAgentTurn
-                if wasAgentTurn, let passTokens {
+                if wasAgentTurn, let used = ((finalMeta?["context"] as? [String: Any])?["used"] as? NSNumber)?.intValue {
+                    store?.setContextUsed(used, for: convID)
+                } else if wasAgentTurn, let passTokens {
                     store?.setContextUsed(passTokens, for: convID)
-                } else if let finalUsage {
+                } else if !wasAgentTurn, let finalUsage {
                     store?.setContextUsed(finalUsage.prompt + finalUsage.completion, for: convID)
                 }
                 let shouldDeliverQueued = store?.queuedMessage?.conversationID == convID
@@ -1395,6 +1464,11 @@ final class ChatStore: ObservableObject {
                 store?.finish(conversation: convID, text: shown, speed: finalSpeed,
                               mtpAccept: finalAccept, timings: finalTimings,
                               toolCalls: finalToolCalls, interim: round.interim)
+                // what the request that did not fit needed fills the meter, and the summary below frees it
+                if let needed { store?.setContextUsed(needed, for: convID) }
+                if wasAgentTurn, followUp == nil, let kept = finalMeta?["keep"] as? String, !kept.isEmpty {
+                    store?.keepLines(kept, conversation: convID)
+                }
                 if wasAgentTurn, followUp == nil, let request = finalMeta?["map_request"] as? [String: Any] {
                     store?.attachMapRequest(request, conversation: convID, port: port)
                 }
@@ -1855,10 +1929,10 @@ final class ChatStore: ObservableObject {
     /// stay out, since the agent refuses them: the tools run on the server. Only the last request carries
     /// its images and audio; an agent that cannot use them hands the turn back.
     nonisolated static func agentHistory(system: String, summary: String?, messages: [ChatMessage], from start: Int,
-                                         modalities: ModelModalities? = nil) -> [[String: Any]] {
+                                         modalities: ModelModalities? = nil, kept: [String]? = nil) -> [[String: Any]] {
         var sys = system.trimmingCharacters(in: .whitespaces)
-        if let summary, !summary.isEmpty {
-            sys += (sys.isEmpty ? "" : "\n\n") + "Summary of the earlier part of this conversation:\n" + summary
+        if let earlier = summarySystem(summary, kept: kept) {
+            sys += (sys.isEmpty ? "" : "\n\n") + earlier
         }
         var history: [[String: Any]] = sys.isEmpty ? [] : [["role": "system", "content": sys]]
         let last = messages.lastIndex { $0.role == "user" }
@@ -1877,19 +1951,25 @@ final class ChatStore: ObservableObject {
     nonisolated static func requestHistory(system: String, summary: String?,
                                            messages: [ChatMessage], from start: Int,
                                            archived: [ArchivedBlock]? = nil,
-                                           modalities: ModelModalities? = nil) -> [[String: Any]] {
+                                           modalities: ModelModalities? = nil,
+                                           kept: [String]? = nil, trimBefore: Int = 0) -> [[String: Any]] {
         var history: [[String: Any]] = []
         var sys = system.trimmingCharacters(in: .whitespaces)
-        if let summary, !summary.isEmpty {
-            sys += (sys.isEmpty ? "" : "\n\n")
-                + "Summary of the earlier part of this conversation:\n" + summary
+        if let earlier = summarySystem(summary, kept: kept) {
+            sys += (sys.isEmpty ? "" : "\n\n") + earlier
         }
         if !sys.isEmpty { history.append(["role": "system", "content": sys]) }
         let safeStart = min(max(0, start), messages.count)
         let skipped = ChatMemoryService.archivedIndices(archived)
         history += messages[safeStart...].enumerated().compactMap { offset, m -> [String: Any]? in
             guard !skipped.contains(safeStart + offset) else { return nil }
+            // in a conversation near the end of its context, older turns go without their media and with their tool
+            // results cut down, before the summary takes them
+            let trimmed = safeStart + offset < trimBefore
             if m.role == "tool", let callID = m.toolCallID {
+                guard !trimmed else {
+                    return ["role": "tool", "tool_call_id": callID, "content": ToolResultLimit.shortened(m.content)]
+                }
                 guard let uris = m.imageURIs, !uris.isEmpty, modalities?.vision != false else {
                     return ["role": "tool", "tool_call_id": callID, "content": m.content]
                 }
@@ -1912,12 +1992,44 @@ final class ChatStore: ObservableObject {
             }
             guard m.role != "assistant" || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             else { return nil }
+            if m.role == "user", trimmed, mediaParts(m, text: text, modalities: modalities) != nil {
+                return ["role": m.role, "content": text + "\n\n" + mediaLeftOut]
+            }
             if m.role == "user", let parts = mediaParts(m, text: text, modalities: modalities) {
                 return ["role": m.role, "content": parts]
             }
             return ["role": m.role, "content": text]
         }
         return history
+    }
+
+    nonisolated static let keptHeader = "Kept from earlier answers, as written:"
+    nonisolated static let mediaLeftOut = "[The images, audio or video sent with this message earlier are not sent again, to save context.]"
+    /// How many of the lines an agent marked are kept through summaries, newest first.
+    nonisolated static let keptLimit = 20
+
+    /// The part of the system message that stands for the summarized messages: their summary, then what the agent
+    /// marked to keep of its answers, as written, which the agent finds its own state by.
+    nonisolated static func summarySystem(_ summary: String?, kept: [String]?) -> String? {
+        var parts: [String] = []
+        if let summary, !summary.isEmpty { parts.append("Summary of the earlier part of this conversation:\n" + summary) }
+        if let kept, !kept.isEmpty { parts.append(keptHeader + "\n" + kept.joined(separator: "\n---\n")) }
+        return parts.isEmpty ? nil : parts.joined(separator: "\n\n")
+    }
+
+    /// Where older turns start going without media and with shorter tool results: before the last two exchanges,
+    /// once the conversation passes 85% of the context; nowhere before that.
+    nonisolated static func trimStart(_ c: Conversation, limit: Int, toolTokens: Int = 0) -> Int {
+        guard limit > 0, Double(contextForDecisions(c, toolTokens: toolTokens)) > 0.85 * Double(limit) else { return 0 }
+        let users = c.messages.indices.filter { c.messages[$0].role == "user" }
+        return users.count >= 2 ? users[users.count - 2] : 0
+    }
+
+    func keepLines(_ text: String, conversation id: UUID) {
+        guard let i = conversations.firstIndex(where: { $0.id == id }),
+              let j = conversations[i].messages.indices.last, conversations[i].messages[j].role == "assistant" else { return }
+        conversations[i].messages[j].kept = text
+        save()
     }
 
     /// A user turn with images, audio or video as the OpenAI multimodal content array (text part + media
@@ -2050,11 +2162,7 @@ final class ChatStore: ObservableObject {
         let note = (arguments["note"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let d = UserDefaults.standard
         let limit = d.object(forKey: SettingsKeys.ctx) == nil ? 16384 : d.integer(forKey: SettingsKeys.ctx)
-        let skipped = ChatMemoryService.archivedIndices(conversations[i].archived)
-        let used = conversations[i].contextUsed
-            ?? conversations[i].messages.enumerated()
-                .filter { $0.offset >= (conversations[i].summarizedCount ?? 0) && !skipped.contains($0.offset) }
-                .reduce(0) { $0 + $1.element.estimatedTokens }
+        let used = Self.contextForDecisions(conversations[i], toolTokens: toolTokens)
         if let percent = ChatMemoryService.archiveRefusal(used: used, limit: limit) {
             return ToolExecutionResult(
                 content: "Not archived: the context is \(percent)% full, so every turn still fits. Answer from the conversation.",
@@ -2130,7 +2238,8 @@ final class ChatStore: ObservableObject {
             ? 16384 : d.integer(forKey: SettingsKeys.ctx)
         guard enabled, !generating, !compacting, limit > 0,
               let i = conversations.firstIndex(where: { $0.id == id }),
-              let used = conversations[i].contextUsed, Double(used) / Double(limit) > 0.7 else { return }
+              Double(Self.contextForDecisions(conversations[i], toolTokens: toolTokens)) / Double(limit) > 0.7
+        else { return }
         let start = conversations[i].summarizedCount ?? 0
         guard let cutoff = Self.compactionCutoff(messages: conversations[i].messages,
                                                  alreadyCompacted: start,
@@ -2156,15 +2265,8 @@ final class ChatStore: ObservableObject {
 
     private func compact(conversation id: UUID, index i: Int,
                          from start: Int, through cutoff: Int, port: Int) {
-        var prompt = ""
-        if let prior = conversations[i].summary, !prior.isEmpty {
-            prompt += "Previous summary:\n" + prior + "\n\n"
-        }
-        prompt += "Conversation to summarize:\n\n"
-        for m in conversations[i].messages[start..<cutoff] {
-            prompt += (m.role == "user" ? "User: " : "Assistant: ")
-                + (m.role == "assistant" ? m.parts.body : m.content) + "\n\n"
-        }
+        let prompt = Self.summaryPrompt(prior: conversations[i].summary, messages: conversations[i].messages[start..<cutoff],
+                                        limit: Self.contextLimitSetting())
 
         compacting = true
         AppLog.chat.info("compacting conversation through message \(cutoff)")
@@ -2181,9 +2283,30 @@ final class ChatStore: ObservableObject {
         compacting = false
         guard let summary, let i = conversations.firstIndex(where: { $0.id == id }),
               cutoff <= conversations[i].messages.count else { return }
+        let start = min(conversations[i].summarizedCount ?? 0, cutoff)
+        let marked = conversations[i].messages[start..<cutoff].compactMap(\.kept).filter { !$0.isEmpty }
+        conversations[i].kept = Array(((conversations[i].kept ?? []) + marked).suffix(Self.keptLimit))
         conversations[i].summary = summary
         conversations[i].summarizedCount = cutoff
         save()
+    }
+
+    /// The messages a summary is asked for, each cut to its share of half the context when together they would not
+    /// fit: a summary that fails for being too long leaves the conversation as full as it was.
+    nonisolated static func summaryPrompt(prior: String?, messages: ArraySlice<ChatMessage>, limit: Int) -> String {
+        var prompt = ""
+        if let prior, !prior.isEmpty { prompt += "Previous summary:\n" + prior + "\n\n" }
+        prompt += "Conversation to summarize:\n\n"
+        let texts = messages.map { ($0.role == "user" ? "User: " : "Assistant: ") + ($0.role == "assistant" ? $0.parts.body : $0.content) }
+        // four characters a token, half the context for the messages
+        let budget = max(2000, limit * 2 - prompt.count)
+        let total = texts.reduce(0) { $0 + $1.count }
+        let share = total > budget ? max(200, budget / max(1, texts.count)) : Int.max
+        for text in texts {
+            prompt += (text.count > share ? String(text.prefix(share * 2 / 3)) + " […] " + String(text.suffix(share / 3)) : text)
+                + "\n\n"
+        }
+        return prompt
     }
 
     /// Non-streamed completion that condenses old turns. Returns nil on any
@@ -2305,11 +2428,41 @@ final class ChatStore: ObservableObject {
         }
         if type == "exceed_context_size_error",
            let tokens = (error["n_prompt_tokens"] as? NSNumber)?.intValue, let context = (error["n_ctx"] as? NSNumber)?.intValue {
-            return loc.t("La petición necesita %@ tokens pero el contexto admite %@: el mensaje, los adjuntos y el historial no caben. Sube el contexto en Ajustes, adjunta menos o inicia un chat nuevo.",
-                         "The request needs %@ tokens but the context holds %@: the message, attachments and history do not fit. Raise the context size in Settings, attach less, or start a new chat.",
+            return loc.t("La petición necesita %@ tokens pero el contexto admite %@: el mensaje, los adjuntos y el historial no caben. Si hay mensajes antiguos, la app los resume ahora y puedes volver a enviar el mensaje; si no, sube el contexto en Ajustes, adjunta menos o inicia un chat nuevo.",
+                         "The request needs %@ tokens but the context holds %@: the message, attachments and history do not fit. If there are older messages, the app summarizes them now and the message can be sent again; otherwise raise the context size in Settings, attach less, or start a new chat.",
                          String(tokens), String(context))
         }
         return nil
+    }
+
+    nonisolated static func contextTokens(_ error: [String: Any]?) -> Int? {
+        guard let error, error["type"] as? String == "exceed_context_size_error" else { return nil }
+        return (error["n_prompt_tokens"] as? NSNumber)?.intValue
+    }
+
+    nonisolated static func contextLimitSetting() -> Int {
+        let d = UserDefaults.standard
+        return d.object(forKey: SettingsKeys.ctx) == nil ? 16384 : d.integer(forKey: SettingsKeys.ctx)
+    }
+
+    /// Whether an answer stopped for "length" ran out of context rather than of its own limit: it did not write as
+    /// many tokens as it was allowed, or it filled the context, which the engine stops at one token before the end.
+    nonisolated static func cutByContext(usage: (prompt: Int, completion: Int)?, maxTokens: Int, context: Int) -> Bool {
+        guard let usage else { return false }
+        if context > 0 && usage.prompt + usage.completion + 1 >= context { return true }
+        return maxTokens > 0 && usage.completion < maxTokens
+    }
+
+    nonisolated static func contextCutMessage() -> String {
+        let loc = Localizer()
+        return loc.t("La respuesta se cortó porque la conversación llenó el contexto del modelo, así que está incompleta. La app resume los mensajes antiguos si puede; Continuar no cabría hasta entonces.",
+                     "The answer was cut because the conversation filled the model's context, so it is incomplete. The app summarizes older messages if it can; Continue would not fit until then.")
+    }
+
+    nonisolated static func noAnswerMessage() -> String {
+        let loc = Localizer()
+        return loc.t("El servidor terminó el turno sin respuesta; vuelve a enviar el mensaje.",
+                     "The server ended the turn without an answer; send the message again.")
     }
 
     nonisolated static func cutAnswerMessage() -> String {
@@ -4911,7 +5064,8 @@ struct NativeChatView: View {
                 }
 
                 if server.state == .running && contextLimit > 0 {
-                    let used = chat.contextUsed ?? chat.toolTokens
+                    let reading = chat.contextReading ?? (chat.toolTokens, true)
+                    let used = reading.tokens
                     let fraction = Double(used) / Double(contextLimit)
                     HStack(spacing: 5) {
                         Label(loc.t("Contexto", "Context"), systemImage: "memorychip")
@@ -4919,12 +5073,16 @@ struct NativeChatView: View {
                         ProgressView(value: min(fraction, 1))
                             .frame(width: 76)
                             .tint(fraction > 0.9 ? .red : fraction > 0.8 ? .orange : .accentColor)
-                        Text("\(used / 1000)k / \(contextLimit / 1000)k")
+                        Text((reading.estimated ? "≈" : "") + ChatStore.kiloTokens(used) + " / \(contextLimit / 1000)k")
                             .font(.system(size: 10, design: .monospaced))
                             .foregroundStyle(fraction > 0.8 ? .orange : .secondary)
                     }
                     .help(loc.t("Tokens usados por el historial y la última respuesta. Al superar 70%, la app intenta resumir los turnos antiguos.",
                                 "Tokens used by history and the latest response. Past 70%, the app attempts to summarize older turns.")
+                          + (reading.estimated
+                             ? " " + loc.t("≈: estimado a partir del texto y los adjuntos, porque el servidor no contó este turno; el próximo turno da la cifra exacta.",
+                                           "≈: estimated from the text and attachments, as the server did not count this turn; the next turn gives the exact figure.")
+                             : "")
                           + (chat.toolTokens >= 1000
                              ? " " + loc.t("Las definiciones de las herramientas activas ocupan unos %@k.",
                                            "The definitions of the active tools take about %@k of it.",

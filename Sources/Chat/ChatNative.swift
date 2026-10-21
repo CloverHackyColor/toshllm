@@ -1025,7 +1025,7 @@ final class ChatStore: ObservableObject {
             }
 
             func drain(_ bytes: URLSession.AsyncBytes) async throws -> Bool {
-                for try await line in bytes.lines {
+                for try await line in bytes.streamLines {
                     if Task.isCancelled { throw CancellationError() }
                     bytesReceived += line.utf8.count + 1
                     // between the passes the agent sends keep-alives, which show it is working
@@ -1255,7 +1255,7 @@ final class ChatStore: ObservableObject {
                     // The error body explains the cause (e.g. context overflow);
                     // surface it instead of a generic "bad server response".
                     var raw = ""
-                    for try await line in bytes.lines {
+                    for try await line in bytes.streamLines {
                         raw += line
                         if raw.count > 4000 { break }
                     }

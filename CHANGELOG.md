@@ -7,6 +7,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Chat: an answer is no longer cut where its text holds a line or paragraph separator (U+2028, U+2029) or U+0085.** The app split the server's events at those characters as well as at line ends, so the piece of the answer they were in was lost; it now splits only at line ends, in the chat, its tools and MCP servers.
 - **Agent and chat: an operation a service only accepted is never said to be done.** A tool's result whose own status says the work was accepted, queued or is still running is shown as "accepted, not confirmed", and the model is told to say it is pending; it used to count as finished.
 - **Chat: a figure's status travels with every export.** What the agent says a figure is, such as a draft that does not close, goes into the shapefile's table, a column of the CSV and a text of the DXF, and a shapefile's table says how much of a gap its polygon closes; the polygon closed it silently.
 - **Web chat: an answer whose connection ends with nothing to resume from stops as an error,** marked incomplete, instead of loading forever with the send button blocked.

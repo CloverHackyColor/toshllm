@@ -223,14 +223,14 @@ enum ChatToolsService {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
             var detail = ""
-            for try await line in bytes.lines {
+            for try await line in bytes.streamLines {
                 detail += line
                 if detail.count > 1_000 { break }
             }
             throw ChatToolsError.server(status: status, message: detail)
         }
         var output = ""
-        for try await line in bytes.lines {
+        for try await line in bytes.streamLines {
             try Task.checkCancellation()
             guard line.hasPrefix("data: "),
                   let data = String(line.dropFirst(6)).data(using: .utf8),

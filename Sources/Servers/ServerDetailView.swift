@@ -933,7 +933,9 @@ private struct CompactIntegerStepper: View {
 
     private func stepButton(_ image: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
+            // a plain button only takes clicks on the glyph's own pixels: the whole square must take them
             Image(systemName: image).font(.system(size: 10, weight: .bold)).frame(width: 30, height: 30)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain).foregroundStyle(enabled && isEnabled ? Color.primary : Color.secondary.opacity(0.35))
         .disabled(!enabled)

@@ -7,6 +7,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Web chat: an answer whose connection ends with nothing to resume from stops as an error,** marked incomplete, instead of loading forever with the send button blocked.
+- **Web chat: the context meter follows an agent's turns,** from the agent's own count, and an answer cut by a full context says so instead of blaming the limit of tokens per answer.
 - **Web chat: a message with an image gets an answer when the server's agent is on.** The agent handed the turn back, as it does to the app, and the web chat showed an empty answer; clients other than the app now get the model's answer to it.
 - **Chat: the context meter no longer reads "0k" for a full conversation.** It shows the server's count while it is current, tenths under ten thousand tokens, and an estimate marked "≈" after a turn the server did not count, such as an agent's answer by rules; the conversation is summarized on the larger of the two, so such turns no longer keep a full conversation from being summarized. Images count in the estimate.
 - **Chat: a conversation that did not fit the context can go on.** The meter shows what the request needed, the app summarizes the older messages, and the message says it can be sent again; a summary of a conversation too long to summarize in one request is made from each message cut to its share. Near the end of the context, older turns go without their images and with shorter tool results.

@@ -2293,6 +2293,9 @@ final class ChatStore: ObservableObject {
         conversations[i].kept = Array(((conversations[i].kept ?? []) + marked).suffix(Self.keptLimit))
         conversations[i].summary = summary
         conversations[i].summarizedCount = cutoff
+        // the server's count was of the conversation before the summary: the meter estimates until the next turn
+        conversations[i].contextUsed = nil
+        conversations[i].contextUsedAt = nil
         save()
     }
 

@@ -36,6 +36,7 @@ hand.
 |---|---|---|
 | Spanish (Español) | `es` | Built-in (100%) |
 | English (English) | `en` | Built-in (100%) |
+<<<<<<< HEAD
 | Italian (Italiano) | `it` | 98% (2019/2052) |
 | German (Deutsch) | `de` | not started |
 | French (Français) | `fr` | not started |
@@ -44,11 +45,25 @@ hand.
 | Japanese (日本語) | `ja` | 98% (2019/2052) |
 | Korean (한국어) | `ko` | not started |
 | Russian (Русский) | `ru` | 100% (2052/2052) |
+=======
+| Italian (Italiano) | `it` | 100% (2048/2048) |
+| German (Deutsch) | `de` | not started |
+| French (Français) | `fr` | not started |
+| Portuguese (Português) | `pt` | not started |
+| Chinese (Simplified) (简体中文) | `zh` | 100% (2048/2048) |
+| Japanese (日本語) | `ja` | 100% (2048/2048) |
+| Korean (한국어) | `ko` | not started |
+| Russian (Русский) | `ru` | 100% (2048/2048) |
+>>>>>>> upstream/main
 | Hindi (हिन्दी) | `hi` | not started |
 | Turkish (Türkçe) | `tr` | not started |
 | Dutch (Nederlands) | `nl` | not started |
 | Polish (Polski) | `pl` | not started |
+<<<<<<< HEAD
 | Ukrainian (Українська) | `uk` | 98% (2019/2052) |
+=======
+| Ukrainian (Українська) | `uk` | 100% (2048/2048) |
+>>>>>>> upstream/main
 
 <!-- STATUS:END -->
 

@@ -43,6 +43,9 @@ class Engine:
     def tools(self):
         return self.listed
 
+    def context(self, model=None):
+        return None
+
     def complete(self, body):
         system = body["messages"][0]["content"] if body["messages"] and body["messages"][0]["role"] == "system" else ""
         if system.startswith(("Classify", "You check")):
@@ -210,8 +213,23 @@ def test_an_attachment_the_agent_cannot_read_goes_back_to_the_client():
     for content in ([{"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}}],
                     [{"type": "text", "text": "Solve the equation in the photo."},
                      {"type": "input_audio", "input_audio": {"data": "AAAA", "format": "wav"}}]):
-        reply = agent.run({"request": {"messages": [{"role": "user", "content": content}]}, "base_url": "http://127.0.0.1:9"})
+        # the app, which says it is one with its options, takes the turn back to its own loop
+        reply = agent.run({"request": {"messages": [{"role": "user", "content": content}], "tosh": {"locale": "en"}},
+                           "base_url": "http://127.0.0.1:9"})
         assert reply["tosh"]["outcome"] == "declined" and reply["choices"][0]["message"]["content"] == "", reply
+        # any other client, as the web chat, gets the model's answer to what it sent, never an empty one
+        engine = Engine([{"content": "A cat on a sofa."}], {}, tools=False)
+        original = agent.Engine
+        agent.Engine = lambda *args: engine
+        events = []
+        try:
+            reply = agent.run({"request": {"messages": [{"role": "user", "content": content}], "max_tokens": 50},
+                               "base_url": "http://127.0.0.1:9"}, events.append)
+        finally:
+            agent.Engine = original
+        assert reply["tosh"]["outcome"] == "answered" and reply["choices"][0]["message"]["content"] == "A cat on a sofa."
+        assert engine.bodies[0]["messages"][0]["content"] == content and engine.bodies[0]["max_tokens"] == 50
+        assert {"type": "delta", "content": "A cat on a sofa."} in events, events
 
 
 def test_the_texts_tosh_writes_follow_the_conversation():
@@ -346,6 +364,15 @@ def test_a_streamed_reply_is_read_like_a_complete_one():
                                       "function": {"name": "sympy_expression", "arguments": '{"x": 1}'}}], message
     assert reply["usage"] == {"prompt_tokens": 7, "completion_tokens": 3}, reply
     assert pieces == [("content", "Hi"), ("reasoning_content", "hm"), ("content", " there")], pieces
+    # the reason it stopped comes back too, or an answer streamed until its tokens ran out passes for a whole one
+    chunks[-1:] = [{"choices": [{"delta": {}, "finish_reason": "length"}]}, chunks[-1]]
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.handle_request, daemon=True).start()
+    try:
+        reply = agent.Engine(f"http://127.0.0.1:{server.server_port}", "").stream({"messages": []}, lambda f, t: None)
+    finally:
+        server.server_close()
+    assert reply["choices"][0]["finish_reason"] == "length", reply
 
 
 def test_a_cancel_stops_every_request_in_flight():
@@ -443,6 +470,49 @@ def test_a_request_the_engine_refuses_is_the_clients_error():
         assert "model name" in str(error)
 
 
+def _run_with(engine, question):
+    """agent.run with `engine` in place of the HTTP one."""
+    original = agent.Engine
+    agent.Engine = lambda *args: engine
+    try:
+        return agent.run({"request": {"messages": [{"role": "user", "content": question}]}, "base_url": "http://x:1"})
+    finally:
+        agent.Engine = original
+
+
+def test_an_engine_failure_is_said_as_such_and_never_as_an_unvalidated_answer():
+    class TooBig(Engine):
+        def complete(self, body):
+            return {"error": {"code": 400, "type": "exceed_context_size_error", "n_prompt_tokens": 22300, "n_ctx": 16384,
+                              "message": "request (22300 tokens) exceeds the available context size (16384 tokens)"}}
+    reply = _run_with(TooBig([], {}, tools=False), "Say hi.")
+    assert (reply["status"], reply["error"]["type"], reply["error"]["n_ctx"]) == (400, "exceed_context_size_error", 16384)
+    assert "22300 tokens" in reply["error"]["message"], reply
+
+    class Broken(Engine):
+        def complete(self, body):
+            if body["messages"][0]["content"].startswith("You check"):
+                return {"error": {"code": 500, "type": "server_error", "message": "Compute error."}}
+            return super().complete(body)
+    reply = _run_with(Broken([{"content": "", "tool_calls": [call("sympy_expression", expression="pi**4/15")]}],
+                             {"pi**4/15": MEMORY}), REPORTED)
+    assert (reply["status"], reply["error"]["type"]) == (503, "engine_gpu_error"), reply
+    # in the user's language, with the engine's own words beside it
+    assert "no terminó" in reply["error"]["message"] and reply["error"]["engine_message"] == "Compute error.", reply
+
+
+def test_an_answer_cut_at_its_token_limit_says_it_is_incomplete():
+    class Cut(Engine):
+        def complete(self, body):
+            reply = super().complete(body)
+            reply["choices"][0]["finish_reason"] = "length"
+            return reply
+    reply = _run_with(Cut([{"content": "Once upon a time"}], {}, tools=False), "Tell me a long story.")
+    assert reply["choices"][0]["finish_reason"] == "length", reply
+    assert reply["choices"][0]["message"]["content"].endswith("so it is incomplete._"), reply
+    assert reply["tosh"]["outcome"] == "cut_at_limit"
+
+
 def test_numbers_and_constants_are_read_as_in_the_app():
     found = [n[0] for n in policy.numbers("9.3\\,\\times\\,10^{-11}, 6×10⁻¹², 1e-10, 6,49 y x^3")]
     assert found == ["9.3 \\times 10^{-11}", "6×10^-12", "1e-10", "6,49", "3"], found
@@ -525,6 +595,9 @@ def test_malformed_or_unknown_calls_never_run():
         assert engine.calls == [], engine.calls
         assert [c["state"] for c in turn.calls] == ["failed"] * 3, turn.calls
         assert "invalid_arguments" in turn.calls[0]["result"] and "no such tool" in turn.calls[1]["result"]
+        # the next pass sends the cut call as an empty object, or the engine refuses the whole history
+        sent = next(m for m in engine.bodies[1]["messages"] if m.get("tool_calls"))["tool_calls"]
+        assert [c["function"]["arguments"] for c in sent][:2] == ["{}", json.dumps({"layer": "parks"})], sent
     with_approved(["gis"], check)
 
 
@@ -600,6 +673,130 @@ def main():
             print(f"FAIL  {name}: {type(error).__name__}: {str(error)[:500]}")
     print(f"{len(tests) - failed} of {len(tests)} passed")
     sys.exit(1 if failed else 0)
+
+
+class Sized(Engine):
+    """A model with a context of `n_ctx` tokens, a token every four characters: a prompt that does not fit is refused
+    as the engine refuses it, with what it counted."""
+
+    def __init__(self, rounds, n_ctx, counts=True, **kwargs):
+        super().__init__(rounds, {}, tools=False, **kwargs)
+        self.n_ctx, self.counts, self.counted = n_ctx, counts, 0
+
+    def context(self, model=None):
+        return self.n_ctx
+
+    def tokens(self, body):
+        return sum(len(agent._text(m.get("content"))) for m in body["messages"]) // 4
+
+    def count(self, body):
+        self.counted += 1
+        return self.tokens(body) if self.counts else None
+
+    def complete(self, body):
+        tokens = self.tokens(body)
+        if tokens >= self.n_ctx:
+            return {"error": {"code": 400, "type": "exceed_context_size_error", "n_prompt_tokens": tokens,
+                              "n_ctx": self.n_ctx, "message": f"request ({tokens} tokens) exceeds the available context "
+                                                              f"size ({self.n_ctx} tokens)"}}
+        reply = super().complete(body)
+        reply["usage"] = {"prompt_tokens": tokens, "completion_tokens": 5}
+        return reply
+
+
+def _long(engine, turns=10, size=400, question="And the last one?"):
+    history = []
+    for n in range(turns):
+        history += [{"role": "user", "content": f"Question {n}: " + "x" * size},
+                    {"role": "assistant", "content": f"Answer {n}: " + "y" * size}]
+    original = agent.Engine
+    agent.Engine = lambda *args: engine
+    try:
+        return agent.run({"request": {"messages": [{"role": "system", "content": "Be brief."}] + history +
+                                      [{"role": "user", "content": question}], "max_tokens": 200},
+                          "base_url": "http://x:1"})
+    finally:
+        agent.Engine = original
+
+
+def test_a_conversation_that_no_longer_fits_leaves_out_its_oldest_exchanges_and_says_so():
+    engine = Sized([{"content": "The last one."}], 1000)
+    reply = _long(engine)
+    (sent,) = engine.bodies
+    messages = sent["messages"]
+    # it fits with room for the answer, goes on from a user message, and the model is told what is missing
+    assert engine.tokens(sent) + 200 <= 1000, engine.tokens(sent)
+    assert messages[0]["role"] == "system" and messages[0]["content"].startswith("Be brief.\n\nThe ")
+    assert messages[1]["role"] == "user" and messages[-1]["content"].startswith("And the last one?")
+    left = reply["tosh"]["context"]["left_out"]
+    assert left > 0 and left % 2 == 0 and len(messages) == 2 + 20 - left, (left, len(messages))
+    assert "Question 9" in json.dumps(messages) and "Question 0" not in json.dumps(messages)
+    content = reply["choices"][0]["message"]["content"]
+    assert content.startswith("The last one.") and f"The {left} oldest messages" in content, content
+    # what the whole conversation takes, which no longer fits: a client that summarizes knows it has to
+    assert reply["tosh"]["context"]["n_ctx"] == 1000 and reply["tosh"]["context"]["used"] > 1000, reply["tosh"]
+
+
+def test_a_conversation_that_fits_is_sent_whole_and_not_counted():
+    engine = Sized([{"content": "Fine."}], 100000)
+    reply = _long(engine, turns=3)
+    assert len(engine.bodies[0]["messages"]) == 1 + 6 + 1 and engine.counted == 0
+    assert reply["tosh"]["context"]["left_out"] == 0 and "oldest messages" not in reply["choices"][0]["message"]["content"]
+
+
+def test_without_a_count_the_engines_own_refusal_says_how_much_to_leave_out():
+    engine = Sized([{"content": "The last one."}], 1000, counts=False)
+    reply = _long(engine)
+    assert reply["choices"][0]["message"]["content"].startswith("The last one."), reply
+    assert reply["tosh"]["context"]["left_out"] > 0 and engine.tokens(engine.bodies[0]) < 1000
+
+
+def test_a_message_that_alone_does_not_fit_is_a_clear_error():
+    engine = Sized([{"content": "never"}], 1000)
+    reply = _long(engine, turns=2, question="Read this: " + "z" * 6000)
+    assert (reply["status"], reply["error"]["type"], reply["error"]["n_ctx"]) == (400, "exceed_context_size_error", 1000)
+
+
+def test_an_answer_cut_by_a_full_context_is_told_from_one_cut_at_its_limit():
+    class Cut(Sized):
+        def complete(self, body):
+            reply = super().complete(body)
+            reply["choices"][0]["finish_reason"] = "length"
+            reply["usage"]["completion_tokens"] = self.n_ctx - reply["usage"]["prompt_tokens"] - 1
+            return reply
+    reply = _long(Cut([{"content": "Once upon"}], 1000), turns=1)
+    assert reply["tosh"]["outcome"] == "cut_at_context", reply["tosh"]
+    assert reply["choices"][0]["message"]["content"].endswith(
+        "cut when the conversation filled the model's context, so it is incomplete._")
+    assert reply["choices"][0]["finish_reason"] == "length"
+
+
+def test_an_operation_a_service_only_accepted_is_never_said_to_be_done():
+    for text, accepted in (('{"status": "accepted", "job_id": "j-17"}', True),
+                           ('{"result": {"jobStatus": "Submitted", "jobId": "a1"}}', True),
+                           ('{"status": "QUEUED"}', True),
+                           ('{"status": "completed", "edits": 3}', False),
+                           ('{"success": true, "message": "the job was accepted by the team"}', False),
+                           ("accepted", False)):
+        assert agent.accepted_only(text) is accepted, text
+
+    class Service(Engine):
+        def call_checked(self, name, params, timeout=120):
+            self.calls.append((name, params))
+            return '{"status": "accepted", "job_id": "j-17"}', True
+    engine = Service([{"content": "", "tool_calls": [call("ops_update", id="7")]}, {"content": "Update j-17 is pending."}],
+                     {}, tools=False)
+    engine.listed = [{"tool": "ops_update", "definition": {"type": "function", "function": {
+        "name": "ops_update", "parameters": {"type": "object", "properties": {"id": {"type": "string"}}}}}}]
+    original_approved = agent.APPROVED
+    agent.APPROVED = ("ops_",)
+    try:
+        reply = _run_with(engine, "Update record 7.")
+    finally:
+        agent.APPROVED = original_approved
+    tool_message = [m for m in engine.bodies[-1]["messages"] if m["role"] == "tool"][0]["content"]
+    assert tool_message.startswith(agent.ACCEPTED_NOTE), tool_message
+    assert reply["tosh"]["calls"][0]["status"] == "accepted", reply["tosh"]["calls"]
 
 
 if __name__ == "__main__":

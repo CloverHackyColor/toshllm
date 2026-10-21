@@ -6,7 +6,6 @@ let package = Package(
     platforms: [.macOS(.v14)],
 	dependencies: [
         // Dev deps
-        .package(url: "https://github.com/CloverHackyColor/toshllm.git", from: "0.0.1"),
         .package(url: "https://github.com/nicklockwood/SwiftFormat.git", from: "0.55.5"),
     ],
     targets: [

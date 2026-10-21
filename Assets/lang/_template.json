@@ -1636,6 +1636,7 @@
   "Stop server": "",
   "Stop the server before benchmarking: they share VRAM.": "",
   "Stop the server before checking: the test uses the whole GPU.": "",
+  "Stop the server to change these: they apply when it starts.": "",
   "Stopped": "",
   "Stops loading the model.": "",
   "Stops the current runs.": "",

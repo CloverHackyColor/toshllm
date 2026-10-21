@@ -7,6 +7,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Chat: a figure's status travels with every export.** What the agent says a figure is, such as a draft that does not close, goes into the shapefile's table, a column of the CSV and a text of the DXF, and a shapefile's table says how much of a gap its polygon closes; the polygon closed it silently.
 - **Web chat: an answer whose connection ends with nothing to resume from stops as an error,** marked incomplete, instead of loading forever with the send button blocked.
 - **Web chat: the context meter follows an agent's turns,** from the agent's own count, and an answer cut by a full context says so instead of blaming the limit of tokens per answer.
 - **Web chat: a message with an image gets an answer when the server's agent is on.** The agent handed the turn back, as it does to the app, and the web chat showed an empty answer; clients other than the app now get the model's answer to it.

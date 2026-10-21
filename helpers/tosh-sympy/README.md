@@ -265,7 +265,9 @@ each the path east and north of its first point, in order. The app draws them un
 and several to a row, each one enlarged on request; it numbers `corners` (the points themselves when absent) from 1
 and, when `closed`, shows in red the gap between the last point and the first. A figure that lies in a coordinate
 system of its own, such as a State Plane zone, adds `"origin": [x, y]` (its first point there) and `"plane"` (the
-system's name): its DXF and CSV are then written at those coordinates.
+system's name): its DXF and CSV are then written at those coordinates. An optional `standing` (a short label of what the
+figure is, such as whether it closes or is only a draft) goes into every export: the shapefile's table, a column of
+the CSV and a text of the DXF; a shapefile's table also says how much of a gap its polygon closes.
 
 ### Direct calls
 

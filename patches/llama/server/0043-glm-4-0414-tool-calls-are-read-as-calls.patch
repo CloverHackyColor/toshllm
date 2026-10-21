@@ -22,11 +22,13 @@ index 0550ae2be..2e44f14df 100644
          LOG_DBG("Using specialized template: Kimi K2 Thinking\n");
 diff --git a/common/parsers/glm4.cpp b/common/parsers/glm4.cpp
 new file mode 100644
-index 000000000..3a5400e25
+index 000000000..0884ba206
 --- /dev/null
 +++ b/common/parsers/glm4.cpp
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,135 @@
 +#include "parsers.h"
++
++#include <algorithm>
 +
 +// GLM-4-0414 writes a call as "<|assistant|>name\n{json_args}" and reads its result as an <|observation|> turn; its
 +// template knows neither OpenAI tool_calls nor the tool role, so both are mapped to that form before rendering
@@ -56,6 +58,31 @@ index 000000000..3a5400e25
 +        }
 +    }
 +    return out;
++}
++
++// Regex for the first characters of a tool name: any prefix of one of `names` (sorted, sharing their first
++// `depth` chars) at least `min_len` long, or a whole name shorter than that
++static std::string glm4_name_prefix(const std::vector<std::string> & names, size_t depth, size_t min_len) {
++    std::string alternatives;
++    bool        ends_here = false;
++    for (size_t i = 0; i < names.size();) {
++        if (names[i].size() == depth) {
++            ends_here = true;
++            i++;
++            continue;
++        }
++        const char               c = names[i][depth];
++        std::vector<std::string> group;
++        for (; i < names.size() && names[i].size() > depth && names[i][depth] == c; i++) {
++            group.push_back(names[i]);
++        }
++        alternatives += (alternatives.empty() ? "" : "|") + regex_escape(std::string(1, c)) +
++                        glm4_name_prefix(group, depth + 1, min_len);
++    }
++    if (alternatives.empty()) {
++        return "";
++    }
++    return "(?:" + alternatives + ")" + (depth >= min_len || ends_here ? "?" : "");
 +}
 +
 +common_chat_params common_chat_params_init_glm4(const common_chat_template &        tmpl,
@@ -118,13 +145,17 @@ index 000000000..3a5400e25
 +            parser.build_grammar(builder, data.grammar_lazy);
 +        });
 +
-+        // the call starts the answer: a known name on the first line
++        // a call starts the answer and text starts with a newline, so taking over after a name's first few
++        // characters lets a begun name end only as declared, not with another case or a space
++        std::sort(names.begin(), names.end());
++        names.erase(std::unique(names.begin(), names.end()), names.end());
 +        std::string alternatives;
 +        for (const auto & name : names) {
 +            alternatives += (alternatives.empty() ? "" : "|") + regex_escape(name);
 +        }
 +        data.grammar_triggers = {
-+            { COMMON_GRAMMAR_TRIGGER_TYPE_PATTERN_FULL, "(?:" + alternatives + ")\n[\\s\\S]*" }
++            { COMMON_GRAMMAR_TRIGGER_TYPE_PATTERN_FULL,
++              "(?:" + glm4_name_prefix(names, 0, 4) + "|(?:" + alternatives + ")\n[\\s\\S]*)" }
 +        };
 +    }
 +

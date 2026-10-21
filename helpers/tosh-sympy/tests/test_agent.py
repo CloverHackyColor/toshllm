@@ -443,6 +443,49 @@ def test_a_request_the_engine_refuses_is_the_clients_error():
         assert "model name" in str(error)
 
 
+def _run_with(engine, question):
+    """agent.run with `engine` in place of the HTTP one."""
+    original = agent.Engine
+    agent.Engine = lambda *args: engine
+    try:
+        return agent.run({"request": {"messages": [{"role": "user", "content": question}]}, "base_url": "http://x:1"})
+    finally:
+        agent.Engine = original
+
+
+def test_an_engine_failure_is_said_as_such_and_never_as_an_unvalidated_answer():
+    class TooBig(Engine):
+        def complete(self, body):
+            return {"error": {"code": 400, "type": "exceed_context_size_error", "n_prompt_tokens": 22300, "n_ctx": 16384,
+                              "message": "request (22300 tokens) exceeds the available context size (16384 tokens)"}}
+    reply = _run_with(TooBig([], {}, tools=False), "Say hi.")
+    assert (reply["status"], reply["error"]["type"], reply["error"]["n_ctx"]) == (400, "exceed_context_size_error", 16384)
+    assert "22300 tokens" in reply["error"]["message"], reply
+
+    class Broken(Engine):
+        def complete(self, body):
+            if body["messages"][0]["content"].startswith("You check"):
+                return {"error": {"code": 500, "type": "server_error", "message": "Compute error."}}
+            return super().complete(body)
+    reply = _run_with(Broken([{"content": "", "tool_calls": [call("sympy_expression", expression="pi**4/15")]}],
+                             {"pi**4/15": MEMORY}), REPORTED)
+    assert (reply["status"], reply["error"]["type"]) == (503, "engine_gpu_error"), reply
+    # in the user's language, with the engine's own words beside it
+    assert "no terminó" in reply["error"]["message"] and reply["error"]["engine_message"] == "Compute error.", reply
+
+
+def test_an_answer_cut_at_its_token_limit_says_it_is_incomplete():
+    class Cut(Engine):
+        def complete(self, body):
+            reply = super().complete(body)
+            reply["choices"][0]["finish_reason"] = "length"
+            return reply
+    reply = _run_with(Cut([{"content": "Once upon a time"}], {}, tools=False), "Tell me a long story.")
+    assert reply["choices"][0]["finish_reason"] == "length", reply
+    assert reply["choices"][0]["message"]["content"].endswith("so it is incomplete._"), reply
+    assert reply["tosh"]["outcome"] == "cut_at_limit"
+
+
 def test_numbers_and_constants_are_read_as_in_the_app():
     found = [n[0] for n in policy.numbers("9.3\\,\\times\\,10^{-11}, 6×10⁻¹², 1e-10, 6,49 y x^3")]
     assert found == ["9.3 \\times 10^{-11}", "6×10^-12", "1e-10", "6,49", "3"], found
@@ -525,6 +568,9 @@ def test_malformed_or_unknown_calls_never_run():
         assert engine.calls == [], engine.calls
         assert [c["state"] for c in turn.calls] == ["failed"] * 3, turn.calls
         assert "invalid_arguments" in turn.calls[0]["result"] and "no such tool" in turn.calls[1]["result"]
+        # the next pass sends the cut call as an empty object, or the engine refuses the whole history
+        sent = next(m for m in engine.bodies[1]["messages"] if m.get("tool_calls"))["tool_calls"]
+        assert [c["function"]["arguments"] for c in sent][:2] == ["{}", json.dumps({"layer": "parks"})], sent
     with_approved(["gis"], check)
 
 

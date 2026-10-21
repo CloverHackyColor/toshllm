@@ -880,7 +880,9 @@ struct ServerSettings {
             cacheRAM: int(SettingsKeys.cacheRAM, 2048),
             reasoningInline: bool(SettingsKeys.reasoningInline, false),
             defaultReasoning: d.string(forKey: SettingsKeys.serverDefaultReasoning) ?? "model",
-            defaultMaxTokens: int(SettingsKeys.serverDefaultMaxTokens, 0),
+            // -1 is "same as the chat": the web chat and API clients get the in-app chat's limit
+            defaultMaxTokens: int(SettingsKeys.serverDefaultMaxTokens, -1) < 0
+                ? int(SettingsKeys.chatMaxTokens, 2048) : int(SettingsKeys.serverDefaultMaxTokens, -1),
             parallelSlots: int(SettingsKeys.parallelSlots, 1),
             separateKV: bool(SettingsKeys.separateKV, false),
             apiKeyEnabled: bool(SettingsKeys.apiKeyEnabled, false),
@@ -2478,10 +2480,27 @@ final class ServerController: ObservableObject {
             if line.contains("mixed expert execution failed"), !recoveredFromExecutorFailure,
                state == .running, let settings = launchedSettings {
                 recoveredFromExecutorFailure = true
-                autoPlanNote = (UserDefaults.standard.string(forKey: SettingsKeys.language) ?? "en") == "es"
-                    ? "El sistema dejó sin CPU a Dynamic MoE; el servidor se reinició."
-                    : "The system starved Dynamic MoE of CPU; the server was restarted."
+                autoPlanNote = Localizer().t("El sistema dejó sin CPU a Dynamic MoE; el servidor se reinició.",
+                                             "The system starved Dynamic MoE of CPU; the server was restarted.")
                 restartAfterFailure(settings)
+            }
+            if GPURecovery.reports(line), state == .running, let settings = launchedSettings, let failed = process {
+                if GPURecovery.shared.admit(port: currentPort) {
+                    autoPlanNote = Localizer().t(
+                        "Un trabajo de la GPU no terminó a tiempo y el motor dejó de poder usarla; el servidor se reinició. Vuelve a enviar el último mensaje.",
+                        "A GPU job did not finish in time and the engine could no longer use the GPU; the server was restarted. Send the last message again.")
+                    // the request in flight gets its error before the process goes
+                    Task { [weak self] in
+                        try? await Task.sleep(for: .seconds(3))
+                        // a server the user stopped or restarted meanwhile is left as it is
+                        guard let self, self.process === failed, self.state == .running else { return }
+                        self.restartAfterFailure(settings)
+                    }
+                } else {
+                    autoPlanNote = Localizer().t(
+                        "La GPU volvió a fallar menos de 10 minutos después del último reinicio automático, así que el servidor no se reinició: reinícialo a mano.",
+                        "The GPU failed again less than 10 minutes after the last automatic restart, so the server was not restarted: restart it by hand.")
+                }
             }
             if line.contains("draft acceptance ="),
                let m = line.range(of: #"draft acceptance = ([0-9]+\.[0-9]+)"#, options: .regularExpression) {

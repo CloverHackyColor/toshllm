@@ -22,6 +22,8 @@ struct ChatAttachment: Identifiable, Codable, Equatable {
     var byteCount: Int? = nil
     var durationSeconds: Double? = nil
     var videoFrameArea: Int? = nil
+    /// SHA-256 of the file's bytes, which tells the same file attached again from another with its name.
+    var digest: String? = nil
 
     // mtmd samples video at ~4 fps with no cap; Qwen-VL bills each frame by its
     // pixels (≈1 token / 32x32) up to a per-frame cap.
@@ -233,6 +235,12 @@ struct ChatProject: Identifiable, Codable, Equatable {
 
 struct StreamError: LocalizedError {
     let message: String
+    /// The server ended the turn with this error: resuming the stream would only replace it.
+    var fromServer = false
+    /// The engine failed on the GPU.
+    var gpu = false
+    /// The stream was cut before the answer ended and could not be resumed.
+    var cut = false
     var errorDescription: String? { message }
 }
 
@@ -256,6 +264,10 @@ final class LiveStream: ObservableObject {
     @Published var speed: Double?
     /// Prompt-processing progress 0…1 before the first token; nil otherwise.
     @Published var prefillProgress: Double?
+    /// What the server's agent says it is doing, such as reading a page, until the answer starts.
+    @Published var agentStatus: String?
+    private(set) var startedAt = Date()
+    private(set) var statusSince = Date()
 
     private var latestReasoning = ""
     private var lastReasoningPublish = Date.distantPast
@@ -274,6 +286,15 @@ final class LiveStream: ObservableObject {
         lastTailPublish = .distantPast
         speed = nil
         prefillProgress = nil
+        agentStatus = nil
+        startedAt = Date()
+        statusSince = startedAt
+    }
+
+    func setStatus(_ text: String) {
+        guard text != agentStatus else { return }
+        agentStatus = text
+        statusSince = Date()
     }
 
     var snapshot: StreamSnapshot {
@@ -441,6 +462,12 @@ final class ChatStore: ObservableObject {
         switch event["type"] as? String {
         case "intent":
             lastMathIntent = (event["intent"] as? String).flatMap(MathIntent.init(rawValue:))
+        case "progress":
+            if let label = event["label"] as? String, !label.isEmpty { live.setStatus(String(label.prefix(120))) }
+        case "pass":
+            if event["state"] as? String == "start", let n = event["n"] as? Int {
+                live.setStatus(Localizer().t("El modelo está pensando (pasada %@)", "The model is thinking (pass %@)", String(n)))
+            }
         case "tool_call":
             guard let call = event["call"] as? [String: Any],
                   let i = conversations.firstIndex(where: { $0.id == id }),
@@ -1098,7 +1125,8 @@ final class ChatStore: ObservableObject {
                 }
                 if agentTurn {
                     body["messages"] = clientToolsAgent ? history : agentHistory
-                    var tosh: [String: Any] = ["max_rounds": agentTurnLimit]
+                    // the agent writes its progress in the app's language; its answer follows the user's
+                    var tosh: [String: Any] = ["max_rounds": agentTurnLimit, "locale": Localizer().language]
                     if !clientToolsAgent && Self.hasOwnTools(availableTools) { tosh["client_tools"] = true }
                     body["tosh"] = tosh
                 } else if let request, availableTools.contains(where: { MathTranscriptionService.isMathTool($0.name) }) {
@@ -1171,7 +1199,8 @@ final class ChatStore: ObservableObject {
                     }
                     // an engine started without the agent: this turn and the next ones run in the app
                     retryWithoutAgent = agentTurn && status == 400 && raw.contains("runs no Tosh agent")
-                    throw StreamError(message: Self.describeServerError(status: status, body: raw))
+                    throw StreamError(message: Self.describeServerError(status: status, body: raw),
+                                      gpu: Self.isGPUFailure(Self.errorObject(raw)))
                 }
 
                 var completed = false
@@ -1179,7 +1208,7 @@ final class ChatStore: ObservableObject {
                 do {
                     completed = try await drain(bytes)
                 } catch {
-                    if error is CancellationError { throw error }
+                    if error is CancellationError || (error as? StreamError)?.fromServer == true { throw error }
                     resumeError = error
                 }
 
@@ -1212,7 +1241,9 @@ final class ChatStore: ObservableObject {
                     }
                 }
                 if !completed {
-                    throw resumeError ?? StreamError(message: "The response stream ended before completion")
+                    if let server = resumeError as? StreamError, server.fromServer { throw server }
+                    throw StreamError(message: (resumeError ?? StreamError(message: "The response stream ended before completion"))
+                                        .localizedDescription, cut: true)
                 }
             } catch {
                 if error is CancellationError {
@@ -1224,12 +1255,19 @@ final class ChatStore: ObservableObject {
                     AppLog.chat.error("stream failed: \(error.localizedDescription)")
                     let store = self
                     let raw = error.localizedDescription
+                    let stream = error as? StreamError
                     // the engine kills the turn when the model writes the call in the wrong
                     // shape, and it does it on every tool, so the model stops getting them
                     let rejected = raw.contains("peg-native") && !availableTools.isEmpty
                     if rejected { ToolSupport.block(ToolSupport.currentModelIdentity) }
+                    // a stream cut by the restart that followed a GPU failure is that failure
+                    let gpu = stream?.gpu == true
+                        || (stream?.cut == true && GPURecovery.shared.restarted(port: port, since: tSent))
                     let message = rejected
                         ? "Este modelo escribe mal las llamadas a herramientas y el motor cortó la respuesta; se le han desactivado, vuelve a enviar / this model writes tool calls in the wrong shape and the engine stopped the answer; they are now off for it, send again"
+                        : gpu ? Self.gpuFailureMessage(told: stream?.gpu == true ? raw : nil,
+                                                       outlook: stream?.gpu == true ? GPURecovery.shared.outlook(port: port) : .restarting)
+                        : stream?.cut == true ? Self.cutConnectionMessage()
                         : raw
                     await MainActor.run { store?.lastError = message }
                 }
@@ -1303,6 +1341,11 @@ final class ChatStore: ObservableObject {
                 if !wasCancelled && !didReportError && hadReasoning && !hasVisibleAnswer
                     && finalToolCalls.isEmpty && closing == nil {
                     store?.lastError = Self.emptyResponseMessage(finishReason: finalFinishReason)
+                } else if !wasCancelled && !didReportError && hasVisibleAnswer && finalToolCalls.isEmpty
+                            && finalFinishReason == "length" && !answer.hasSuffix("incomplete._")
+                            && !answer.hasSuffix("incompleta._") {
+                    // an answer cut at its token limit must not read as a finished one
+                    store?.lastError = Self.cutAnswerMessage()
                 }
                 store?.lastTurnUsedServerAgent = wasAgentTurn
                 if wasAgentTurn, let passTokens {
@@ -1856,10 +1899,13 @@ final class ChatStore: ObservableObject {
             }
             let text = m.role == "assistant" ? m.parts.body : m.wireContent
             if m.role == "assistant", let calls = m.toolCalls, !calls.isEmpty {
+                // the engine rejects the whole request over one call whose arguments are not a JSON object,
+                // as when the model cut it short; the call's result already tells it that it failed
                 let payload: [[String: Any]] = calls.map { call in
                     ["id": call.serverID ?? call.id.uuidString,
                      "type": "function",
-                     "function": ["name": call.name, "arguments": call.arguments]]
+                     "function": ["name": call.name,
+                                  "arguments": (try? ChatToolsService.parseArguments(call.arguments)) == nil ? "{}" : call.arguments]]
                 }
                 let said = [text, m.settledInterim ?? ""].filter { !$0.isEmpty }.joined(separator: "\n\n")
                 return ["role": "assistant", "content": said, "tool_calls": payload]
@@ -2178,19 +2224,22 @@ final class ChatStore: ObservableObject {
 
     /// Maps llama-server HTTP errors ({"error":{"message":…}}) to readable,
     /// actionable text, following the same bilingual style as Server.diagnose.
-    nonisolated private static func describeServerError(status: Int, body: String) -> String {
+    nonisolated static func describeServerError(status: Int, body: String) -> String {
         var message = body
         if let data = body.data(using: .utf8),
            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let err = obj["error"] as? [String: Any],
            let m = err["message"] as? String {
+            if let told = failureMessage(err) { return told }
             message = m
         }
         if message.lowercased().contains("reasoning effort")
             || message.lowercased().contains("reasoning_effort") {
             return "El modelo no acepta ese esfuerzo de razonamiento; elige otro o «Predeterminado del modelo» en los ajustes del chat. El motor respondió: \(message.prefix(200)) / the model does not accept that reasoning effort; pick another one or “Model default” in the chat settings. The engine answered: \(message.prefix(200))"
         }
-        if message.lowercased().contains("context") {
+        // only the engine's own wording: other errors may quote the model's text, which can say anything
+        if message.range(of: #"(?i)^(the )?(request|input) .{0,40}(exceeds the available|is larger than the max) context size|^context size has been exceeded"#,
+                         options: .regularExpression) != nil {
             return "Contexto lleno: el mensaje, los archivos adjuntos y el historial juntos superan el contexto. Sube el contexto en Ajustes, adjunta menos o inicia un chat nuevo / context full: your message, attached files and history together exceed the context. Raise the context size in Settings, attach less, or start a new chat"
         }
         // std::bad_function_call comes from both a context overflow on a tool turn
@@ -2201,14 +2250,72 @@ final class ChatStore: ObservableObject {
         return "HTTP \(status): \(message.prefix(300))"
     }
 
+    nonisolated static func errorObject(_ body: String) -> [String: Any]? {
+        guard let data = body.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return object["error"] as? [String: Any]
+    }
+
+    nonisolated static func isGPUFailure(_ error: [String: Any]?) -> Bool {
+        guard let error else { return false }
+        return error["type"] as? String == "engine_gpu_error"
+            || (error["message"] as? String ?? "").range(of: #"(?i)^compute error|error state|kIOAccel|failed to process mtmd"#,
+                                                        options: .regularExpression) != nil
+    }
+
+    /// What the user is told after a GPU failure: whether the server restarts, or already did so too recently to again.
+    nonisolated static func gpuFailureMessage(told: String?, outlook: GPURecovery.Outlook) -> String {
+        let loc = Localizer()
+        let failure = told ?? loc.t("El motor falló en la GPU mientras procesaba la petición, así que no terminó.",
+                                    "The engine failed on the GPU while processing the request, so it did not finish.")
+        let next = outlook == .restarting
+            ? loc.t("El servidor se reinicia solo; vuelve a enviar el mensaje cuando esté listo.",
+                    "The server restarts by itself; send the message again once it is ready.")
+            : loc.t("El servidor ya se reinició solo por un fallo de la GPU hace menos de 10 minutos, así que esta vez no: reinícialo desde el panel del servidor y vuelve a enviar el mensaje.",
+                    "The server already restarted by itself after a GPU failure less than 10 minutes ago, so it does not this time: restart it from the server panel and send the message again.")
+        return failure + " " + next
+    }
+
+    nonisolated static func cutConnectionMessage() -> String {
+        Localizer().t("La conexión con el servidor se cortó antes de que terminara la respuesta, así que está incompleta. Vuelve a enviar el mensaje.",
+                      "The connection to the server was cut before the answer ended, so it is incomplete. Send the message again.")
+    }
+
     nonisolated static func streamedError(from object: [String: Any]) -> String? {
         guard let error = object["error"] else { return nil }
         if let details = error as? [String: Any],
            let message = details["message"] as? String, !message.isEmpty {
-            return message
+            return failureMessage(details) ?? message
         }
         if let message = error as? String, !message.isEmpty { return message }
         return "El motor interrumpió la respuesta / the engine interrupted the response"
+    }
+
+    /// The engine's own failures, by the type the server or its agent gives them: a request too large for the
+    /// context and a GPU that failed while working. An agent's message already says it; the engine's raw one does not.
+    nonisolated static func failureMessage(_ error: [String: Any]) -> String? {
+        let loc = Localizer()
+        let type = error["type"] as? String ?? ""
+        let message = error["message"] as? String ?? ""
+        // whether the server restarts is told where the failure reaches the chat, which knows the server
+        if isGPUFailure(error) {
+            return type == "engine_gpu_error" ? message
+                : loc.t("El motor falló en la GPU mientras procesaba la petición, así que no terminó.",
+                        "The engine failed on the GPU while processing the request, so it did not finish.")
+        }
+        if type == "exceed_context_size_error",
+           let tokens = (error["n_prompt_tokens"] as? NSNumber)?.intValue, let context = (error["n_ctx"] as? NSNumber)?.intValue {
+            return loc.t("La petición necesita %@ tokens pero el contexto admite %@: el mensaje, los adjuntos y el historial no caben. Sube el contexto en Ajustes, adjunta menos o inicia un chat nuevo.",
+                         "The request needs %@ tokens but the context holds %@: the message, attachments and history do not fit. Raise the context size in Settings, attach less, or start a new chat.",
+                         String(tokens), String(context))
+        }
+        return nil
+    }
+
+    nonisolated static func cutAnswerMessage() -> String {
+        let loc = Localizer()
+        return loc.t("La respuesta se cortó al llegar al máximo de tokens, así que está incompleta. Sube Máx. tokens o pulsa Continuar.",
+                     "The answer was cut at the max tokens limit, so it is incomplete. Raise Max tokens or press Continue.")
     }
 
     nonisolated static func emptyResponseMessage(finishReason: String?) -> String {
@@ -2460,6 +2567,9 @@ private struct ChatComposerTextEditor: NSViewRepresentable {
     var isFocused: FocusState<Bool>.Binding
     let fontSize: CGFloat
     let onSubmit: () -> Void
+    /// Files dropped on the text become attachments; dropped text is inserted as before.
+    var onDropFiles: ([URL]) -> Void = { _ in }
+    var onDragTargeted: (Bool) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -2476,6 +2586,8 @@ private struct ChatComposerTextEditor: NSViewRepresentable {
         let textView = ComposerTextView()
         textView.delegate = context.coordinator
         textView.onSubmit = onSubmit
+        textView.onDropFiles = onDropFiles
+        textView.onDragTargeted = onDragTargeted
         textView.isRichText = false
         textView.importsGraphics = false
         textView.allowsUndo = true
@@ -2499,6 +2611,8 @@ private struct ChatComposerTextEditor: NSViewRepresentable {
         guard let textView = scrollView.documentView as? ComposerTextView else { return }
         context.coordinator.parent = self
         textView.onSubmit = onSubmit
+        textView.onDropFiles = onDropFiles
+        textView.onDragTargeted = onDragTargeted
         textView.font = .systemFont(ofSize: fontSize)
         textView.textColor = .labelColor
         textView.insertionPointColor = .controlAccentColor
@@ -2539,6 +2653,37 @@ private struct ChatComposerTextEditor: NSViewRepresentable {
 
     final class ComposerTextView: NSTextView {
         var onSubmit: (() -> Void)?
+        var onDropFiles: (([URL]) -> Void)?
+        var onDragTargeted: ((Bool) -> Void)?
+
+        private func droppedFiles(_ sender: NSDraggingInfo) -> [URL] {
+            sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
+                                                  options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        }
+
+        // A plain text view inserts a dropped file's path; the chat attaches the file instead.
+        override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+            guard !droppedFiles(sender).isEmpty else { return super.draggingEntered(sender) }
+            onDragTargeted?(true)
+            return .copy
+        }
+
+        override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+            droppedFiles(sender).isEmpty ? super.draggingUpdated(sender) : .copy
+        }
+
+        override func draggingExited(_ sender: NSDraggingInfo?) {
+            onDragTargeted?(false)
+            super.draggingExited(sender)
+        }
+
+        override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+            let files = droppedFiles(sender)
+            guard !files.isEmpty else { return super.performDragOperation(sender) }
+            onDragTargeted?(false)
+            onDropFiles?(files)
+            return true
+        }
 
         override func keyDown(with event: NSEvent) {
             let isReturn = event.keyCode == 36 || event.keyCode == 76
@@ -2602,6 +2747,8 @@ struct NativeChatView: View {
     @State private var attachments: [ChatAttachment] = []
     @State private var images: [String] = []   // attached images as data URIs (vision models)
     @State private var attachError: String?
+    @State private var chatDropTargeted = false
+    @State private var textDropTargeted = false
     @State private var ocrPending = 0
     @State private var transcriptionPending = 0
     @State private var transcriptionQueue: [PendingSpeechTranscription] = []
@@ -2827,6 +2974,26 @@ struct NativeChatView: View {
             conversationHeader
             messagesScroll
             inputArea
+        }
+        // Files dropped anywhere on the chat become attachments.
+        .dropDestination(for: URL.self) { urls, _ in
+            addAttachments(urls: urls)
+            return true
+        } isTargeted: { chatDropTargeted = $0 }
+        .overlay {
+            if chatDropTargeted || textDropTargeted {
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [8, 5]))
+                    .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                    .overlay {
+                        Label(loc.t("Suelta para adjuntar", "Drop to attach"), systemImage: "paperclip")
+                            .font(.headline)
+                            .padding(.horizontal, 14).padding(.vertical, 8)
+                            .background(.regularMaterial, in: Capsule())
+                    }
+                    .padding(8)
+                    .allowsHitTesting(false)
+            }
         }
     }
 
@@ -3309,11 +3476,6 @@ struct NativeChatView: View {
         .padding(.horizontal, 18)
         .padding(.top, 8)
         .padding(.bottom, 16)
-        // Files dropped anywhere on the composer become attachments.
-        .dropDestination(for: URL.self) { urls, _ in
-            addAttachments(urls: urls)
-            return true
-        }
         .onChange(of: attachments) { scheduleDraftSave() }
         .onChange(of: images) { scheduleDraftSave() }
             .alert(loc.t("Problema con la voz", "Voice problem"),
@@ -3428,7 +3590,9 @@ struct NativeChatView: View {
                 text: $draft,
                 isFocused: $inputFocused,
                 fontSize: ChatFont.Base.body.points * chatFontScale,
-                onSubmit: send)
+                onSubmit: send,
+                onDropFiles: { addAttachments(urls: $0) },
+                onDragTargeted: { textDropTargeted = $0 })
         }
             .frame(height: 64)
             .onChange(of: draft) { _, value in
@@ -4433,8 +4597,19 @@ struct NativeChatView: View {
     private static let maxAttachBytes = 40 * 1024 * 1024
     private static let maxAttachChars = 400_000
 
+    /// Files attached together: when every name carries a number ("page1", "page10", "735") they are a sequence and go
+    /// in its order; otherwise the names say none, so they keep the order they came in.
+    nonisolated static func pageOrder(_ urls: [URL]) -> [URL] {
+        let numbered = urls.allSatisfy {
+            $0.deletingPathExtension().lastPathComponent.rangeOfCharacter(from: .decimalDigits) != nil
+        }
+        guard numbered else { return urls }
+        return urls.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    }
+
     private func addAttachments(urls: [URL]) {
         var errors: [String] = []
+        let urls = Self.pageOrder(urls)
         for url in urls {
             let name = url.lastPathComponent
             let ext = (name as NSString).pathExtension.lowercased()
@@ -4480,7 +4655,9 @@ struct NativeChatView: View {
                 guard let uri = Self.imageDataURI(from: data, maxMegapixels: maxImageMegapixels) else {
                     errors.append(loc.t("%@: no se pudo procesar la imagen", "%@: couldn't process the image", "\(name)")); continue
                 }
-                images.append(uri); continue
+                // the same file dropped or picked again is already attached
+                if !images.contains(uri) { images.append(uri) }
+                continue
             }
 
             var text: String
@@ -4489,11 +4666,18 @@ struct NativeChatView: View {
                     errors.append(loc.t("%@: no se pudo abrir el PDF", "%@: couldn't open the PDF", "\(name)")); continue
                 }
                 if pdfAsImages && visionAvailable {
+                    // the PDF's own text goes with its pages: what an image blurs, the text layer still says
+                    if let layer = Self.pdfTextLayer(pdf, maxChars: Self.maxAttachChars) {
+                        let digest = FileHash.sha256(of: data) + ".text"
+                        if !attachments.contains(where: { $0.digest == digest }) {
+                            attachments.append(ChatAttachment(name: name + " (text layer)", content: layer, digest: digest))
+                        }
+                    }
                     ocrPending += 1
                     Task { @MainActor in
                         let pages = Self.pdfImageURIs(pdf, maxPages: 20,
                                                       maxMegapixels: maxImageMegapixels)
-                        images.append(contentsOf: pages)
+                        images.append(contentsOf: pages.filter { !images.contains($0) })
                         ocrPending -= 1
                         if pages.isEmpty {
                             attachError = (attachError.map { $0 + "\n" } ?? "")
@@ -4507,9 +4691,11 @@ struct NativeChatView: View {
                 } else {
                     // No text layer (scanned PDF) → OCR the page images on-device
                     // (Vision framework), asynchronously so the UI doesn't block.
+                    let digest = FileHash.sha256(of: data)
+                    guard !attachments.contains(where: { $0.digest == digest }) else { continue }
                     let pendingID = UUID()
                     attachments.append(ChatAttachment(id: pendingID, name: name,
-                        content: loc.t("(extrayendo texto por OCR…)", "(extracting text via OCR…)")))
+                        content: loc.t("(extrayendo texto por OCR…)", "(extracting text via OCR…)"), digest: digest))
                     ocrPending += 1
                     Task { @MainActor in
                         let ocr = await Self.ocrPDF(data: data, maxPages: 20, maxChars: Self.maxAttachChars)
@@ -4619,6 +4805,27 @@ struct NativeChatView: View {
         let rep = NSBitmapImageRep(cgImage: out)
         guard let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) else { return nil }
         return "data:image/jpeg;base64," + jpeg.base64EncodedString()
+    }
+
+    /// The PDF's own text page by page, "[Page N]" before each and an end line after it, or nil when it has too
+    /// little text to be a text layer, as a scan without one has. A layer cut at `maxChars` says in which page, so
+    /// nothing takes it for the whole document.
+    nonisolated static func pdfTextLayer(_ document: PDFDocument, maxChars: Int) -> String? {
+        let pages = (0..<document.pageCount).map {
+            document.page(at: $0)?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+        guard pages.joined().filter({ !$0.isWhitespace }).count >= 80 else { return nil }
+        var text = "", length = 0
+        for (index, body) in pages.enumerated() {
+            let block = (index == 0 ? "" : "\n") + "[Page \(index + 1)]\n" + body
+            if length + block.count > maxChars {
+                text += block.prefix(maxChars - length)
+                return text + "\n[Text layer cut in page \(index + 1) of \(pages.count)]\n[End of text layer]"
+            }
+            text += block
+            length += block.count
+        }
+        return text + "\n[End of text layer]"
     }
 
     @MainActor

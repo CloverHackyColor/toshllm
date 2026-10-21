@@ -12,6 +12,7 @@ Without the math tools on the engine, the request is answered by the model as it
 import http.client
 import json
 import os
+import re
 import socket
 import threading
 import time
@@ -47,6 +48,77 @@ class Invalid(Exception):
 
 class Cancelled(Exception):
     pass
+
+
+# the engine's own words for a request that does not fit its context, and for a GPU that failed while working
+_CONTEXT = re.compile(r"exceeds? the available context size|context size has been exceeded|exceed_context_size", re.I)
+_GPU = re.compile(r"compute error|error state|kIOAccel|command buffer|failed to (?:process|encode) (?:mtmd|image)|"
+                  r"\bmetal\b|\bgpu\b", re.I)
+FAILURE_TEXT = {
+    "context": {"en": "The request needs {tokens} tokens but the model's context holds {context}, so it was not answered. "
+                      "Raise the context size in the server settings, send less, or start a new conversation.",
+                "es": "La petición necesita {tokens} tokens pero el contexto del modelo admite {context}, así que no se "
+                      "respondió. Sube el tamaño de contexto en los ajustes del servidor, envía menos o empieza una "
+                      "conversación nueva."},
+    "gpu": {"en": "The engine failed on the GPU while processing this request ({detail}), so the request did not finish "
+                  "and nothing was answered from it. The engine has to be restarted to recover; the conversation is kept, "
+                  "and the message can be sent again once it is back.",
+            "es": "El motor falló en la GPU mientras procesaba esta petición ({detail}), así que la petición no terminó y no "
+                  "se respondió nada a partir de ella. Hay que reiniciar el motor para recuperarlo; la conversación se "
+                  "conserva y el mensaje se puede volver a enviar cuando esté de nuevo listo."},
+    "server": {"en": "The engine failed while processing this request ({detail}), so it did not finish.",
+               "es": "El motor falló mientras procesaba esta petición ({detail}), así que no terminó."},
+}
+CUT = {"en": "_The answer was cut at the limit of tokens per answer, so it is incomplete._",
+       "es": "_La respuesta se cortó en el límite de tokens por respuesta, así que está incompleta._"}
+
+
+class EngineFailure(RuntimeError):
+    """The engine could not run a pass: the request does not fit its context, its GPU failed, or it answered with an
+    error of its own. The turn ends saying so, never with an answer that hides it."""
+
+    STATUS = {"context": 400, "gpu": 503, "server": 502}
+    TYPE = {"context": "exceed_context_size_error", "gpu": "engine_gpu_error", "server": "engine_error"}
+
+    def __init__(self, kind, detail, tokens=None, context=None):
+        super().__init__(detail)
+        self.kind, self.detail, self.tokens, self.context = kind, detail, tokens, context
+
+    def answer(self, lang):
+        text = FAILURE_TEXT[self.kind].get(lang, FAILURE_TEXT[self.kind]["en"])
+        error = {"message": text.format(detail=self.detail[:200], tokens=self.tokens or "?", context=self.context or "?"),
+                 "type": self.TYPE[self.kind], "code": self.STATUS[self.kind], "engine_message": self.detail[:300]}
+        if self.tokens and self.context:
+            error.update(n_prompt_tokens=self.tokens, n_ctx=self.context)
+        return {"status": self.STATUS[self.kind], "error": error}
+
+
+def failure(reply):
+    """The EngineFailure an error reply of the engine states, or None for a reply without one."""
+    error = reply.get("error") if isinstance(reply, dict) else None
+    if error is None:
+        return None
+    if not isinstance(error, dict):
+        error = {"message": str(error)}
+    message = str(error.get("message") or error.get("type") or "the engine gave no answer")
+    if _CONTEXT.search(message) or _CONTEXT.search(str(error.get("type") or "")):
+        return EngineFailure("context", message, error.get("n_prompt_tokens"), error.get("n_ctx"))
+    return EngineFailure("gpu" if _GPU.search(message) else "server", message)
+
+
+def _raise_failure(reply):
+    """A side pass that hit a context too small or a failed GPU ends the turn; any other error leaves it unanswered."""
+    found = failure(reply)
+    if found and found.kind != "server":
+        raise found
+
+
+def _gpu_checked(reply):
+    """The reply, unless it says the GPU failed: no later pass of the turn can run, so the turn ends on it."""
+    found = failure(reply)
+    if found and found.kind == "gpu":
+        raise found
+    return reply
 
 
 class Engine:
@@ -119,7 +191,7 @@ class Engine:
             return {"error": {"message": "the engine answered something that is not JSON"}}
 
     def complete(self, body):
-        return self._send("POST", "/v1/chat/completions", dict(body, stream=False))
+        return _gpu_checked(self._send("POST", "/v1/chat/completions", dict(body, stream=False)))
 
     def stream(self, body, on_delta):
         """A completion generated as a stream: on_delta gets each piece of text as (field, text), with field
@@ -148,9 +220,9 @@ class Engine:
         reply = self._send("POST", "/v1/chat/completions",
                            dict(body, stream=True, stream_options={"include_usage": True}), on_line=on_line)
         if reply is not None:
-            return reply
+            return _gpu_checked(reply)
         if failure:
-            return failure[0]
+            return _gpu_checked(failure[0])
         return {"choices": [{"message": message}], "usage": usage}
 
     def tools(self):
@@ -253,6 +325,8 @@ class Turn:
         self.passes = 0
         self.usage = {"prompt_tokens": 0, "completion_tokens": 0}
         self.intent = policy.NO_MATH
+        # why the last model pass stopped: "length" when it ran out of tokens
+        self.finish = None
 
     def _body(self, tools, choice, note):
         body = {k: self.request[k] for k in _GENERATION if k in self.request}
@@ -290,10 +364,14 @@ class Turn:
         reply = self.engine.stream(body, on_delta) if live else self.engine.complete(body)
         if not isinstance(reply, dict) or not reply.get("choices"):
             error = reply.get("error") if isinstance(reply, dict) and isinstance(reply.get("error"), dict) else {}
-            # a request the engine refuses (no model in router mode, a context too small...) is the client's to fix
+            found = failure(reply)
+            if found and found.kind == "context":
+                raise found
+            # a request the engine refuses (no model in router mode...) is the client's to fix
             if error.get("type") == "invalid_request_error" or error.get("code") == 400:
                 raise Invalid(str(error.get("message") or "the engine refused the request"))
-            raise RuntimeError(error.get("message") or "the engine gave no answer")
+            raise found or RuntimeError("the engine gave no answer")
+        self.finish = reply["choices"][0].get("finish_reason")
         usage = reply.get("usage") or {}
         self.usage["prompt_tokens"] += usage.get("prompt_tokens", 0)
         self.usage["completion_tokens"] += usage.get("completion_tokens", 0)
@@ -325,6 +403,7 @@ class Turn:
                          {"role": "user", "content": self.question[:4000] + " /no_think"}],
             "max_tokens": 6, "temperature": 0, "grammar": policy.INTENT_GRAMMAR, "cache_prompt": False,
             "chat_template_kwargs": {"enable_thinking": False}}))
+        _raise_failure(reply)
         try:
             word = reply["choices"][0]["message"]["content"].strip()
         except (KeyError, IndexError, TypeError, AttributeError):
@@ -351,6 +430,7 @@ class Turn:
                                                      + "\n".join(lines) + " /no_think"}],
             "max_tokens": 4, "temperature": 0, "grammar": policy.REVIEW_GRAMMAR, "cache_prompt": False,
             "chat_template_kwargs": {"enable_thinking": False}}))
+        _raise_failure(answer)
         try:
             return answer["choices"][0]["message"]["content"].strip()
         except (KeyError, IndexError, TypeError, AttributeError):
@@ -490,7 +570,7 @@ class Turn:
                 maths = [e for e in entries if policy.is_math(e["name"])]
                 kept = content if all(policy.succeeded(e) for e in maths) else ""
                 self.messages.append({"role": "assistant", "content": kept, "tool_calls": [
-                    {"id": e["id"], "type": "function", "function": {"name": e["name"], "arguments": e["arguments"]}}
+                    {"id": e["id"], "type": "function", "function": {"name": e["name"], "arguments": _readable(e["arguments"])}}
                     for e in entries]})
                 self.messages += [{"role": "tool", "tool_call_id": e["id"], "content": e["result"][:20000]} for e in entries]
                 if self.guard.next == "stop":
@@ -515,6 +595,16 @@ class Turn:
                 finalizing, note = True, value
         results = policy.ledger(self.calls)
         return policy.safe_answer(results, [c for c in self.calls if policy.is_math(c["name"])], self.lang), "turn_limit"
+
+
+def _readable(arguments):
+    # the engine refuses a history holding a call it cannot parse, such as one the model cut short
+    if isinstance(arguments, dict):
+        return arguments
+    try:
+        return arguments if isinstance(json.loads(arguments), dict) else "{}"
+    except (TypeError, ValueError):
+        return "{}"
 
 
 def _describe(call):
@@ -553,6 +643,7 @@ def run(arguments, emit=None, register=None):
     engine = Engine(str(arguments.get("base_url") or ""), arguments.get("api_key"), arguments.get("agent_key"))
     if register:
         register(engine)
+    turn = None
     try:
         turn = Turn(engine, request, emit)
         content, outcome = turn.run()
@@ -560,15 +651,22 @@ def run(arguments, emit=None, register=None):
         return {"status": 400, "error": {"message": str(error), "type": "invalid_request_error"}}
     except Cancelled:
         return {"status": 499, "error": {"message": "the request was cancelled", "type": "cancelled"}}
-    except (RuntimeError, OSError, ValueError) as error:
+    except EngineFailure as error:
+        return error.answer(turn.lang if turn else "en")
+    except (RuntimeError, OSError, ValueError, http.client.HTTPException) as error:
         return {"status": 502, "error": {"message": str(error)[:300], "type": "engine_error"}}
+    finish = "stop"
+    # an answer the model wrote until its tokens ran out says it is incomplete
+    if outcome == "answered" and turn.finish == "length":
+        content, outcome, finish = (content.rstrip() + "\n\n" + CUT.get(turn.lang, CUT["en"])).lstrip(), "cut_at_limit", \
+            "length"
     results = policy.ledger(turn.calls)
     return {
         "id": "chatcmpl-tosh-" + uuid.uuid4().hex,
         "object": "chat.completion",
         "created": int(time.time()),
         "model": str(request.get("model") or "tosh-agent"),
-        "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": finish}],
         "usage": dict(turn.usage, total_tokens=turn.usage["prompt_tokens"] + turn.usage["completion_tokens"]),
         "tosh": {
             "version": 1,

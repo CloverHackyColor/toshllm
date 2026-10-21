@@ -71,6 +71,17 @@ FAILURE_TEXT = {
 }
 CUT = {"en": "_The answer was cut at the limit of tokens per answer, so it is incomplete._",
        "es": "_La respuesta se cortó en el límite de tokens por respuesta, así que está incompleta._"}
+CUT_CONTEXT = {"en": "_The answer was cut when the conversation filled the model's context, so it is incomplete._",
+               "es": "_La respuesta se cortó al llenarse el contexto del modelo con la conversación, así que está "
+                     "incompleta._"}
+LEFT_OUT = {"en": "_The {n} oldest messages of this conversation were left out of this answer, as they no longer fit "
+                  "the model's context._",
+            "es": "_Los {n} mensajes más antiguos de esta conversación quedaron fuera de esta respuesta, porque ya no "
+                  "caben en el contexto del modelo._"}
+# what the model is told of the messages left out
+LEFT_OUT_NOTE = "The {n} oldest messages of this conversation are left out, as they no longer fit your context."
+# tokens kept free for the answer, up to a quarter of the context, when the request does not ask for fewer
+ANSWER_RESERVE = 2048
 
 
 class EngineFailure(RuntimeError):
@@ -132,6 +143,30 @@ class Engine:
         self.cancelled = threading.Event()
         self._lock = threading.Lock()
         self._connections = set()
+        self._context = {}
+
+    def context(self, model=None):
+        """The context, in tokens, of the model a request goes to; None when the engine does not say."""
+        if model not in self._context:
+            try:
+                props = self._send("GET", "/props" + (f"?model={urllib.parse.quote(str(model))}" if model else ""),
+                                   timeout=30)
+            except (OSError, http.client.HTTPException):
+                props = None
+            settings = props.get("default_generation_settings") if isinstance(props, dict) else None
+            found = (settings or {}).get("n_ctx") or (props or {}).get("n_ctx") if isinstance(props, dict) else None
+            self._context[model] = found if isinstance(found, int) and found > 0 else None
+        return self._context[model]
+
+    def count(self, body):
+        """The tokens a pass's prompt takes, as the engine's tokenizer counts them; None when it cannot say."""
+        try:
+            counted = self._send("POST", "/v1/chat/completions/input_tokens",
+                                 {k: v for k, v in body.items() if k not in ("stream", "stream_options")}, timeout=60)
+        except (OSError, http.client.HTTPException):
+            return None
+        found = counted.get("input_tokens") if isinstance(counted, dict) else None
+        return found if isinstance(found, int) else None
 
     def cancel(self):
         """Stops the requests in flight: the engine sees each connection close and stops generating."""
@@ -196,7 +231,7 @@ class Engine:
     def stream(self, body, on_delta):
         """A completion generated as a stream: on_delta gets each piece of text as (field, text), with field
         "content" or "reasoning_content". Returns the reply in the shape of complete()'s."""
-        message, usage, failure = {"role": "assistant", "content": ""}, {}, []
+        message, usage, failure, finish = {"role": "assistant", "content": ""}, {}, [], []
 
         def on_line(line):
             if not line.startswith("data: ") or line == "data: [DONE]":
@@ -216,6 +251,8 @@ class Engine:
                 delta = choice.get("delta") if isinstance(choice, dict) else None
                 if isinstance(delta, dict):
                     _merge(message, delta, on_delta)
+                if isinstance(choice, dict) and choice.get("finish_reason"):
+                    finish.append(choice["finish_reason"])
 
         reply = self._send("POST", "/v1/chat/completions",
                            dict(body, stream=True, stream_options={"include_usage": True}), on_line=on_line)
@@ -223,7 +260,7 @@ class Engine:
             return _gpu_checked(reply)
         if failure:
             return _gpu_checked(failure[0])
-        return {"choices": [{"message": message}], "usage": usage}
+        return {"choices": [{"message": message, "finish_reason": finish[-1] if finish else None}], "usage": usage}
 
     def tools(self):
         listed = self._send("GET", "/tools", timeout=60)
@@ -327,13 +364,18 @@ class Turn:
         self.intent = policy.NO_MATH
         # why the last model pass stopped: "length" when it ran out of tokens
         self.finish = None
+        # the last pass's prompt and answer, which is what the conversation takes of the context
+        self.last = {"prompt_tokens": 0, "completion_tokens": 0}
+        # the oldest messages of the history left out because they no longer fit the context
+        self.left_out = 0
 
     def _body(self, tools, choice, note):
         body = {k: self.request[k] for k in _GENERATION if k in self.request}
         body.setdefault("chat_template_kwargs", {"enable_thinking": False})
         if body["chat_template_kwargs"].get("enable_thinking") is False:
             body.setdefault("thinking_budget_tokens", 0)
-        messages = ([{"role": "system", "content": self.system}] if self.system else []) + self.history
+        system = self._system()
+        messages = ([{"role": "system", "content": system}] if system else []) + self.history
         messages = messages + [{"role": "user", "content": self.question}] + self.messages
         if note:
             messages = messages + [{"role": "user", "content": note + policy.language_note(_text(self.question))}]
@@ -347,9 +389,69 @@ class Turn:
             body["tool_choice"] = choice
         return body
 
+    def _context(self):
+        return self.engine.context(self.request.get("model"))
+
+    def _system(self):
+        note = LEFT_OUT_NOTE.format(n=self.left_out) if self.left_out else ""
+        return "\n\n".join(part for part in (self.system, note) if part)
+
+    def _leave_out(self, body, excess, tokens):
+        """Leaves out of the history, and of `body`, whole exchanges from the oldest, enough to free `excess` of the
+        prompt's `tokens`; False when there is nothing left to leave out."""
+        if not self.history or excess <= 0:
+            return False
+        sizes = [len(_text(m.get("content"))) for m in self.history]
+        chars = sum(len(_text(m.get("content"))) for m in body["messages"]) or 1
+        target, freed, count = excess * chars / tokens, 0, 0
+        while count < len(self.history) and (freed < target or count == 0):
+            freed += sizes[count]
+            count += 1
+        # a history goes on from a user message: templates that alternate roles refuse anything else
+        while count < len(self.history) and self.history[count]["role"] != "user":
+            count += 1
+        start = 1 if body["messages"][0]["role"] == "system" else 0
+        del body["messages"][start:start + count]
+        self.history = self.history[count:]
+        self.left_out += count
+        if start:
+            body["messages"][0] = {"role": "system", "content": self._system()}
+        else:
+            body["messages"].insert(0, {"role": "system", "content": self._system()})
+        return True
+
+    def _fit(self, body):
+        """The pass's prompt within the context, with room left for its answer: the oldest exchanges are left out
+        until it fits. The engine's own count decides; without it, nothing is left out ahead."""
+        n_ctx = self._context()
+        if not n_ctx:
+            return
+        asked = body.get("max_tokens") or body.get("max_completion_tokens")
+        reserve = min(asked if isinstance(asked, int) and asked > 0 else ANSWER_RESERVE, n_ctx // 4)
+        for _ in range(4):
+            # a byte-level tokenizer never takes more tokens than the text has bytes: below that, no need to count
+            if len(json.dumps([body["messages"], body.get("tools")], ensure_ascii=False).encode()) + reserve <= n_ctx:
+                return
+            tokens = self.engine.count(body)
+            if tokens is None or tokens + reserve <= n_ctx or \
+                    not self._leave_out(body, tokens + reserve - n_ctx, tokens):
+                return
+
     def _generate(self, body, live=False):
         """One model pass. A live pass streams its text to the client as it is generated, for a round
         whose answer goes out unchecked; if it ends in tool calls, the client is told to drop that text."""
+        self._fit(body)
+        for _ in range(3):
+            try:
+                return self._pass(body, live)
+            except EngineFailure as found:
+                # the prompt did not fit after all: what the engine counted says how much to leave out
+                if found.kind != "context" or not (found.tokens and found.context) or \
+                        not self._leave_out(body, found.tokens - int(found.context * 0.9), found.tokens):
+                    raise
+        return self._pass(body, live)
+
+    def _pass(self, body, live):
         self.passes += 1
         self.emit({"type": "pass", "n": self.passes, "state": "start", "live": live})
         shown = False
@@ -373,6 +475,7 @@ class Turn:
             raise found or RuntimeError("the engine gave no answer")
         self.finish = reply["choices"][0].get("finish_reason")
         usage = reply.get("usage") or {}
+        self.last = {"prompt_tokens": usage.get("prompt_tokens", 0), "completion_tokens": usage.get("completion_tokens", 0)}
         self.usage["prompt_tokens"] += usage.get("prompt_tokens", 0)
         self.usage["completion_tokens"] += usage.get("completion_tokens", 0)
         self.emit({"type": "pass", "n": self.passes, "state": "end", "prompt_tokens": usage.get("prompt_tokens", 0),
@@ -656,10 +759,16 @@ def run(arguments, emit=None, register=None):
     except (RuntimeError, OSError, ValueError, http.client.HTTPException) as error:
         return {"status": 502, "error": {"message": str(error)[:300], "type": "engine_error"}}
     finish = "stop"
-    # an answer the model wrote until its tokens ran out says it is incomplete
+    n_ctx = turn._context()
+    used = turn.last["prompt_tokens"] + turn.last["completion_tokens"]
+    # an answer the model wrote until its tokens ran out says it is incomplete, and whether the context ran out
     if outcome == "answered" and turn.finish == "length":
-        content, outcome, finish = (content.rstrip() + "\n\n" + CUT.get(turn.lang, CUT["en"])).lstrip(), "cut_at_limit", \
-            "length"
+        full = bool(n_ctx) and used + 1 >= n_ctx
+        cut = (CUT_CONTEXT if full else CUT).get(turn.lang, CUT["en"])
+        content, outcome, finish = (content.rstrip() + "\n\n" + cut).lstrip(), \
+            "cut_at_context" if full else "cut_at_limit", "length"
+    if turn.left_out:
+        content = content.rstrip() + "\n\n" + LEFT_OUT.get(turn.lang, LEFT_OUT["en"]).format(n=turn.left_out)
     results = policy.ledger(turn.calls)
     return {
         "id": "chatcmpl-tosh-" + uuid.uuid4().hex,
@@ -680,5 +789,7 @@ def run(arguments, emit=None, register=None):
                                    "interpreted_input": r["input"]} for r in results],
             "passes": turn.passes,
             "seconds": round(time.monotonic() - started, 3),
+            # what the conversation takes of the context after this turn, as the engine counted it
+            "context": {"used": used or None, "n_ctx": n_ctx, "left_out": turn.left_out},
         },
     }

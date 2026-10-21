@@ -726,6 +726,37 @@ def _describe(call):
     return entry
 
 
+def _media_answer(engine, request, emit, started):
+    """A request with images, audio or video, answered by the model as the engine would without the agent."""
+    body = {k: request[k] for k in _GENERATION if k in request}
+    body["messages"] = request["messages"]
+    emit = emit or (lambda event: None)
+    try:
+        emit({"type": "pass", "n": 1, "state": "start", "live": True})
+        reply = engine.stream(body, lambda field, text: emit({"type": "delta", field: text}))
+    except Cancelled:
+        return {"status": 499, "error": {"message": "the request was cancelled", "type": "cancelled"}}
+    except (RuntimeError, OSError, ValueError, http.client.HTTPException) as error:
+        return {"status": 502, "error": {"message": str(error)[:300], "type": "engine_error"}}
+    found = failure(reply)
+    if found:
+        return found.answer(policy.language([_text(m.get("content")) for m in request["messages"]
+                                             if isinstance(m, dict) and m.get("role") == "user"]))
+    choice = reply["choices"][0]
+    usage = {"prompt_tokens": (reply.get("usage") or {}).get("prompt_tokens", 0),
+             "completion_tokens": (reply.get("usage") or {}).get("completion_tokens", 0)}
+    emit({"type": "pass", "n": 1, "state": "end", **usage})
+    return {"id": "chatcmpl-tosh-" + uuid.uuid4().hex, "object": "chat.completion", "created": int(time.time()),
+            "model": str(request.get("model") or "tosh-agent"),
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": choice["message"].get("content") or ""},
+                         "finish_reason": choice.get("finish_reason") or "stop"}],
+            "usage": dict(usage, total_tokens=usage["prompt_tokens"] + usage["completion_tokens"]),
+            "tosh": {"version": 1, "intent": policy.NO_MATH, "outcome": "answered", "calls": [], "validated_results": [],
+                     "passes": 1, "seconds": round(time.monotonic() - started, 3),
+                     "context": {"used": usage["prompt_tokens"] + usage["completion_tokens"] or None,
+                                 "n_ctx": engine.context(request.get("model")), "left_out": 0}}}
+
+
 def run(arguments, emit=None, register=None):
     """The completion the engine returns to the client, or an error with its HTTP status. `emit` gets the
     progress events; `register` gets the engine handle, so that a cancellation can stop the turn."""
@@ -736,8 +767,8 @@ def run(arguments, emit=None, register=None):
         return {"status": 400, "error": {"message": "requests with tools are answered by the raw endpoint",
                                          "type": "invalid_request_error"}}
     started = time.monotonic()
-    if _media(request):
-        # the client sends the attachment to the model itself, with its math tools in its own loop
+    if _media(request) and isinstance(request.get("tosh"), dict):
+        # the app sends the attachment to the model itself, with its math tools in its own loop
         return {"id": "chatcmpl-tosh-" + uuid.uuid4().hex, "object": "chat.completion", "created": int(time.time()),
                 "model": str(request.get("model") or "tosh-agent"),
                 "choices": [{"index": 0, "message": {"role": "assistant", "content": ""}, "finish_reason": "stop"}],
@@ -746,6 +777,9 @@ def run(arguments, emit=None, register=None):
     engine = Engine(str(arguments.get("base_url") or ""), arguments.get("api_key"), arguments.get("agent_key"))
     if register:
         register(engine)
+    if _media(request):
+        # a client that cannot take the turn back, as the web chat, gets the model's own answer to what it sent
+        return _media_answer(engine, request, emit, started)
     turn = None
     try:
         turn = Turn(engine, request, emit)

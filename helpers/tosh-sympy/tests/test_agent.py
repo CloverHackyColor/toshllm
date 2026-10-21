@@ -213,8 +213,23 @@ def test_an_attachment_the_agent_cannot_read_goes_back_to_the_client():
     for content in ([{"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}}],
                     [{"type": "text", "text": "Solve the equation in the photo."},
                      {"type": "input_audio", "input_audio": {"data": "AAAA", "format": "wav"}}]):
-        reply = agent.run({"request": {"messages": [{"role": "user", "content": content}]}, "base_url": "http://127.0.0.1:9"})
+        # the app, which says it is one with its options, takes the turn back to its own loop
+        reply = agent.run({"request": {"messages": [{"role": "user", "content": content}], "tosh": {"locale": "en"}},
+                           "base_url": "http://127.0.0.1:9"})
         assert reply["tosh"]["outcome"] == "declined" and reply["choices"][0]["message"]["content"] == "", reply
+        # any other client, as the web chat, gets the model's answer to what it sent, never an empty one
+        engine = Engine([{"content": "A cat on a sofa."}], {}, tools=False)
+        original = agent.Engine
+        agent.Engine = lambda *args: engine
+        events = []
+        try:
+            reply = agent.run({"request": {"messages": [{"role": "user", "content": content}], "max_tokens": 50},
+                               "base_url": "http://127.0.0.1:9"}, events.append)
+        finally:
+            agent.Engine = original
+        assert reply["tosh"]["outcome"] == "answered" and reply["choices"][0]["message"]["content"] == "A cat on a sofa."
+        assert engine.bodies[0]["messages"][0]["content"] == content and engine.bodies[0]["max_tokens"] == 50
+        assert {"type": "delta", "content": "A cat on a sofa."} in events, events
 
 
 def test_the_texts_tosh_writes_follow_the_conversation():

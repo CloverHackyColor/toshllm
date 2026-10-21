@@ -242,6 +242,8 @@ An agent may then hand back a turn that is outside its field: it answers with em
 runs nothing and sets `"tosh": {"version": 1, "outcome": "declined"}`, and the app answers that
 turn with its own tools, as it would without the extension. Other clients never send the field,
 so they always get an answer.
+A turn whose last message brings images, audio or video is handed back the same way to a client that sends
+`tosh` options, as the app does; any other client gets the model's own answer to it.
 
 An answer whose words a later turn needs, such as the reference and the figures of what it traced, puts them in
 `"keep"` in its `tosh`, as written in the answer. A client that summarizes older messages to save context keeps

@@ -7,6 +7,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Web chat: a message with an image gets an answer when the server's agent is on.** The agent handed the turn back, as it does to the app, and the web chat showed an empty answer; clients other than the app now get the model's answer to it.
 - **Chat: the context meter no longer reads "0k" for a full conversation.** It shows the server's count while it is current, tenths under ten thousand tokens, and an estimate marked "≈" after a turn the server did not count, such as an agent's answer by rules; the conversation is summarized on the larger of the two, so such turns no longer keep a full conversation from being summarized. Images count in the estimate.
 - **Chat: a conversation that did not fit the context can go on.** The meter shows what the request needed, the app summarizes the older messages, and the message says it can be sent again; a summary of a conversation too long to summarize in one request is made from each message cut to its share. Near the end of the context, older turns go without their images and with shorter tool results.
 - **Chat: an answer cut because the conversation filled the context says so,** instead of pointing to the limit of tokens per answer and Continue, which would not fit. A turn the server ended with no answer says so instead of leaving nothing, a draft of an agent turn that failed is not kept as its answer, and a stop is no longer reported as a cut connection.

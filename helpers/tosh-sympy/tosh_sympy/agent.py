@@ -82,6 +82,24 @@ LEFT_OUT = {"en": "_The {n} oldest messages of this conversation were left out o
 LEFT_OUT_NOTE = "The {n} oldest messages of this conversation are left out, as they no longer fit your context."
 # tokens kept free for the answer, up to a quarter of the context, when the request does not ask for fewer
 ANSWER_RESERVE = 2048
+# a service that says one of these took the operation in but has not said it finished
+PENDING = {"accepted", "pending", "queued", "submitted", "scheduled", "in_progress", "in-progress", "inprogress",
+           "running", "processing", "started", "waiting"}
+ACCEPTED_NOTE = ("[The service accepted this operation but has not said it finished: do not say it was done; say it "
+                 "was accepted and is pending.]\n")
+
+
+def accepted_only(text):
+    """Whether a tool's result says the operation was only taken in, by a status field of its own."""
+    try:
+        reply = json.loads(text)
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(reply, dict):
+        return False
+    found = [reply] + [reply[k] for k in ("result", "data", "job", "operation") if isinstance(reply.get(k), dict)]
+    return any(str(part.get(key)).strip().lower() in PENDING for part in found
+               for key in ("status", "state", "jobStatus", "job_status", "operationStatus") if key in part)
 
 
 class EngineFailure(RuntimeError):
@@ -519,13 +537,13 @@ class Turn:
         """The user's words and what the tools returned this turn: refused and failed calls stay out."""
         context = [t["content"] for t in self.history if t["role"] == "user"]
         context += [c["result"] for c in self.calls
-                    if policy.succeeded(c) or (approved(c["name"]) and c["state"] == "completed")]
+                    if policy.succeeded(c) or (approved(c["name"]) and c["state"] in ("completed", "accepted"))]
         return {"request": self.question, "context": "\n".join(context)[-6000:]}
 
     def _review(self, reply, operation):
         lines = reply.get("interpreted_input") or []
         # a number an approved server returned this turn is as given as the user's own
-        returned = [c["result"][:1500] for c in self.calls if approved(c["name"]) and c["state"] == "completed"]
+        returned = [c["result"][:1500] for c in self.calls if approved(c["name"]) and c["state"] in ("completed", "accepted")]
         request = self.question + ("\n\nRETURNED BY THE TOOLS FOR THIS REQUEST:\n" + "\n".join(returned) if returned else "")
         answer = self.engine.complete(self._routed({
             "messages": [{"role": "system", "content": policy.REVIEW_INSTRUCTIONS},
@@ -563,7 +581,7 @@ class Turn:
                 entry["reply"] = json.loads(entry["result"])
             else:
                 text, ok = self.engine.call_checked(name, plain, timeout=900)
-                entry.update(result=text, state="completed" if ok else "failed")
+                entry.update(result=text, state="failed" if not ok else "accepted" if accepted_only(text) else "completed")
         elif not policy.is_math(name):
             entry["result"] = json.dumps({"success": False, "error": {"code": "invalid_arguments",
                                                                        "message": f"no such tool: {name[:60]}"}})
@@ -608,7 +626,7 @@ class Turn:
         schema = ((self.definitions.get(name) or {}).get("function") or {}).get("parameters") or {}
         properties = schema.get("properties") if isinstance(schema.get("properties"), dict) else {}
         given = "\n".join([_text(t["content"]) for t in self.history if t["role"] == "user"] + [self.question]
-                          + [c["result"] for c in self.calls if c["state"] == "completed"]).lower()
+                          + [c["result"] for c in self.calls if c["state"] in ("completed", "accepted")]).lower()
         numbers = {value for _, value, _, _ in policy.numbers(given)}
         ungiven = []
         for key, value in arguments.items():
@@ -675,7 +693,9 @@ class Turn:
                 self.messages.append({"role": "assistant", "content": kept, "tool_calls": [
                     {"id": e["id"], "type": "function", "function": {"name": e["name"], "arguments": _readable(e["arguments"])}}
                     for e in entries]})
-                self.messages += [{"role": "tool", "tool_call_id": e["id"], "content": e["result"][:20000]} for e in entries]
+                self.messages += [{"role": "tool", "tool_call_id": e["id"],
+                                   "content": (ACCEPTED_NOTE if e["state"] == "accepted" else "") + e["result"][:20000]}
+                                  for e in entries]
                 if self.guard.next == "stop":
                     if policy.ledger(self.calls):
                         finalizing, note = True, policy.final_note(policy.ledger(self.calls))
@@ -683,7 +703,7 @@ class Turn:
                     return policy.unresolved(lang=self.lang), "unresolved"
                 continue
             # what an approved server returned is a source the answer may quote, like the user's words
-            sources = self.sources + [c["result"] for c in self.calls if approved(c["name"]) and c["state"] == "completed"]
+            sources = self.sources + [c["result"] for c in self.calls if approved(c["name"]) and c["state"] in ("completed", "accepted")]
             kind, value = policy.step(sources, self.calls, content, closing, finalizing, regrounded, required, self.lang)
             if kind == "keep":
                 final = closing if closing is not None else content
@@ -717,8 +737,8 @@ def _describe(call):
     except ValueError:
         arguments = call["arguments"]
     entry = {"tool": call["name"], "arguments": arguments,
-             "status": "ok" if policy.succeeded(call) or (approved(call["name"]) and call["state"] == "completed")
-             else policy.error_code(reply) or "execution_error"}
+             "status": "accepted" if call["state"] == "accepted" else "ok" if policy.succeeded(call) or (
+                 approved(call["name"]) and call["state"] == "completed") else policy.error_code(reply) or "execution_error"}
     if reply.get("interpreted_input"):
         entry["interpreted_input"] = reply["interpreted_input"]
     if reply.get("result_kind"):

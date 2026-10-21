@@ -536,11 +536,13 @@ final class ChatStore: ObservableObject {
             let serverID = call["id"] as? String ?? UUID().uuidString
             let now = Date()
             // an agent that only reports the call's status still shows its successful calls as such
-            let completed = (call["state"] as? String).map { $0 == "completed" } ?? (call["status"] as? String == "ok")
+            let accepted = call["state"] as? String == "accepted" || call["status"] as? String == "accepted"
+            let completed = accepted || (call["state"] as? String).map { $0 == "completed" } ?? (call["status"] as? String == "ok")
             let summary = (call["summary"] as? String).map { String($0.prefix(400)) }
-            let toolCall = ChatToolCall(serverID: serverID, name: call["tool"] as? String ?? "", arguments: arguments,
+            var toolCall = ChatToolCall(serverID: serverID, name: call["tool"] as? String ?? "", arguments: arguments,
                                         result: result, state: completed ? .completed : .failed,
                                         startedAt: now, finishedAt: now, summary: summary?.isEmpty == false ? summary : nil)
+            toolCall.accepted = accepted ? true : nil
             let reply = ChatMessage(role: "tool", content: ToolResultLimit.apply(result), toolCallID: serverID)
             if let current = agentPassMessage[id], current.pass == pass,
                let j = conversations[i].messages.firstIndex(where: { $0.id == current.messageID }) {
@@ -1780,13 +1782,16 @@ final class ChatStore: ObservableObject {
               let j = conversations[i].messages.firstIndex(where: { $0.id == request.messageID }),
               let k = conversations[i].messages[j].toolCalls?.firstIndex(where: { $0.id == request.callID })
         else { return }
+        let accepted = state == .completed && ToolResultStatus.acceptedOnly(result)
         conversations[i].messages[j].toolCalls?[k].state = state
         conversations[i].messages[j].toolCalls?[k].result = result
+        conversations[i].messages[j].toolCalls?[k].accepted = accepted ? true : nil
         conversations[i].messages[j].toolCalls?[k].finishedAt = Date()
         conversations[i].messages[j].settleInterim()
         let serverID = conversations[i].messages[j].toolCalls?[k].serverID ?? request.callID.uuidString
         // The card keeps the whole output; only what the model reads is capped.
-        conversations[i].messages.append(ChatMessage(role: "tool", content: ToolResultLimit.apply(result),
+        conversations[i].messages.append(ChatMessage(role: "tool",
+                                                     content: (accepted ? ToolResultStatus.note : "") + ToolResultLimit.apply(result),
                                                      toolCallID: serverID,
                                                      imageURIs: imageURIs.isEmpty ? nil : imageURIs))
         conversations[i].updated = Date()

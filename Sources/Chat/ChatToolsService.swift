@@ -70,6 +70,25 @@ struct ToolExecutionResult: Sendable, Equatable {
 
 /// Tool output goes back into the prompt verbatim, so one directory listing or web page can
 /// fill the context. The head and the tail are kept because errors usually land at the end.
+/// A tool's result that says the operation was only taken in, by a status field of its own: a job queued or
+/// accepted is not one done, and the model must not say it was.
+enum ToolResultStatus {
+    static let pending: Set<String> = ["accepted", "pending", "queued", "submitted", "scheduled", "in_progress",
+                                       "in-progress", "inprogress", "running", "processing", "started", "waiting"]
+    static let note = "[The service accepted this operation but has not said it finished: do not say it was done; say it was accepted and is pending.]\n"
+
+    static func acceptedOnly(_ text: String) -> Bool {
+        guard let data = text.data(using: .utf8),
+              let reply = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
+        let parts = [reply] + ["result", "data", "job", "operation"].compactMap { reply[$0] as? [String: Any] }
+        return parts.contains { part in
+            ["status", "state", "jobStatus", "job_status", "operationStatus"].contains { key in
+                (part[key] as? String).map { pending.contains($0.trimmingCharacters(in: .whitespaces).lowercased()) } ?? false
+            }
+        }
+    }
+}
+
 enum ToolResultLimit {
     static let defaultCharacters = 20_000
 

@@ -7,6 +7,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Agent and chat: an operation a service only accepted is never said to be done.** A tool's result whose own status says the work was accepted, queued or is still running is shown as "accepted, not confirmed", and the model is told to say it is pending; it used to count as finished.
 - **Chat: a figure's status travels with every export.** What the agent says a figure is, such as a draft that does not close, goes into the shapefile's table, a column of the CSV and a text of the DXF, and a shapefile's table says how much of a gap its polygon closes; the polygon closed it silently.
 - **Web chat: an answer whose connection ends with nothing to resume from stops as an error,** marked incomplete, instead of loading forever with the send button blocked.
 - **Web chat: the context meter follows an agent's turns,** from the agent's own count, and an answer cut by a full context says so instead of blaming the limit of tokens per answer.

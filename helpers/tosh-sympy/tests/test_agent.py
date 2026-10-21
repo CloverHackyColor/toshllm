@@ -770,5 +770,33 @@ def test_an_answer_cut_by_a_full_context_is_told_from_one_cut_at_its_limit():
     assert reply["choices"][0]["finish_reason"] == "length"
 
 
+def test_an_operation_a_service_only_accepted_is_never_said_to_be_done():
+    for text, accepted in (('{"status": "accepted", "job_id": "j-17"}', True),
+                           ('{"result": {"jobStatus": "Submitted", "jobId": "a1"}}', True),
+                           ('{"status": "QUEUED"}', True),
+                           ('{"status": "completed", "edits": 3}', False),
+                           ('{"success": true, "message": "the job was accepted by the team"}', False),
+                           ("accepted", False)):
+        assert agent.accepted_only(text) is accepted, text
+
+    class Service(Engine):
+        def call_checked(self, name, params, timeout=120):
+            self.calls.append((name, params))
+            return '{"status": "accepted", "job_id": "j-17"}', True
+    engine = Service([{"content": "", "tool_calls": [call("ops_update", id="7")]}, {"content": "Update j-17 is pending."}],
+                     {}, tools=False)
+    engine.listed = [{"tool": "ops_update", "definition": {"type": "function", "function": {
+        "name": "ops_update", "parameters": {"type": "object", "properties": {"id": {"type": "string"}}}}}}]
+    original_approved = agent.APPROVED
+    agent.APPROVED = ("ops_",)
+    try:
+        reply = _run_with(engine, "Update record 7.")
+    finally:
+        agent.APPROVED = original_approved
+    tool_message = [m for m in engine.bodies[-1]["messages"] if m["role"] == "tool"][0]["content"]
+    assert tool_message.startswith(agent.ACCEPTED_NOTE), tool_message
+    assert reply["tosh"]["calls"][0]["status"] == "accepted", reply["tosh"]["calls"]
+
+
 if __name__ == "__main__":
     main()

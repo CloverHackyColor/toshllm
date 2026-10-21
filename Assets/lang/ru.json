@@ -59,8 +59,6 @@
   "3 · Set the workload": "3 · Задайте нагрузку",
   "4 · Choose what to measure": "4 · Выберите, что измерять",
   "512 (default)": "512 (по умолчанию)",
-  "A checkpoint (SD, SDXL) bundles its VAE and encoder. A bare diffusion model (Z-Image, Flux 2, Qwen-Image) also needs its VAE and text encoder.": "Контрольная точка (SD, SDXL) включает свой VAE и кодировщик. Простая диффузионная модель (Z-Image, Flux 2, Qwen-Image) также требует свой VAE и кодировщик текста.",
-  "A diffusion model renders nothing without its VAE and text encoder.": "Диффузионная модель ничего не генерирует без своего VAE и кодировщика текста.",
   "A folder for your conversations. If you set a system prompt on the project, every conversation inside inherits it.": "Папка для ваших бесед. Если установить системный промпт для проекта, каждая беседа внутри него его наследует.",
   "A fraction of the frame height, so it reads the same at 720p and at 4K.": "Доля высоты кадра, чтобы одинаково читалось при 720p и 4K.",
   "A high value rejects more weak voices; it can also miss a quiet main voice.": "Высокое значение отклоняет больше слабых голосов; при этом может пропустить тихий основной голос.",
@@ -194,7 +192,6 @@
   "Available routes": "Доступные маршруты",
   "Available to the server agent": "Доступно для агента сервера",
   "Available while the server is running": "Доступно во время работы сервера",
-
   "Average %@ t/s": "Среднее %@ t/s",
   "BALANCED": "СБАЛАНСИРОВАНО",
   "Back 15 seconds": "Назад на 15 секунд",
@@ -230,11 +227,9 @@
   "Blue": "Синий",
   "Both": "Оба",
   "Bottom": "Низ",
-
   "Box": "Плашка",
   "Branch %@": "Ветка %@",
   "Brand color for buttons, icons and controls across the app. Independent from the system accent color.": "Фирменный цвет для кнопок, иконок и элементов управления во всём приложении. Независим от системного цвета акцента.",
-  "Browse...": "Обзор...",
   "Brush": "Кисть",
   "Brush diameter, relative to the image width.": "Диаметр кисти относительно ширины изображения.",
   "Build a batch from the sidebar": "Сформировать пакет из боковой панели",
@@ -245,19 +240,19 @@
   "By layers": "По слоям",
   "By layers: each GPU keeps whole layers and they take turns. Fastest at generating, and the best tested. By tensors: both GPUs work at once inside every layer, so they read the prompt much faster, but they sync up on every layer and that wait costs the same on each generated token: on a small model it eats the gain, on a big one (tens of GB) it wins at both.": "По слоям: каждая GPU хранит целые слои и они работают по очереди. Самая быстрая генерация и наиболее протестированная. По тензорам: обе GPU работают одновременно внутри каждого слоя, поэтому они считывают промпт намного быстрее, но они синхронизируются на каждом слое, и это ожидание стоит одинаково для каждого сгенерированного токена: на маленькой модели это съедает выигрыш, на большой (десятки ГБ) выигрывает и в чтении, и в генерации.",
   "By tensors": "По тензорам",
+  "CLIP model to guide generation. Required for all sd-cli models.": "CLIP модель для управления генерацией. Требуется для всех sd-cli моделей",
+  "CLIP_L Encoder": "CLIP_L энкодер",
   "CODING": "ПРОГРАММИРОВАНИЕ",
   "CONFIGURATION / GPU": "КОНФИГУРАЦИЯ / GPU",
   "CPU experts are read from RAM on every token, and that sets generation speed: a stronger GPU won't raise it, faster RAM (DDR5) will. MTP acceleration and a lower ncmoe reduce those reads.": "CPU-эксперты считываются из RAM для каждого токена, и это определяет скорость генерации: более мощная GPU не увеличит её, а более быстрая RAM (DDR5) — увеличит. Ускорение MTP и более низкое значение ncmoe уменьшают эти чтения.",
   "CPU threads: %@": "Потоки CPU: %@",
   "Cached context": "Кэш контекста",
-
   "Calibrated": "Калиброванный",
   "Calibration": "Калибровка",
   "Can modify files or run actions.": "Может изменять файлы или выполнять действия.",
   "Cancel": "Отмена",
   "Cancel current": "Отменить текущее",
   "Cancel export": "Отменить экспорт",
-
   "Cancel steering message": "Отменить управляющее сообщение",
   "Cancel transcription": "Отменить транскрипцию",
   "Cancels captioned video creation.": "Отменяет создание видео с субтитрами.",
@@ -297,6 +292,7 @@
   "Check for updates hourly": "Проверять обновления каждый час",
   "Checking the engine…": "Проверка движка…",
   "Checking…": "Проверка…",
+  "Checkpoint": "Контрольная точка",
   "Checks every tool for this conversation": "Отмечает все инструменты для этого чата",
   "Checks whether the downloaded models have been re-published in their Hugging Face repo.": "Проверяет, были ли повторно опубликованы загруженные модели в их репозитории Hugging Face.",
   "Chip": "Чип",
@@ -330,7 +326,6 @@
   "Clear finished": "Очистить завершённые",
   "Clear folder": "Очистить папку",
   "Clear image": "Очистить изображение",
-  "Clear model name": "Очистить имя модели",
   "Clear project folder": "Очистить папку проекта",
   "Clear the file": "Очистить файл",
   "Clear the search": "Очистить поиск",
@@ -339,9 +334,6 @@
   "Click to read the full warning": "Нажмите, чтобы прочитать предупреждение полностью",
   "Click to rename the conversation (Enter saves).": "Нажмите для переименования беседы (Enter сохраняет).",
   "Client": "Клиент",
-  "CLIP_L Encoder": "CLIP_L энкодер",
-  "CLIP_L path":"Путь к энкодеру CLIP_L",
-  "CLIP model to guide generation. Required for all sd-cli models.":"CLIP модель для управления генерацией. Требуется для всех sd-cli моделей",
   "Close": "Закрыть",
   "Close output": "Закрыть вывод",
   "Closes this guide and continues to Chat.": "Закрывает это руководство и переходит к Чату.",
@@ -398,6 +390,7 @@
   "Control how the chat behaves, how the text looks, and what instructions the model gets by default.": "Управлять поведением чата, внешним видом текста и инструкциями, которые модель получает по умолчанию.",
   "Control image (optional)": "Изображение для управления (необязательно)",
   "Control requests and chat templates.": "Управлять запросами и шаблонами чата.",
+  "Control strength": "Сила управления",
   "Control the port, external engine, embeddings, persistent cache, and extra arguments.": "Управлять портом, внешним движком, встраиванием, постоянным кэшем и дополнительными аргументами.",
   "Conversation": "Разговор",
   "Conversation actions": "Действия в разговоре",
@@ -497,7 +490,7 @@
   "Detects the protocol": "Определяет протокол",
   "Developer": "Разработчик",
   "Diagnostics": "Диагностика",
-  "Diffusion model": "Модель диффузии",
+  "Diffusion": "Диффузия",
   "Direct download": "Прямая загрузка",
   "Disable all": "Отключить всё",
   "Disable and restart": "Отключить и перезапустить",
@@ -606,8 +599,8 @@
   "Enlarge": "Увеличить",
   "Enter a valid MCP URL.": "Введите корректный URL MCP.",
   "Enter another language…": "Введите другой язык…",
+  "Enter the VAE file name. The file must be in the imagen/vae folder.": "Введите имя файла VAE. Файл должен находиться в папке imagen/vae.",
   "Enter the model file name. The file must be in the imagen folder.": "Введите имя файла модели. Файл должен находиться в папке imagen.",
-  "Enter the VAE file name. The file must be in the imagen folder.": "Введите имя файла VAE. Файл должен находиться в папке imagen.",
   "Eraser": "Ластик",
   "Error": "Ошибка",
   "Error — see Configuration": "Ошибка — смотрите Конфигурацию",
@@ -719,7 +712,6 @@
   "Full GPU": "Полностью на GPU",
   "Full GPU (manual)": "Полностью на GPU (вручную)",
   "Full GPU: the model and the requested context fit with headroom.": "Полностью на GPU: модель и запрошенный контекст помещаются с запасом.",
-  "Full checkpoint": "Полный чекпоинт",
   "Full history": "Полная история",
   "GGUF models on Hugging Face": "Модели GGUF на Hugging Face",
   "GGUF name": "Имя GGUF",
@@ -789,14 +781,11 @@
   "How many GPUs to split across. More GPUs = faster prompt; fewer GPUs = faster generation (less cross-card sync).": "Сколько GPU использовать для разделения. Больше GPU = более быстрый промпт; меньше GPU = более быстрая генерация (меньше синхронизации между картами).",
   "How many model layers go to the GPU. 99 = all (recommended if they fit in VRAM); lower it only if VRAM overflows.": "Сколько слоёв модели отправить на GPU. 99 = все (рекомендуется, если помещаются в VRAM); уменьшайте только если VRAM переполняется.",
   "How many models the router keeps loaded at once; the rest unload automatically (LRU). 1 is safest on a single GPU.": "Сколько моделей маршрутизатор держит загруженными одновременно; остальные выгружаются автоматически (LRU). Значение 1 — наиболее безопасное при использовании одной видеокарты.",
-
   "How many prompt tokens the GPU processes at once. It only helps MoE models, and how much depends on where the experts live. With experts on the CPU every micro-batch uploads them over the bus, so a larger one pays that trip fewer times: measured on a Radeon RX 6700 XT, reading 2048 tokens goes from 475 to 886 tokens per second on a 35B, and from 546 to 1133 on a 30B. With the model whole on the card the gain is around 10%, the same on one GPU as split across several. Generation is unchanged in every case. In exchange it takes VRAM, around 0.5 GB per 512 tokens of micro-batch, so if you are tight you will have to lower the experts on CPU to make room.": "Сколько токенов промпта видеокарта обрабатывает за один раз. Это полезно только для MoE‑моделей, а эффект зависит от того, где размещены эксперты. Если эксперты находятся на CPU, каждый микропакет загружает их через шину — поэтому больший размер пакета сокращает количество таких передач. На примере Radeon RX 6700 XT: при обработке 2048 токенов скорость возрастает с 475 до 886 токенов в секунду для модели 35 B и с 546 до 1133 — для модели 30 B. Если модель целиком находится на видеокарте, прирост составляет примерно 10 % — как при работе на одной GPU, так и при распределении между несколькими. На скорость генерации это не влияет. При этом требуется видеопамять — примерно 0,5 ГБ на каждые 512 токенов микропакета. Если объём VRAM ограничен, придётся уменьшить количество экспертов на CPU, чтобы освободить место.",
   "How many recent tokens DRY scans. 0 disables it.": "Сколько последних токенов сканирует функция DRY. Значение 0 отключает её.",
   "How many recent tokens the repetition penalties look at. 0 disables it.": "На сколько последних токенов распространяются штрафы за повторения. Значение 0 отключает эту функцию.",
   "How many requests the engine processes at once. With 1, requests queue instead of competing for the GPU, and a huge prompt interrupted by a client timeout (VS Code) resumes where it was on retry. Raise it only if several clients use the server at the same time.": "Сколько запросов движок обрабатывает одновременно. При значении 1 запросы ставятся в очередь, а не конкурируют за ресурсы видеокарты. В этом случае большой промпт, прерванный из‑за таймаута клиента (например, в VS Code), при повторной попытке продолжит обработку с того же места. Увеличивайте это значение, только если к серверу одновременно обращаются несколько клиентов.",
-
   "How many tokens one image may take on vision models. The model decides by default. The vision encoder's memory grows with the square of this number, so lowering it cuts memory a lot at the cost of detail: it is what makes a vision model load on cards where that buffer does not fit.": "Сколько токенов может занимать одно изображение в моделях с поддержкой зрения. По умолчанию это определяет модель. Память энкодера для работы с изображениями растёт пропорционально квадрату этого числа, поэтому его снижение существенно экономит видеопамять — но в ущерб детализации. Именно это позволяет загружать модель с поддержкой зрения на видеокарты, где исходный буфер не помещается.",
-
   "How much of the width the text may take before it wraps.": "Какую часть ширины может занимать текст до того, как произойдёт перенос строки.",
   "How much the init image changes. Low (~0.3) keeps the composition; high (~0.8) reinvents it.": "Насколько сильно изменяется исходное изображение. Низкое значение (~0,3) сохраняет композицию, высокое (~0,8) практически полностью её переосмысляет.",
   "How the model picks each word.": "Как модель выбирает каждое слово.",
@@ -804,7 +793,6 @@
   "How to split it": "Как его разделить",
   "Hybrid": "Гибридный",
   "I couldn't validate the mathematical interpretation of that request. Please rephrase it or provide the expression explicitly.": "Не удалось подтвердить математическую интерпретацию этого запроса. Пожалуйста, перефразируйте его или явно укажите нужное выражение.",
-
   "Idle": "Ожидание",
   "If something goes wild, reset to defaults in Advanced.": "Если что‑то работает некорректно, сбросьте настройки к значениям по умолчанию в разделе «Дополнительно».",
   "If two GPUs in the split share an Infinity Fabric bridge (the two halves of a W6800X Duo or Vega II Duo, or two cards joined by the external bridge), copies activations directly between them instead of through system RAM. When splitting by tensors it reads the prompt 16% faster at no cost to generation, measured on four Radeon Pro Vega II. It needs the fast hand-off on: on its own it halves generation. If the machine doesn't support it, the copy falls back to the safe path on its own.": "Если две видеокарты в составе разбиения используют мост Infinity Fabric (две половины W6800X Duo или Vega II Duo либо две карты, соединённые внешним мостом), активации копируются напрямую между ними, а не через системную оперативную память. При разбиении по тензорам промпт считывается на 16 % быстрее без ущерба для скорости генерации — это было измерено на четырёх видеокартах Radeon Pro Vega II. Для этого требуется включённая быстрая передача данных: без неё скорость генерации снижается вдвое. Если оборудование не поддерживает эту функцию, система автоматически переключится на безопасный способ копирования.",
@@ -818,27 +806,22 @@
   "Images": "Изображения",
   "Images and PDFs you send.": "Отправляемые изображения и PDF.",
   "Images · Experimental": "Изображения · Эксперимент",
-
   "Import": "Импорт",
   "Import MCP servers": "Импортировать серверы MCP",
   "Import archive…": "Импортировать архив…",
   "Import configuration…": "Импортировать конфигурацию…",
-
   "Imported %@ new conversations.": "Импортировано новых бесед: %@.",
   "Imported %@ settings. Restart the server to apply engine changes.": "Импортировано настроек: %@. Перезапустите сервер, чтобы применить изменения движка.",
-
   "In progress": "В процессе",
   "In the icon": "В иконке",
   "In the panel": "На панели",
   "Include files, images, audio and video": "Включить файлы, изображения, аудио и видео",
   "Included in the app": "Включено в приложение",
   "Incompatible projector": "Несовместимый проектор",
-
   "Increase chat text": "Крупнее текст чата",
   "Increase timeout": "Увеличить таймаут",
   "Indigo": "Индиго",
   "Inference": "Выводы",
-
   "Inference & context": "Выводы и контекст",
   "Inference and context": "Выводы и контекст",
   "Inference engine": "Движок выведения",
@@ -850,7 +833,6 @@
   "Infinity Fabric: no link between cards": "Infinity Fabric: нет соединения между картами",
   "Inherit the project's": "Наследовать настройки проекта",
   "Inherited by every conversation in the project without its own prompt.": "Наследуется всеми диалогами в проекте, у которых нет собственного промпта.",
-
   "Inherits global settings again, keeping this instance’s model, name and port.": "Снова наследует глобальные настройки, сохраняя модель, имя и порт этого экземпляра.",
   "Init image": "Исходное изображение",
   "Init image (img2img)": "Исходное изображение (img2img)",
@@ -864,7 +846,6 @@
   "Instance %@": "Экземпляр %@",
   "Instance that must render this prompt. \"Any\" takes the next free one; if you pick one and it's busy, this prompt waits for it without blocking the others.": "Экземпляр, который должен обработать этот промпт. Вариант «Любой» берёт следующий свободный экземпляр. Если вы выбрали конкретный экземпляр, а он занят, этот промпт будет ожидать его освобождения, не блокируя обработку других запросов.",
   "Instances": "Экземпляры",
-
   "Instructions": "Инструкции",
   "Instructions for this part of Chat.": "Инструкции для этой части чата.",
   "Integrations": "Интеграции",
@@ -880,7 +861,6 @@
   "It may have been copied into the models folder manually.": "Возможно, файл был скопирован в папку с моделями вручную.",
   "It will run these programs with your permissions:": "Эти программы будут запущены с вашими правами доступа:",
   "Its DFlash draft model for speculative decoding is downloaded.": "Загружена черновая модель DFlash для спекулятивного декодирования.",
-
   "Its vision file (mmproj) will be removed too.": "Её файл для работы с изображениями (mmproj) также будет удалён.",
   "JPG is far lighter; PNG is lossless.": "JPG значительно легче по размеру; PNG — без потерь качества.",
   "JSON copied": "JSON скопирован",
@@ -888,7 +868,6 @@
   "JSON that wins over the rest.": "JSON с приоритетом над остальным.",
   "JavaScript sandbox for agents": "Песочница JavaScript для агентов",
   "Jump to the end of the conversation and follow the response.": "Перейти в конец диалога и следить за ответом.",
-
   "KV Q8: shrinks context memory enough to keep a useful expert cache.": "KV Q8: достаточно сокращает память контекста, чтобы сохранить полезную кэш-память экспертов.",
   "KV cache": "Кэш KV",
   "KV cache: keys": "Кэш KV: ключи",
@@ -903,13 +882,13 @@
   "Keeps the model in VRAM so the next dictation starts sooner.": "Удерживает модель в видеопамяти (VRAM), чтобы следующая сессия диктовки стартовала быстрее.",
   "Keeps weights in RAM and streams them to VRAM per stage. Slower; only if VRAM is tight.": "Хранит веса в оперативной памяти (RAM) и передаёт их в видеопамять (VRAM) поэтапно. Работает медленнее; используйте только при нехватке VRAM.",
   "Key": "Ключ",
-  "Kind": "Тип",
   "LCM and Turbo: few steps and guidance near 1.5": "LCM и Turbo: мало шагов и CFG около 1.5",
+  "LLM model for Flex.2 or SD 3.x/Flux. Provides advanced semantic understanding.": "Языковая модель для Flex.2 или SD 3.x/Flux. Обеспечивает расширенное семантическое понимание.",
+  "LLM text encoder": "Текстовый кодировщик LLM",
   "Language": "Язык",
   "Language for the entire ToshLLM interface. Community-contributed languages appear here automatically.": "Язык для всего интерфейса ToshLLM. Языки, добавленные сообществом, появляются здесь автоматически.",
   "Language models on your GPU, with no cloud or accounts.": "Языковые модели на вашей видеокарте — без использования облака и учётных записей.",
   "Language, color, and menu bar.": "Язык, цветовая схема и строка меню.",
-
   "Last %@ results": "Последние результаты: %@",
   "Last generation": "Последняя генерация",
   "Latest": "Последняя",
@@ -921,12 +900,10 @@
   "Length": "Длина",
   "Length of repeated sequence tolerated before DRY starts penalizing.": "Допустимая длина повторяющейся последовательности до того, как DRY начнёт применять штрафные меры.",
   "Lets the engine's web interface talk to MCP servers on another origin, bridging the browser's cross-origin restriction. Experimental and for trusted networks only: anyone who can reach this server can use the bridge. It does not affect the app's own chat, which talks to MCP by itself.": "Позволяет веб‑интерфейсу движка взаимодействовать с MCP‑серверами на другом источнике, обходя ограничение браузера на междоменные запросы. Экспериментальная функция, используйте только в доверенных сетях: любой, кто имеет доступ к этому серверу, сможет использовать этот мост. Не влияет на собственный чат приложения — он взаимодействует с MCP напрямую.",
-
   "Lets the model read or edit files and run commands via tools. Every sensitive operation asks for permission.": "Разрешает модели читать или редактировать файлы и выполнять команды с помощью инструментов. Для каждой чувствительной операции запрашивается подтверждение.",
   "Level": "Уровень",
   "Library": "Библиотека",
   "Lightweight telemetry reported by the system.": "Облегчённая телеметрия, передаваемая системой.",
-
   "Likes": "Лайки",
   "Limit: RAM bandwidth": "Ограничение: скорость RAM",
   "Limit: VRAM bandwidth": "Ограничение: скорость VRAM",
@@ -937,9 +914,6 @@
   "Live dictation with macOS's built-in service. It reserves no VRAM.": "Диктовка в реальном времени с использованием встроенного сервиса macOS. Не резервирует видеопамять (VRAM).",
   "Live usage · GPU capacity": "Текущее использование · ёмкость GPU",
   "Live · no VRAM reserved": "Вживую · без резерва VRAM",
-  "LLM Encoder":"LLM энкодер",
-  "LLM path": "Путь к LLM энкодеру",
-
   "Load %@ earlier lines": "Загрузить %@ предыдущих строк",
   "Load 20 more": "Загрузить ещё 20",
   "Loaded at once": "Загружены одновременно",
@@ -957,14 +931,12 @@
   "Loads the configured model to translate after transcription.": "Загружает настроенную модель для перевода после транскрипции.",
   "Loads this configuration. Restart the server to use it.": "Загружает эту конфигурацию. Для применения изменений перезапустите сервер.",
   "Local (stdio)": "Локальный (stdio)",
-
   "Local AI, built for your Mac.": "Локальный ИИ для вашего Mac.",
   "Local agent tools": "Локальные инструменты",
   "Local audio input and transcription.": "Локальный ввод аудио и транскрипция.",
   "Local build": "Локальная сборка",
   "Local files": "Локальные файлы",
   "Local language models with Metal acceleration on Intel Macs with AMD GPUs.": "Локальные языковые модели с ускорением Metal на Mac с процессорами Intel и видеокартами AMD.",
-
   "Local library": "Локальная библиотека",
   "Local model for chat, writing and everyday tasks.": "Локальная модель для чата, написания текстов и повседневных задач.",
   "Local model specialized in coding and tool-driven work.": "Локальная модель, специализированная на программировании и работе с инструментами.",
@@ -973,7 +945,6 @@
   "Local network": "Локальная сеть",
   "Local server port (API and web chat).": "Порт локального сервера (API и веб‑чат).",
   "Local server port (OpenAI-compatible API and web chat).": "Порт локального сервера (API, совместимый с OpenAI, и веб‑чат).",
-
   "Local voice, full control": "Локальный голос, полный контроль",
   "Location": "Местоположение",
   "Lock model in RAM (--mlock)": "Закрепить модель в RAM (--mlock)",
@@ -991,7 +962,6 @@
   "MCP tools ask for permission just like local ones.": "Инструменты MCP запрашивают разрешение так же, как и локальные инструменты.",
   "MODEL": "МОДЕЛЬ",
   "MTP prediction": "Предсказание по MTP",
-
   "MTP turns on automatically whenever the GGUF includes the head, for both dense and MoE models.": "MTP включается автоматически, если в GGUF‑файле есть голова MTP, — как для плотных моделей, так и для MoE-моделей.",
   "Machine and configuration": "Оборудование и конфигурация",
   "Make smaller": "Уменьшить",
@@ -1001,7 +971,6 @@
   "Manual control over speech detection and segmentation.": "Ручной контроль обнаружения речи и её сегментации.",
   "Map": "Карта",
   "Map in the chat": "Карта в чате",
-
   "Margin": "Отступ",
   "Mask (inpainting, optional)": "Маска (inpainting, необязательно)",
   "Matched to this Mac": "Подобрано для этого Mac",
@@ -1016,7 +985,6 @@
   "Maximum tokens the model may generate this turn, including reasoning and visible answer. It does not increase context. Recommended: 2,048–4,096.": "Максимальное количество токенов, которое модель может сгенерировать за этот ход, включая рассуждение и видимый ответ. Это не увеличивает контекст. Рекомендуемый диапазон: 2048–4096.",
   "Maximum tool→response rounds the agent chains in one turn before stopping.": "Максимальное количество циклов «инструмент → ответ» в цепочках агента за один ход до остановки.",
   "Maximum width": "Максимальная ширина",
-
   "Maximum · no budget": "Максимум · без бюджета",
   "Mean tokens accepted per verification. Below 1 the speculation costs more than it saves.": "Среднее количество токенов, принятых за одну проверку. Если значение ниже 1, спекулятивное декодирование обходится дороже, чем даёт экономии.",
   "Measure performance on your hardware.": "Измерьте производительность на вашем оборудовании.",
@@ -1032,7 +1000,6 @@
   "Medium · 2,048 tokens": "Средний · 2048 токенов",
   "Memory": "Память",
   "Memory as Metal reports it, which need not match the number on the box. It only adds up when you split a model across several GPUs; one that is not split has to fit in a single card.": "Объём памяти согласно отчёту Metal — он не обязан совпадать с указанным на упаковке. Суммируется только при распределении модели между несколькими GPU; модель без разбиения должна целиком помещаться на одной видеокарте.",
-
   "Menu bar icon": "Значок в строке меню",
   "Merge with next": "Объединить со следующим",
   "Message": "Сообщение",
@@ -1041,7 +1008,6 @@
   "Metal · patched AMD build": "Metal · сборка для AMD с патчами",
   "Metrics": "Метрики",
   "Micro-batch": "Микропакет",
-
   "Microphone method": "Режим микрофона",
   "Min P": "Min P",
   "Minimal · no budget": "Минимум · без бюджета",
@@ -1049,7 +1015,6 @@
   "Minimum speech": "Мин. длительность речи",
   "Mixture of experts: some experts can be offloaded to RAM.": "Mixture of Experts (смесь экспертов): некоторые эксперты могут быть выгружены в оперативную память (RAM).",
   "MoE expert prefetch (prompt)": "Предзагрузка экспертов MoE (промпт)",
-
   "MoE experts on CPU": "Эксперты MoE на CPU",
   "MoE experts on CPU: %@": "Эксперты MoE на CPU: %@",
   "MoE experts on CPU: N/A (dense model)": "Эксперты MoE на CPU: недоступно (плотная модель)",
@@ -1059,12 +1024,10 @@
   "MoE on CPU": "MoE на CPU",
   "Model": "Модель",
   "Model and measurement": "Модель и замеры",
-
   "Model and settings for this instance.": "Модель и настройки для этого экземпляра.",
   "Model catalog": "Каталог моделей",
   "Model configuration": "Конфигурация модели",
   "Model default": "Как в модели",
-  "Model file": "Файл модели",
   "Model files should be located in: %@": "Файлы моделей должны находиться в: %@",
   "Model for the next message. The router loads it on demand (unloading the previous one if needed), no server restart.": "Модель для следующего сообщения. Маршрутизатор загружает её по требованию (при необходимости выгружая предыдущую), перезапуск сервера не требуется.",
   "Model for this instance": "Модель для этого экземпляра",
@@ -1073,8 +1036,6 @@
   "Model installed": "Модель установлена",
   "Model maximum": "Максимум модели",
   "Model name": "Имя модели",
-  "Model name (default big-lama)": "Имя модели (по-умолчанию big-lama)",
-
   "Model quantization": "Квантование модели",
   "Model ready on the GPU": "Модель готова на GPU",
   "Model router": "Маршрутизатор моделей",
@@ -1082,7 +1043,8 @@
   "Model settings": "Настройки модели",
   "Model text before the call (not verified)": "Текст модели перед вызовом (не проверен)",
   "Model that will translate the segments; it is the same one Chat uses. Stop the engine to change it.": "Модель, которая будет переводить сегменты, — та же, что используется в чате. Чтобы сменить её, остановите движок.",
-
+  "Model type": "Тип модели",
+  "Model used by this conversation.": "Модель, используемая в этом разговоре.",
   "Model's": "Как в модели",
   "Model-specific parameters for the selected model.": "Параметры, специфичные для выбранной модели.",
   "Models": "Модели",
@@ -1094,28 +1056,23 @@
   "Models, GPU, and memory": "Модели, GPU и память",
   "More actions": "Ещё действия",
   "More options": "Ещё параметры",
-
   "More steps refine the detail and take proportionally longer. The model ships its own recommendation.": "Большее количество шагов улучшает детализацию, но пропорционально увеличивает время обработки. Модель предоставляет собственные рекомендации по числу шагов.",
   "Most recent request speed": "Скорость последнего запроса",
   "Move to Trash": "Переместить в Корзину",
   "Move to project": "Переместить в проект",
   "Moves the text encoder and VAE to another GPU, leaving this one to the diffusion model: bigger models or larger frames fit.": "Переносит текстовый энкодер и VAE на другую видеокарту, оставляя текущую для диффузионной модели — так можно использовать более крупные модели или кадры большего размера.",
-
   "Multi-model router": "Маршрутизатор моделей",
   "Multi-token prediction": "Многотокенное предсказание",
-
   "Multi-token prediction acceptance: the fraction of tokens the MTP head drafted that turned out right. Higher = more speedup, no quality change.": "Доля принятых предсказаний мультитокенов: часть токенов, которые модуль MTP предварительно сгенерировал и которые оказались верными. Чем выше значение — тем больше ускорение, при этом качество не меняется.",
   "Multiplier": "Множитель",
   "Must be a 4x ESRGAN. DAT and SwinIR models are not compatible with this engine.": "Должен быть ESRGAN с коэффициентом 4×. Модели DAT и SwinIR несовместимы с этим движком.",
   "My models": "Мои модели",
-
   "NEW IDENTITY": "НОВЫЙ ИДЕНТИФИКАТОР",
   "Name": "Имя",
   "Name or URI": "Имя или URI",
   "Name the program to launch.": "Укажите программу для запуска.",
   "Name, quantization, hashes, configuration, and results. Files are not uploaded.": "Имя, квантование, хеши, конфигурация и результаты. Файлы не загружаются.",
   "Native resolutions: %@ · %@ fps.": "Родные разрешения: %@ · %@ к/с.",
-
   "Native resolutions: %@ · %@ frames (%@ s) at %@ fps.": "Нативные разрешения: %@ · %@ кадров (%@ с) при %@ кадрах в секунду.",
   "Near the VRAM limit. If it freezes or crashes, lower the size.": "Близко к пределу видеопамяти (VRAM). Если система зависает или происходит сбой, уменьшите размер.",
   "Needs %@ GB of VRAM; it won't run on this GPU.": "Требуется %@ ГБ видеопамяти (VRAM); модель не запустится на этой видеокарте.",
@@ -1123,7 +1080,6 @@
   "New chat": "Новый чат",
   "New chat here": "Новый чат здесь",
   "New project": "Новый проект",
-
   "Next image": "Следующее",
   "No GPU usage data": "Нет данных о GPU",
   "No MCP servers": "Нет серверов MCP",
@@ -1133,7 +1089,6 @@
   "No chats, prompts, account name, local paths, or file contents.": "Нет чатов, промптов, имени учётной записи, локальных путей или содержимого файлов.",
   "No configuration leaves a safe VRAM margin at this context; lower the context.": "При таком объёме контекста ни одна конфигурация не оставляет безопасный запас видеопамяти (VRAM); уменьшите объём контекста.",
   "No conversations": "Нет диалогов",
-
   "No direct .gguf files": "Нет прямых файлов .gguf",
   "No download source is recorded for this file.": "Для этого файла не зафиксирована информация об источнике загрузки.",
   "No downloaded models": "Нет загруженных моделей",
@@ -1143,18 +1098,15 @@
   "No folder for the tools. Click to pick one.": "Не указана папка для инструментов. Нажмите, чтобы выбрать её.",
   "No limit": "Без ограничений",
   "No lines at this level": "Нет строк на этом уровне",
-
   "No link": "Без соединения",
   "No local paths": "Нет локальных путей",
   "No mesh": "Без сетки",
   "No model": "Нет модели",
   "No model with that trait": "Нет моделей с этим свойством",
-
   "No models": "Нет моделей",
   "No models yet": "Пока нет моделей",
   "No reasoning": "Нет рассуждений",
   "No saved errors": "Нет сохранённых ошибок",
-
   "No submissions yet.": "Отправок пока нет.",
   "No subtitles yet": "Пока нет субтитров",
   "No system prompt.": "Нет системного промпта.",
@@ -1162,21 +1114,16 @@
   "No tools or connection failed; check the log.": "Нет инструментов либо произошла ошибка соединения; проверьте лог.",
   "No valid configuration": "Нет допустимой конфигурации",
   "None": "Нет",
-
   "None of your downloaded models has it.": "Ни одна из ваших загруженных моделей не содержит этого.",
   "Not a valid JSON object; it is saved as soon as it is one.": "Это не валидный JSON‑объект; он будет сохранён, как только станет корректным.",
   "Not compatible": "Несовместимо",
   "Not enough VRAM for that size. Use a non-square ratio or a smaller size.": "Недостаточно видеопамяти (VRAM) для такого размера. Используйте неквадратное соотношение сторон или меньший размер.",
-
   "Not reported": "Не указано",
-
   "Not supported by the selected model": "Не поддерживается выбранной моделью",
   "Note": "Примечание",
   "Notes": "Примечания",
   "Nothing has been uploaded yet.": "Пока ничего не загружено.",
-
   "Nothing uploads until final confirmation": "Ничего не загружается до окончательного подтверждения",
-
   "Nucleus sampling: only the most likely tokens whose probabilities sum to P are considered. 1.0 disables it; lower trims the unlikely tail.": "Выборка по методу Nucleus: учитываются только наиболее вероятные токены, сумма вероятностей которых равна P. Значение 1.0 отключает эту функцию; меньшие значения отсекают маловероятные варианты.",
   "OK": "ОК",
   "ON THIS MAC": "НА ЭТОМ MAC",
@@ -1184,7 +1131,6 @@
   "Off until you approve them.": "Отключено, пока вы их не одобрите.",
   "Off: MoE models use the standard expert offload with your settings below. On: the engine uses the GPU, RAM and the model file itself to fit the model; it keeps the most used experts in VRAM and in RAM what the machine can give right now, picks the KV and batch size, and when nothing fits safely it does not load the model and says why.": "Отключено: модели MoE используют стандартную выгрузку экспертов согласно вашим настройкам ниже. Включено: движок задействует GPU, RAM и сам файл модели, чтобы разместить её в памяти; хранит наиболее часто используемые эксперты в VRAM, а остальные — в RAM в пределах доступных ресурсов, подбирает размеры KV‑кэша и батча; если модель безопасно разместить не удаётся, она не загружается, а система сообщает причину.",
   "Off: when they fit, every expert stays in RAM, also the ones already in VRAM. On: RAM keeps only the ones that are not in VRAM and leaves the rest free for other apps; generation is slower (11 to 17% on a 35B model) and the first prompt after loading takes longer.": "Отключено: если хватает места, все эксперты остаются в RAM — включая те, что уже находятся в VRAM. Включено: RAM хранит только тех экспертов, которых нет в VRAM, освобождая остальное пространство для других приложений; генерация идёт медленнее (на 11–17% для модели на 35 млрд параметров), а обработка первого промпта после загрузки занимает больше времени.",
-
   "Offer tools to it again": "Снова дать ему инструменты",
   "Offline maps": "Офлайн-карты",
   "Offload to CPU": "Выгрузить на CPU",
@@ -1199,7 +1145,6 @@
   "On: the engine's plan picks experts, batch and KV": "Включено: план движка определяет выбор экспертов, размера батча и KV‑кэша",
   "One .geojson file per layer and kind of geometry: %@": "Один файл .geojson на каждый слой и тип геометрии: %@",
   "One per line; arguments containing spaces stay intact.": "По одному на строку; аргументы, содержащие пробелы, сохраняются без изменений.",
-
   "One server serves every downloaded model: an external client (VS Code, Continue…) or the built-in chat picks the model per request and the server loads it on demand, no restart.": "Один сервер обслуживает все загруженные модели: внешний клиент (например, VS Code, Continue…) либо встроенный чат выбирает модель для каждого запроса, а сервер загружает её по требованию — перезапуск не требуется.",
   "One server serves every downloaded model: the model is picked per request and loads on demand, no restart.": "Один сервер обслуживает все загруженные модели: модель выбирается для каждого запроса и загружается по требованию — без перезапуска сервера.",
   "One-token decoding": "По одному токену",
@@ -1213,11 +1158,9 @@
   "Open WebUI": "Открыть WebUI",
   "Open advanced chat settings…": "Открыть расширенные настройки чата…",
   "Open code in a larger view": "Открыть код в увеличенном виде",
-
   "Open full log": "Открыть полный лог",
   "Open in %@": "Открыть в %@",
   "Open interactive preview": "Открыть интерактивный просмотр",
-
   "Open project…": "Открыть проект…",
   "Open repository": "Открыть репозиторий",
   "Open the folder": "Открыть папку",
@@ -1226,9 +1169,7 @@
   "Opens the catalog to choose a compatible model.": "Открывает каталог для выбора совместимой модели.",
   "Opens the catalog to download a language model, which translating requires.": "Открывает каталог для загрузки языковой модели, необходимой для перевода.",
   "Opens the folder in Finder, creating it if needed.": "Открывает папку в Finder, создавая её при необходимости.",
-
   "Opens the folder with each benchmark's full log (header + output), for sharing or debugging after a freeze. Kept ~30 days.": "Открывает папку с полными логами каждого бенчмарка (заголовок + вывод) — для передачи другим или отладки после зависания. Хранятся примерно 30 дней.",
-
   "Opens the layer in its own viewer, in the browser.": "Открывает слой в отдельном просмотрщике в браузере.",
   "Opens the model catalog with estimates for your hardware.": "Открывает каталог моделей с оценками совместимости для вашего оборудования.",
   "Opens the specification on GitHub.": "Открывает спецификацию на GitHub.",
@@ -1238,14 +1179,11 @@
   "Optional JSON object. Credentials are stored in the macOS Keychain.": "Необязательный JSON‑объект. Учётные данные сохраняются в связке ключей macOS (Keychain).",
   "Orange": "Оранжевый",
   "Order the samplers are applied in, separated by ';'. Leave empty for the engine's default order.": "Укажите порядок применения сэмплеров, разделяя их точкой с запятой (';'). Оставьте поле пустым, чтобы использовать порядок по умолчанию, заданный движком.",
-
   "Order: top_k;typ_p;top_p;min_p;temperature": "Порядок: top_k;typ_p;top_p;min_p;temperature",
-
   "Original": "Исходный",
   "Others": "Другие",
   "Other…": "Другое…",
   "Out of VRAM. Lower the resolution or frame count.": "Видеопамять (VRAM) исчерпана. Уменьшите разрешение или количество кадров.",
-
   "Outline": "Контур",
   "Override the parameters with your own JSON and connect MCP servers to extend the chat's tools.": "Переопределите параметры с помощью собственного JSON и подключите серверы MCP, чтобы расширить набор инструментов чата.",
   "Overrides the project and global prompts for this conversation only. Empty = inherit.": "Заменяет промпты проекта и глобальные промпты только для этой беседы. Если поле пустое — используются значения по наследованию.",
@@ -1262,15 +1200,12 @@
   "Parameters": "Параметры",
   "Parts": "Части",
   "Past the %@ frames the model learned: the motion may drift. That is the model's limit, not the app's.": "За пределами %@ кадров, на которых обучалась модель, движение может смещаться. Это ограничение самой модели, а не приложения.",
-
   "Paste text to file": "Вставить текст в файл",
   "Paste the \"mcpServers\" block other MCP clients use and they are all added at once.": "Вставьте блок \"mcpServers\", который используют другие клиенты MCP, — все они будут добавлены одновременно.",
   "Paste the “mcpServers” configuration block from another MCP client.": "Вставьте блок конфигурации “mcpServers” из другого клиента MCP.",
   "Pasted image: the current model can't read images (load a vision model with its mmproj)": "Вставленное изображение: текущая модель не умеет обрабатывать изображения (загрузите модель компьютерного зрения вместе с её mmproj).",
   "Pasted text": "Вставленный текст",
-
   "Path to an alternative llama-server to test other builds.": "Путь к альтернативному llama-server для тестирования других сборок.",
-  "Path to mmproj (for Qwen-Image)": "Путь к mmproj (для Qwen-Image)",
   "Path to the executable, or its name when it is on the PATH.": "Путь к исполняемому файлу либо его имя — если он добавлен в переменную PATH.",
   "Pause": "Пауза",
   "Pause (resumable)": "Пауза (можно продолжить)",
@@ -1278,15 +1213,12 @@
   "Penalizes a token in proportion to how many times it already appeared. Positive reduces filler; negative favors it.": "Штрафует токен пропорционально тому, сколько раз он уже встречался. Положительное значение уменьшает «воду» (заполнители); отрицательное — поощряет её использование.",
   "Penalizes repeating tokens already used. 1.0 disables it; above that reduces repetition, too high hurts coherence.": "Штрафует за повторение уже использованных токенов. Значение 1.0 отключает эту функцию; значения выше уменьшают повторения, но слишком высокие показатели могут ухудшить связность текста.",
   "Penalties": "Штрафы",
-
   "Pending": "В ожидании",
   "Per-call authorization.": "Авторизация для каждого вызова.",
   "Performance": "Производительность",
   "Performance & Memory": "Производительность и память",
-
   "Performance lab": "Лаборатория скорости",
   "Performance trends": "Динамика скорости",
-
   "Permanent instructions for the model. Priority: the conversation's prompt, then the project's, then this global one.": "Постоянные инструкции для модели. Приоритет: промпт текущей беседы, затем промпт проекта, затем этот глобальный промпт.",
   "Permanent instructions for the model…": "Постоянные инструкции для модели…",
   "Permissions": "Права доступа",
@@ -1294,12 +1226,10 @@
   "Pick a data file or folder.": "Выберите файл или папку с данными.",
   "Pick a data folder.": "Выберите папку с данными.",
   "Pick a translation model below to start it.": "Выберите ниже модель для перевода, чтобы запустить её.",
-
   "Pick an image to enlarge it 4x.": "Выберите изображение для увеличения ×4.",
   "Pick at least 2 GPUs for the split; with only one, all are used.": "Выберите как минимум 2 GPU для разделения нагрузки; если указана только одна видеокарта, будут задействованы все доступные.",
   "Pick my first model": "Выбрать мою первую модель",
   "Pick this chat's folder…": "Выберите папку для этого чата…",
-
   "Pick this conversation's folder.": "Выберите папку для этой беседы.",
   "Pin": "Закрепить",
   "Pin project": "Закрепить проект",
@@ -1308,11 +1238,9 @@
   "Pins names, brands and terminology, one per line, to keep them consistent throughout the video.": "Закрепляет имена, бренды и терминологию (по одному элементу на строку), чтобы сохранять их единообразие на протяжении всего видео.",
   "Plain text": "Обычный текст",
   "Planning": "Планирование",
-
   "Planning memory": "Расчёт памяти",
   "Play": "Воспроизвести",
   "Play from this subtitle.": "Воспроизвести с этого субтитра.",
-
   "Port": "Порт",
   "Position": "Положение",
   "Position %@": "Позиция %@",
@@ -1320,7 +1248,6 @@
   "Prediction": "Предсказание",
   "Preparing": "Подготовка",
   "Preparing audio…": "Подготовка аудио…",
-
   "Preparing experts": "Подготовка экспертов",
   "Preparing the canvas…": "Подготовка холста…",
   "Preparing…": "Подготовка…",
@@ -1336,19 +1263,16 @@
   "Privacy": "Приватность",
   "Privacy First": "Сначала приватность",
   "Private key stays in Keychain": "Закрытый ключ хранится в Связке ключей",
-
   "Private · multilingual · Radeon": "Приватный · мультиязычный · Radeon",
   "Private. Fast. Powerful. ToshLLM brings open-source AI to your machine with a clean, native macOS experience.": "Приватно. Быстро. Мощно. ToshLLM предоставляет ИИ с открытым исходным кодом прямо на вашем устройстве — с нативным и лаконичным интерфейсом под macOS.",
   "Process": "Обработать",
   "Processes the file locally and preserves exportable timestamps.": "Обрабатывает файл локально и сохраняет временные метки, пригодные для экспорта.",
   "Processing": "Обработка",
-
   "Processing PDF on device…": "Обработка PDF на устройстве…",
   "Processing runs locally. Cropping first can help with very large images.": "Обработка выполняется локально. Предварительная обрезка может помочь при работе с очень большими изображениями.",
   "Profile": "Профиль",
   "Profile name": "Имя профиля",
   "Profile name (e.g. Coding, Quick chat)": "Имя профиля (например, «Программирование», «Быстрый чат»)",
-
   "Profiles": "Профили",
   "Profiles and options for loading models on your hardware.": "Профили и опции для загрузки моделей на вашем оборудовании.",
   "Project": "Проект",
@@ -1357,7 +1281,6 @@
   "Project name": "Название проекта",
   "Project prompt for \"%@\"": "Промпт проекта для «%@»",
   "Project prompt…": "Промпт проекта…",
-
   "Project's…": "Из проекта…",
   "Projector": "Проектор",
   "Projects": "Проекты",
@@ -1365,7 +1288,6 @@
   "Prompt and generation metrics": "Метрики промпта и генерации",
   "Prompt cache in RAM": "Кэш промпта в RAM",
   "Prompt cache reuse (fast)": "Повтор кэша промпта (быстро)",
-
   "Prompt for the queue…": "Промпт для очереди…",
   "Prompt micro-batch": "Микро-батч промпта",
   "Prompt processing": "Обработка промпта",
@@ -1374,17 +1296,14 @@
   "Prompt tokens the GPU processes at once. A larger one reads the prompt faster in exchange for VRAM. Follows Settings until you change it here.": "Токены промпта, которые GPU обрабатывает за один раз. Больший размер ускоряет чтение промпта за счёт увеличения потребления VRAM. Значение наследуется из общих настроек, пока вы не измените его здесь.",
   "Prompt tokens to process.": "Токены промпта для обработки.",
   "Prompts": "Промпты",
-
   "Protect the API with a key": "Защитить API с помощью ключа",
   "Provenance": "Происхождение",
-
   "Public alias": "Публичный алиас",
   "Publish a verifiable measurement on toshllm.com": "Опубликовать проверяемое измерение на toshllm.com",
   "Published": "Опубликовано",
   "Purple": "Фиолетовый",
   "Put the files in the image lora folder": "Поместите файлы в папку LoRA для изображений",
   "QUALITY": "КАЧЕСТВО",
-
   "QUANT": "КВАНТ",
   "Quality indistinguishable from f16, and 25% less cache than q8_0 on both.": "Качество неотличимо от f16, при этом кэш занимает на 25% меньше места по сравнению с q8_0 в обоих случаях.",
   "Quantization": "Квантование",
@@ -1398,7 +1317,7 @@
   "Queue %@": "Очередь %@",
   "Queued": "В очереди",
   "Quit": "Выйти",
-"Qwen-Image with reference images requires a vision projector (mmproj).":"Для Qwen-Image с референсными изображениями требуется машинное зрение (mmproj).",
+  "Qwen-Image with reference images requires a vision projector (mmproj).": "Для Qwen-Image с референсными изображениями требуется машинное зрение (mmproj).",
   "RAM limited": "Ограничено RAM",
   "RECOMMENDED FOR YOUR MACHINE": "РЕКОМЕНДОВАНО ДЛЯ ВАШЕГО КОМПЬЮТЕРА",
   "Random seed. -1 picks a new one each time; set a number for reproducible answers with the same parameters.": "Случайное зерно (seed). Значение -1 каждый раз выбирает новое зерно; задайте конкретное число, чтобы получать воспроизводимые ответы при одинаковых параметрах.",
@@ -1416,12 +1335,10 @@
   "Reasoning": "Рассуждения",
   "Reasoning as plain text (external clients)": "Рассуждения в виде обычного текста (для внешних клиентов)",
   "Reasoning effort": "Уровень рассуждений",
-
   "Reasoning level for requests that do not choose one, such as those from VS Code or many agents. A request that sets it always wins. Levels only change anything on models whose template accepts them; Off works on every reasoning model.": "Уровень рассуждений для запросов, которые его не задают, — например, от VSCode или многих агентов. Запрос, явно указывающий уровень, всегда имеет приоритет. Уровни влияют только на модели, чей шаблон их поддерживает; значение «Отключено» работает со всеми моделями, поддерживающими рассуждения.",
   "Reasoning models think before answering (those tokens count toward the response limit). The list shows the levels the loaded model's template accepts, and “Model default” lets the model choose. Turning it off sends enable_thinking:false and /no_think; some reasoning-only models (e.g. R1) may still think regardless.": "Модели с функцией рассуждений «думают» перед ответом (эти токены учитываются в лимите ответа). В списке показаны уровни, которые поддерживает шаблон загруженной модели; опция «По умолчанию для модели» позволяет модели выбрать уровень самостоятельно. При отключении функции отправляется флаг enable_thinking:false и команда /no_think; некоторые модели, ориентированные исключительно на рассуждения (например, R1), могут продолжать рассуждать независимо от этого.",
   "Receiver token (optional)": "Токен получателя (необязательно)",
   "Recent": "Недавние",
-
   "Recently used": "Недавние",
   "Recommendation: return to Auto so ToshLLM can choose a safe configuration; you can also disable DFlash or continue and remember this decision.": "Рекомендация: вернитесь в режим «Авто», чтобы ToshLLM мог подобрать безопасную конфигурацию. Вы также можете отключить DFlash либо продолжить и сохранить это решение.",
   "Recommended": "Рекомендуется",
@@ -1436,6 +1353,7 @@
   "Red": "Красный",
   "Redo": "Повторить",
   "Redoes the last undone edit.": "Возвращает отменённую правку.",
+  "Reference Images": "Референсные изображения",
   "Reference images": "Образцовые изображения",
   "Refresh": "Обновить",
   "Regenerate response": "Сгенерировать ответ заново",
@@ -1450,46 +1368,36 @@
   "Remove from the queue": "Удалить из очереди",
   "Remove image": "Удалить изображение",
   "Remove instance": "Удалить экземпляр",
-
   "Remove this file.": "Удалить этот файл.",
   "Remove this image": "Удалить это изображение",
   "Remove this reference": "Удалить этот референс",
   "Removes the stored value.": "Удаляет сохранённое значение.",
-
   "Removes this instance.": "Удаляет этот экземпляр.",
-
   "Rename conversation": "Переименовать беседу",
   "Rename project": "Переименовать проект",
   "Rename…": "Переименовать…",
   "Repaints one area only (inpainting). White = repaint, black = keep. Same size as the init image. Without one, everything is repainted.": "Перерисовывает только одну область (inpainting). Белый цвет — перерисовать, чёрный — оставить без изменений. Размер маски совпадает с размером исходного изображения. Если маски нет, перерисовывается всё изображение.",
   "Repeat": "Повторить",
   "Repeat penalty": "Штраф за повторение",
-
   "Repeat the same seed with the same prompt to reproduce a video. Change it to explore variations.": "Используйте одно и то же зерно (seed) с тем же промптом, чтобы воспроизвести видео. Меняйте зерно, чтобы получать разные варианты.",
-
   "Repeat window": "Окно повторений",
   "Replace all": "Заменить всё",
   "Replace with": "Заменить на",
   "Replaces matches in both the original and translation.": "Заменяет совпадения как в оригинале, так и в переводе.",
-
   "Replan": "Пересчитать",
-
   "Report an issue": "Сообщить о проблеме",
   "Repository": "Репозиторий",
   "Repository last updated": "Последнее обновление репозитория",
   "Request": "Запрос",
-
   "Request a feature": "Предложить функцию",
   "Request limit": "Лимит запросов",
   "Requests": "Запросы",
   "Requests processed in parallel": "Запросы, обрабатываемые параллельно",
   "Requests read access.": "Запрашивает доступ на чтение.",
-
   "Requests: %@": "Запросы: %@",
   "Requires %@ GB of VRAM; %@ GB is available.": "Требуется %@ ГБ видеопамяти (VRAM); доступно %@ ГБ.",
   "Requires clearer, sustained speech; it does not separate background voices that remain intelligible.": "Требуется более чёткая и непрерывная речь; система не отделяет фоновые голоса, если они остаются разборчивыми.",
   "Requires enabling the AMD Flash Attention kernel (above).": "Требуется включить ядро AMD Flash Attention (указано выше).",
-
   "Rescan": "Пересканировать",
   "Reserving RAM": "Резервирование RAM",
   "Reset": "Сбросить",
@@ -1499,7 +1407,6 @@
   "Reset sampling": "Сбросить сэмплинг",
   "Reset settings": "Сбросить настройки",
   "Reset to defaults": "Сбросить настройки",
-
   "Resolution": "Разрешение",
   "Resources": "Ресурсы",
   "Respects the VRAM reserve": "Учитывает резерв видеопамяти (VRAM)",
@@ -1514,24 +1421,19 @@
   "Restarts the server and budgets the memory free now.": "Перезапускает сервер и перераспределяет доступную на данный момент память.",
   "Restarts the server with these settings.": "Перезапускает сервер с текущими настройками.",
   "Restore the model prompt": "Восстановить промпт модели",
-
   "Restores custom values to the Balanced profile.": "Возвращает пользовательские значения к профилю «Сбалансированный».",
-
   "Restores the last automatically saved work.": "Восстанавливает последнюю автоматически сохранённую работу.",
   "Result": "Результат",
   "Results": "Результаты",
   "Results as a list or a grid.": "Результаты в виде списка или сетки.",
   "Resume": "Возобновить",
   "Resume download": "Возобновить загрузку",
-
   "Resume voice detector": "Возобновить детектор голоса",
   "Retry": "Повторить",
-
   "Retry download": "Повторить загрузку",
   "Retry the download": "Повторить загрузку",
   "Retry the download from scratch.": "Повторить загрузку с самого начала.",
   "Retry translation only": "Повторить только перевод",
-
   "Retry upload": "Повторить отправку",
   "Retry voice detector": "Перезапустить детектор голоса",
   "Return sends; Shift+Return inserts a line break. Large pasted text becomes an attachment; pasting an image (screenshot) attaches it if the model has vision.": "Enter отправляет сообщение; Shift+Enter вставляет разрыв строки. Большой вставленный текст автоматически становится вложением; при вставке изображения (скриншота) оно прикрепляется как файл — если у модели есть поддержка работы с изображениями.",
@@ -1539,12 +1441,10 @@
   "Returns every option (engine, GPU, inference, chat) to its default value. It does not delete models or change the models folder.": "Возвращает все параметры (движок, GPU, выводы, чат) к значениям по умолчанию. При этом модели не удаляются, а папка с моделями не изменяется.",
   "Reuse prompt": "Повторить промпт",
   "Reuses sampling steps instead of computing them again. Faster, but it changes the image's detail. On Qwen-Image 2.1 at 25 steps, roughly: cache-dit 1.46x, spectrum 1.91x, easycache 2.06x.": "Повторно использует шаги сэмплирования вместо того, чтобы вычислять их заново. Это быстрее, но влияет на детализацию изображения. Для Qwen-Image 2.1 при 25 шагах примерный прирост скорости: cache-dit — в 1,46 раза, spectrum — в 1,91 раза, easycache — в 2,06 раза.",
-
   "Reveal in Finder": "Показать в Finder",
   "Reveal in Finder, update or delete this model.": "Показать модель в Finder, обновить или удалить её.",
   "Reveal the file in Finder.": "Показать файл в Finder.",
   "Review before signing": "Проверьте перед подписанием",
-
   "Revision": "Ревизия",
   "Revoke persistent permissions": "Отозвать постоянные разрешения",
   "Road route · Apple Maps · %@, %@ %@": "Автомобильный маршрут · Apple Maps · %@, %@ %@",
@@ -1552,17 +1452,14 @@
   "Router (multi-model)": "Маршрутизатор (много моделей)",
   "Router: pick a model": "Маршрутизатор: выберите модель",
   "Router: serves all %@ downloaded models": "Маршрутизатор: обслуживает все скачанные модели (%@)",
-
   "Routes requests across local models": "Распределяет запросы между локальными моделями",
   "Run": "Выполнить",
   "Run A": "Запуск A",
   "Run B": "Запуск B",
   "Run another benchmark to compare.": "Запустите другой бенчмарк для сравнения.",
   "Run benchmark": "Запустить бенчмарк",
-
   "Run measures raw decode, without MTP. For this model's real speed use \"Real generation\".": "«Запустить бенчмарк» измеряет «сырое» декодирование без MTP. Чтобы узнать реальную скорость этой модели, используйте «Реальная генерация».",
   "Run output": "Вывод запуска",
-
   "Run them off your Mac.": "Выполняйте их вне вашего Mac.",
   "Running": "Выполняется",
   "Running the standard benchmark (pp512/tg128 ×3). May take several minutes.": "Выполняется стандартный бенчмарк (pp512/tg128 × 3). Это может занять несколько минут.",
@@ -1571,7 +1468,6 @@
   "Runs the engine tests and adds the result to diagnostics.": "Запускает тесты движка и добавляет результаты в диагностику.",
   "Runs the standard measurement and shows a complete summary before sending it.": "Проводит стандартное измерение и показывает полный сводный отчёт перед отправкой.",
   "Runs the tools off your Mac, in a container or over SSH, so they cannot touch your files. Formats: docker:image, podman:image, docker-container:id, ssh:target. Empty runs them right here.": "Запускает инструменты вне вашего Mac — в контейнере или через SSH, — чтобы они не могли получить доступ к вашим файлам. Поддерживаемые форматы: docker:image, podman:image, docker‑container:id, ssh:target. Если поле пустое, инструменты выполняются прямо здесь.",
-
   "Runtime": "Среда выполнения",
   "SERVER": "СЕРВЕР",
   "Same GPU": "Та же GPU",
@@ -1582,14 +1478,12 @@
   "Save": "Сохранить",
   "Save RAM": "Экономия RAM",
   "Save a copy wherever you choose.": "Сохраните копию в любом месте.",
-
   "Save all": "Сохранить всё",
   "Save all…": "Сохранить все…",
   "Save as profile": "Сохранить как профиль",
   "Save as…": "Сохранить как…",
   "Save changes": "Сохранить изменения",
   "Save configurations and decide how weights, experts, and models load across your GPUs.": "Сохраняйте конфигурации и определяйте, как веса, эксперты и модели будут загружаться на ваши видеокарты (GPU).",
-
   "Save configurations for reuse.": "Сохраняйте конфигурации.",
   "Save current": "Сохранить текущую",
   "Save here": "Сохранить здесь",
@@ -1598,7 +1492,6 @@
   "Save video": "Сохранить видео",
   "Saves each conversation's KV cache to disk, so reopening a chat or restarting the app skips re-processing the prompt (saves several seconds per turn on long prompts). Requires the AMD Flash Attention kernel; with quantized KV (q8_0/q4_0) the file is smaller and restore is faster. Files live in Application Support and are removed when you delete the conversation.": "Сохраняет KV‑кэш каждой беседы на диск, поэтому при повторном открытии чата или перезапуске приложения повторная обработка промпта пропускается (экономит несколько секунд на каждом шаге при длинных промптах). Требуется ядро AMD Flash Attention; при использовании квантованного KV (q8_0/q4_0) файл получается меньше, а восстановление происходит быстрее. Файлы хранятся в папке Application Support и удаляются при удалении беседы.",
   "Saves the entire current configuration (model included) under this name.": "Сохраняет всю текущую конфигурацию (включая модель) под этим именем.",
-
   "Saves the mask and applies it to this instance.": "Сохраняет маску и применяет её к этому экземпляру.",
   "Saves the selected voice input method.": "Сохраняет выбранный метод голосового ввода.",
   "Saves the transcript, translation and glossary to restore them without reprocessing.": "Сохраняет транскрипцию, перевод и глоссарий, чтобы восстановить их без повторной обработки.",
@@ -1611,47 +1504,37 @@
   "Scan from the Binance app to send, or search the alias in Binance Pay.": "Отсканируйте код из приложения Binance для отправки либо найдите псевдоним в Binance Pay.",
   "Scientific computing (NumPy and SciPy)": "Научные вычисления (NumPy и SciPy)",
   "Scope": "Область",
-  "SD 3.x/Flux models require T5-XXL. Without it, generation may fail or produce poor results.":"Для моделей SD 3.x/Flux требуется T5-XXL. Без него генерация может завершиться неудачей или привести к плохим результатам",
   "Search": "Поиск",
   "Search GGUF on Hugging Face…": "Искать GGUF на Hugging Face…",
   "Search GGUF repositories, inspect their quantizations, and download only the files you need.": "Ищите репозитории GGUF, изучайте их варианты квантования и скачивайте только те файлы, которые вам нужны.",
-
   "Search conversations…": "Поиск бесед…",
   "Search logs…": "Поиск в логах…",
   "Search models…": "Поиск моделей…",
   "Search your library…": "Поиск в вашей библиотеке…",
-
   "Secrets": "Секреты",
   "Security": "Безопасность",
   "Seed": "Зерно",
-
   "Seek to a position in the file.": "Перейти к указанной позиции в файле.",
   "Segments will appear when Whisper finishes.": "Сегменты появятся, когда Whisper завершит обработку.",
   "Select a model to inspect its details.": "Выберите модель, чтобы просмотреть её параметры.",
   "Select an audio or video file from your Mac.": "Выберите аудио- или видеофайл на вашем Mac.",
   "Select an mmproj GGUF file": "Выберите файл GGUF формата mmproj",
-  "Select model file": "Выберите файл модели",
   "Select reference images...": "Выберите образцовые изображения...",
   "Select the AMD GPU that runs Whisper.": "Выберите видеокарту AMD, на которой будет работать Whisper.",
-
   "Select this server’s model. Stop this instance to change it.": "Выберите модель для этого сервера. Чтобы сменить её, остановите этот экземпляр.",
   "Select vision": "Выбрать проектор",
-  "Selected: %@ files": "Выбрано: %@ файлов",
   "Selected by the app": "Выбрано приложением",
+  "Selected: %@ files": "Выбрано: %@ файлов",
   "Semantic search and RAG applications.": "Семантический поиск и приложения на базе RAG (Retrieval‑Augmented Generation).",
   "Send": "Отправить",
   "Send a steering message after the agent's current turn.": "Отправить управляющее сообщение после текущего хода агента.",
   "Send archived turns to": "Отправить архивированные ходы в",
-
   "Send message (Return).": "Отправить сообщение (Return).",
-
   "Sends each PDF page as an image to the vision model instead of extracting its text. Useful for scanned or diagram-heavy PDFs.": "Отправляет каждую страницу PDF как изображение в модель с поддержкой зрения — вместо извлечения текста. Полезно для отсканированных PDF‑файлов или документов с большим количеством диаграмм.",
   "Sends one request per length and depth to the running server.": "Отправляет по одному запросу для каждой комбинации длины и глубины на работающий сервер.",
   "Sends the points to Apple Maps over the internet to find the road route. If you deny it, a straight line is drawn.": "Передаёт точки в Apple Maps через интернет, чтобы построить автомобильный маршрут. Если вы запретите это, будет нарисована прямая линия.",
   "Sends the reasoning inline in the response (<think>…) instead of the separate reasoning_content field. Enable it if an external client (VS Code, plugins) appears stuck 'thinking' showing nothing. The in-app chat understands both formats.": "Отправляет рассуждения прямо внутри ответа (в теге <think>…), а не в отдельном поле reasoning_content. Включите эту опцию, если внешний клиент (VSCode, плагины) зависает в состоянии «размышления» и ничего не показывает. Встроенная чат-система поддерживает оба формата.",
-
   "Sensitive": "Чувствительный",
-
   "Sent as Authorization: Bearer with each delivery, for receivers that ask for one.": "Отправляется как заголовок Authorization: Bearer при каждой доставке — для получателей, которые запрашивают авторизацию.",
   "Sent to the model along with your message (~%@ tokens).": "Отправляется модели вместе с вашим сообщением (примерно %@ токенов).",
   "Sent · %@ · %@": "Отправлено · %@ · %@",
@@ -1659,7 +1542,6 @@
   "Separating overlapping voices would require a different source-separation process.": "Для разделения перекрывающихся голосов потребуется отдельный процесс разделения источников звука.",
   "Server": "Сервер",
   "Server %@": "Сервер %@",
-
   "Server health": "Состояние сервера",
   "Server log": "Лог сервера",
   "Server name": "Имя сервера",
@@ -1667,7 +1549,6 @@
   "Server stopped": "Сервер остановлен",
   "Servers": "Серверы",
   "Serves /v1/embeddings for RAG clients (e.g. Obsidian Copilot), which otherwise get a 501 error. Note: llama-server dedicates the process to embeddings, so enable it with an embedding model; to keep chatting, add a second server on Home with this option.": "Предоставляет эндпоинт /v1/embeddings для клиентов RAG (например, Obsidian Copilot), которые в противном случае получали бы ошибку 501. Примечание: llama‑server выделяет процесс исключительно под эмбеддинги, поэтому включайте эту опцию только с моделью для эмбеддингов; чтобы продолжать вести чат, добавьте второй сервер на вкладке «Главная» с этой опцией.",
-
   "Serves /v1/embeddings via --embeddings for RAG clients (e.g. Obsidian Copilot). The server becomes embeddings-only: use it with an embedding model, not for chat.": "Предоставляет эндпоинт /v1/embeddings через флаг --embeddings для клиентов RAG (например, Obsidian Copilot). Сервер становится специализированным только под эмбеддинги: используйте его с моделью для эмбеддингов, а не для чата.",
   "Services & engine": "Сервисы и движок",
   "Services and advanced options": "Сервисы и расширенные опции",
@@ -1677,9 +1558,7 @@
   "Sets keys to %@ and values to %@.": "Устанавливает ключи в значение %@, а значения — в %@.",
   "Settings": "Настройки",
   "Settings exported successfully.": "Настройки успешно экспортированы.",
-
   "Shapefile (ZIP)": "Shapefile (ZIP)",
-
   "Share": "Поделиться",
   "Share a benchmark to see your history.": "Поделитесь бенчмарком, чтобы увидеть свою историю результатов.",
   "Share of the drafted tokens the big model confirmed, accumulated since the server started. It does not change answer quality, only speed.": "Доля черновых токенов, подтверждённых большой моделью, — накапливается с момента запуска сервера. Это не влияет на качество ответов, только на скорость генерации.",
@@ -1690,19 +1569,16 @@
   "Show advanced options": "Показать расширенные опции",
   "Show arguments": "Показать аргументы",
   "Show folder": "Показать папку",
-
   "Show full": "Показать всё",
   "Show less": "Показать меньше",
   "Show on a map": "Показать на карте",
   "Show raw output": "Показать сырой вывод",
   "Show rendered response": "Показать готовый ответ",
-
   "Show system prompt": "Показать системный промпт",
   "Show voice options…": "Показать настройки голоса…",
   "Showing %@ of %@ lines": "Отображено %@ из %@ строк",
   "Shows a menu bar icon with server status and quick controls, even with the window closed.": "Отображает иконку в строке меню с состоянием сервера и быстрыми элементами управления — даже если окно приложения закрыто.",
   "Shows or hides this turn's tool calls, with their results and the text the model wrote before each one.": "Показывает или скрывает вызовы инструментов в этом ходе, включая их результаты и текст, который модель написала перед каждым вызовом.",
-
   "Shows the mask in black and white, the way the engine gets it.": "Показывает маску в чёрно‑белом виде — в том формате, который получает движок.",
   "Shows what changed from your version up to the latest one.": "Показывает, какие изменения были внесены — от вашей версии до последней.",
   "Sign and send benchmark": "Подписать и отправить бенчмарк",
@@ -1712,13 +1588,11 @@
   "Silently skipped while vision is on (the eye): llama.cpp cannot save/restore slots with mmproj loaded. With the eye off it works normally.": "Автоматически пропускается, пока включена функция работы с изображениями (иконка «глаз»): llama.cpp не может сохранять или восстанавливать слоты при загруженном mmproj. При отключённой функции всё работает в штатном режиме.",
   "Silero VAD uses Whisper.cpp defaults with no added calibration.": "Silero VAD использует настройки по умолчанию из Whisper.cpp — без дополнительной калибровки.",
   "Simulates chat and includes MTP.": "Имитирует чат, включая MTP.",
-
   "Size": "Размер",
   "Size of the messages and the input field, leaving the rest of the interface alone. Also ⌘+ and ⌘− from the chat, and ⌘0 to go back to 100%.": "Размер сообщений и поля ввода — остальная часть интерфейса остаётся без изменений. Также можно менять масштаб прямо из чата: ⌘+ — увеличить, ⌘− — уменьшить, ⌘0 — вернуть масштаб к 100%.",
   "Sketch from the answer's data: point 1 is the start and each leg runs to the next number.": "Эскиз на основе данных ответа: точка 1 — начальная, каждый отрезок ведёт к следующему номеру.",
   "Sketch in %@": "Эскиз в %@",
   "Sketch, not placed on a map": "Эскиз, не размещённый на карте",
-
   "Slow": "Медленно",
   "Smooth typing animation": "Плавная анимация набора текста",
   "Some calculations were not run because they did not match the request.": "Некоторые расчёты не были выполнены, так как не соответствовали запросу.",
@@ -1726,7 +1600,6 @@
   "Sort, import, export and delete conversations": "Сортировка, импорт, экспорт и удаление бесед",
   "Source": "Источник",
   "Source file": "Исходный файл",
-
   "Speculative draft decoding": "Спекулятивное декодирование с черновиком",
   "Speech & Audio": "Речь и аудио",
   "Speech & transcription": "Речь и транскрипция",
@@ -1737,24 +1610,20 @@
   "Split GPUs": "Разделение GPU",
   "Split model across all GPUs (experimental)": "Распределить модель по всем GPU (экспериментальная функция)",
   "Split · %@ GPUs": "Разделено · %@ GPU",
-
   "Splits a segment when silence reaches this duration, shown in seconds.": "Разделяет сегмент, когда длительность тишины достигает указанного значения (в секундах).",
   "Splits the model across all detected GPUs (--split-mode) instead of using one, e.g. to load a model that doesn't fit on a single card. Overrides the picker above.": "Распределяет модель по всем обнаруженным GPU (с помощью --split-mode), вместо использования одной карты — например, чтобы загрузить модель, которая не помещается на одной видеокарте. Эта настройка переопределяет выбор, сделанный выше.",
   "Splits, merges, or deletes this segment.": "Разделяет, объединяет или удаляет этот сегмент.",
   "Spoken language": "Язык разговора",
-
   "Standard Flash Attention (CPU)": "Стандартный Flash Attention (на CPU)",
   "Standard Flash Attention runs on CPU on AMD GPUs; enable the AMD kernel to use the GPU.": "Стандартный Flash Attention на GPU AMD работает на CPU; включите ядро AMD, чтобы задействовать видеокарту.",
   "Standard benchmark": "Стандартный бенчмарк",
   "Standard llama.cpp Flash Attention path. On AMD GPUs it falls back to CPU; it is forced to 'on' when KV is quantized. For GPU attention use the AMD kernel below.": "Стандартный путь Flash Attention в llama.cpp. На GPU AMD происходит откат к CPU; при квантованном KV режим принудительно включается. Для работы внимания на GPU используйте ядро AMD ниже.",
   "Standard speed": "Стандартная скорость",
-
   "Start": "Запустить",
   "Start a new conversation in the current project (⌘N).": "Начать новую беседу в текущем проекте (⌘N).",
   "Start by downloading a model": "Начните с загрузки модели",
   "Start chat engine": "Запустить движок чата",
   "Start server": "Запустить сервер",
-
   "Start server on app launch": "Запускать сервер при старте",
   "Start the configured model and type your first message.": "Запустите настроенную модель и введите первое сообщение.",
   "Start the main server with the model you want to test.": "Запустите основной сервер с моделью, которую хотите протестировать.",
@@ -1768,7 +1637,6 @@
   "Steer": "Вмешаться",
   "Steering message queued": "Сообщение в очереди",
   "Steps": "Шаги",
-
   "Stop": "Остановить",
   "Stop and unload Whisper": "Остановить и выгрузить Whisper",
   "Stop chat": "Остановить чат",
@@ -1780,7 +1648,6 @@
   "Stop the server before checking: the test uses the whole GPU.": "Остановите сервер перед проверкой: тест задействует всю видеокарту.",
   "Stopped": "Остановлен",
   "Stops loading the model.": "Останавливает загрузку модели.",
-
   "Stops the current runs.": "Останавливает текущие запуски.",
   "Stops the test after the current request.": "Прекращает тест после текущего запроса.",
   "Stored in the Keychain": "Хранится в Связке ключей",
@@ -1796,7 +1663,6 @@
   "Suggestions": "Подсказки",
   "Suitable for meetings and clean recordings.": "Подходит для совещаний и записей с чистым звуком.",
   "Summarize": "Кратко изложить",
-
   "Summarize old turns to keep talking.": "Суммируйте старые ходы беседы, чтобы освободить контекст и продолжить общение.",
   "Summarize this content and highlight the main ideas:": "Создайте краткое изложение этого контента и выделите основные идеи:",
   "Summarizes completed history so the next turn processes less context. The full chat remains visible and saved.": "Создаёт краткое изложение завершённой истории переписки, чтобы на следующем шаге обрабатывалось меньше контекста. Полная история беседы остаётся видимой и сохранённой.",
@@ -1809,15 +1675,13 @@
   "Switch between chat, images, video, and audio.": "Переключайтесь между режимами: чат, изображения, видео и аудио.",
   "Switch models or download more.": "Смените модель или скачайте дополнительные.",
   "Switches to a valid, measured combination.": "Переключается на допустимую, протестированную комбинацию параметров.",
-
   "Symbolic math (SymPy)": "Символьная математика (SymPy)",
   "System": "Система",
   "System information": "Информация о системе",
   "System memory": "Системная память",
   "System prompt for every chat.": "Системный промпт для всех чатов.",
   "T5-XXL Encoder": "T5-XXL энкодер",
-  "T5-XXL path": "Путь к энкодеру T5-XXL",
-  "T5-XXL model for Flex.2 or SD 3.x/Flux. Provides advanced semantic understanding.":"T5-XXL модель для Flex.2 или SD 3.x/Flux. Дает расширенное понимание семантики",
+  "T5-XXL model for Flex.2 or SD 3.x/Flux. Provides advanced semantic understanding.": "T5-XXL модель для Flex.2 или SD 3.x/Flux. Дает расширенное понимание семантики",
   "Target": "Цель",
   "Target language": "Целевой язык",
   "Teal": "Бирюзовый",
@@ -1831,10 +1695,8 @@
   "Test": "Тест",
   "Test connection": "Проверить соединение",
   "Text": "Текст",
-  "Text colour": "Цвет текста",
-
-  "Text encoder": "Кодировщик текста",
   "Text Encoders": "Кодировщики текста",
+  "Text colour": "Цвет текста",
   "Text only": "Только текст",
   "Text that will replace all matches.": "Текст, который заменит все найденные совпадения.",
   "That folder no longer exists": "Эта папка больше не существует",
@@ -1842,16 +1704,13 @@
   "That folder no longer exists: the tools will fail until you pick another.": "Эта папка больше не существует: инструменты не будут работать, пока вы не выберете другую.",
   "That kind of data cannot be read here": "Здесь невозможно прочитать данные такого типа",
   "That size does not fit this GPU's VRAM. Use a non-square ratio or a smaller size.": "Такой размер не помещается в видеопамять (VRAM) этой видеокарты. Используйте неквадратное соотношение сторон или меньший размер.",
-
   "The GGUF ships the multi-token prediction head: speculative decoding turns on by itself when it pays off.": "В файле GGUF есть голова для предсказания нескольких токенов: спекулятивное декодирование включается автоматически, когда это даёт выигрыш.",
   "The GPU timed out. Lower the resolution or frame count.": "Истекло время ожидания ответа от GPU. Уменьшите разрешение или количество кадров.",
   "The GPU timed out: the image is too large. Lower the base size.": "Истекло время ожидания от GPU: изображение слишком большое. Уменьшите базовый размер.",
   "The JSON is formatted here for readability. Signing uses the exact original bytes; the complete log is shown separately.": "JSON здесь отформатирован для удобства чтения. При подписи используются исходные байты без изменений; полный лог отображается отдельно.",
   "The Metal backend uses shared (system) memory on external GPUs, which streams weights over Thunderbolt every op and tanks speed (~0.8 t/s). This forces private VRAM buffers. If you pin an eGPU in the picker above it's automatic; use this when you leave 'Default' and macOS picks the eGPU.": "Бэкенд Metal на внешних GPU использует общую (системную) память: веса передаются через Thunderbolt при каждой операции, что сильно снижает скорость (~0,8 токена в секунду). Эта опция принудительно включает приватные буферы VRAM. Если вы закрепите eGPU в селекторе выше, она применяется автоматически; используйте её, если оставили значение «По умолчанию», а macOS сама выбрала внешнюю видеокарту.",
-
   "The Tosh agent, the one this chat and the web chat use, also answers /v1/chat/completions clients that do not ask for it with the X-Tosh-Agent: on header, also remotely and without the app. Requests that bring tools of their own (VS Code, agents) or X-Tosh-Agent: off still go to the model as they are. Applies when the server restarts.": "Агент Tosh (тот, который используется в этом чате и в веб-чате) также отвечает клиентам /v1/chat/completions, даже если они не запрашивают его явно через заголовок X-Tosh-Agent: on — в том числе удалённо и без приложения. Запросы, которые передают собственные инструменты (например, из VSCode или других агентов), либо с заголовком X-Tosh-Agent: off, по-прежнему отправляются напрямую модели. Настройка вступает в силу после перезапуска сервера.",
   "The agent reached its 8-turn limit. Continue?": "Агент достиг лимита в 8 ходов. Продолжить?",
-  "The engine has no agent; the chat will run the math tools itself": "В движке нет агента; чат самостоятельно выполнит вызовы математических инструментов.",
   "The alias cannot exceed 80 characters.": "Псевдоним (alias) не может содержать более 80 символов.",
   "The answer is still being written off screen; jump to the end and follow it again.": "Ответ всё ещё генерируется за пределами видимой области экрана. Перейдите в конец и снова следите за ним.",
   "The attachments don't fit the configured context, so sending will fail with 'context full'. Raise the context in Settings, remove files or start a new chat.": "Вложения не помещаются в заданный контекст, поэтому отправка завершится ошибкой «контекст заполнен». Увеличьте лимит контекста в настройках, удалите файлы или начните новый чат.",
@@ -1859,10 +1718,9 @@
   "The brush marks what gets repainted; the eraser puts an area back to kept.": "Кисть отмечает области, которые будут перекрашены; ластик возвращает участок в состояние «сохранённый».",
   "The catalog marks which models fit your machine; one click configures them.": "Каталог показывает, какие модели подходят для вашего компьютера; их можно настроить одним кликом.",
   "The configuration is tested in isolation and does not change your servers.": "Конфигурация тестируется изолированно и не вносит изменений в ваши серверы.",
-
   "The current matches are available in the carousel above.": "Текущие совпадения доступны в карусели выше.",
   "The definitions of the active tools take about %@k of it.": "Описания активных инструментов занимают из него примерно %@ тыс. токенов.",
-
+  "The engine has no agent; the chat will run the math tools itself": "В движке нет агента; чат самостоятельно выполнит вызовы математических инструментов.",
   "The engine measures free VRAM and RAM to decide how to split the model.": "Движок измеряет свободную видеопамять (VRAM) и оперативную память (RAM), чтобы решить, как распределить модель.",
   "The engine only loads 4x models, so x2 upscales and resamples to half.": "Движок загружает только модели с коэффициентом 4×, поэтому при использовании x2 выполняется увеличение и ресэмплинг до половины исходного размера.",
   "The estimated total exceeds half the context configured in Settings; with the history it could fill it.": "Оценочный объём превышает половину контекста, заданного в настройках; с учётом истории он может полностью его заполнить.",
@@ -1876,15 +1734,12 @@
   "The math tools only compute: they neither read nor write files nor run commands. This way the Tosh agent in the engine runs these turns with all its checks. Off, the chat asks before each call and runs the turn itself, with the same rules. It does not change the permissions of any other tool.": "Математические инструменты только выполняют вычисления: они не читают и не записывают файлы, а также не запускают команды. Благодаря этому агент Tosh в движке обрабатывает такие ходы со всеми встроенными проверками. Если опция отключена, чат запрашивает подтверждение перед каждым вызовом и обрабатывает ход самостоятельно — по тем же правилам. Это не влияет на права доступа к любым другим инструментам.",
   "The measurement runs on this Mac first. You will then review exactly what will be signed and uploaded.": "Сначала замеры выполняются на этом Mac. Затем вы сможете проверить, какие именно данные будут подписаны и загружены.",
   "The model downloads on demand. Audio and video are transcribed locally on the GPU and passed to chat as text.": "Модель загружается по требованию. Аудио и видео транскрибируются локально на GPU и передаются в чат в виде текста.",
-
   "The model drafts several tokens per step with its own head. On text it accepts rarely it can run slower than without it.": "Модель предсказывает несколько токенов за шаг с помощью собственной головы. На тексте, где эти предсказания редко принимаются, это может работать медленнее, чем без неё.",
-
   "The model finished reasoning without a visible answer; regenerate or turn Reasoning off.": "Модель завершила этап рассуждений, но не выдала видимого ответа. Сгенерируйте заново или отключите режим «Рассуждения».",
   "The model used all max tokens while reasoning; raise Max or turn Reasoning off.": "При рассуждении модель использовала весь лимит токенов. Увеличьте значение Max или отключите режим «Рассуждения».",
   "The new name will appear in the sidebar.": "Новое имя отобразится на боковой панели.",
   "The order Hugging Face returns repositories in, always limited to those publishing GGUF. “Recent” also requires a minimum number of downloads, so it doesn't fill up with freshly pushed repos nobody uses.": "Порядок, в котором Hugging Face возвращает репозитории, всегда ограничен теми, где публикуются файлы GGUF. Для сортировки «Недавно» также требуется минимальное число загрузок — поэтому список не заполняется новыми репозиториями, которые никто не использует.",
   "The private key remains in this Mac's Keychain. This public fingerprint groups your submissions and verifies that they were not modified.": "Закрытый ключ остаётся в Связке ключей (Keychain) этого Mac. Открытый отпечаток (fingerprint) объединяет ваши отправки в группу и подтверждает, что они не были изменены.",
-
   "The projector (mmproj) is the file that turns an image into something the model understands. Automatic pairs the one in this folder.": "Проектор (mmproj) — это файл, который преобразует изображение в формат, понятный модели. В автоматическом режиме подбирается файл из этой папки.",
   "The projector doesn't match the model's dimension; vision may fail.": "Проектор не соответствует размерности модели — работа с изображениями может завершиться ошибкой.",
   "The queue is empty": "Очередь пуста",
@@ -1892,15 +1747,12 @@
   "The server is holding %@ of %@ GiB (%@). This configuration can lose performance, page memory, or fail as the context grows.": "Сервер занимает %@ из %@ ГБ (%@). При такой конфигурации по мере роста контекста возможно снижение производительности, выгрузка памяти в файл подкачки или сбой.",
   "The server is stopped. You can browse and organize your chats.": "Сервер остановлен. Вы можете просматривать и упорядочивать свои чаты.",
   "The server log — with search, filters and export — lives in the Logs tab.": "Лог сервера — с поиском, фильтрами и возможностью экспорта — находится на вкладке «Логи».",
-
   "The server will stop and its configuration will be removed. Downloaded models will be kept.": "Сервер будет остановлен, а его конфигурация удалена. Скачанные модели сохранятся.",
   "The server's context is under 8K.": "Контекст сервера меньше 8 тысяч токенов.",
   "The server's maximum context: how many tokens fit across the prompt and the history. More context takes more memory for the KV cache.": "Максимальный контекст сервера: сколько токенов помещается в промпт и историю. Чем больше контекст, тем больше памяти требуется для KV-кэша.",
   "The smallest speedup (about 1.46x on Qwen-Image 2.1).": "Наименьшее ускорение (примерно в 1,46 раза на Qwen-Image-2.1).",
   "The stable identity normally reuses the Keychain key without asking for your password again.": "Стабильная идентификация обычно повторно использует ключ из Связки ключей (Keychain) без повторного запроса пароля.",
-
   "The temporal VAEs supported by the engine require 4n+1 frame counts.": "Временные VAE, поддерживаемые движком, требуют, чтобы количество кадров имело вид 4n+1.",
-
   "The test does not change your servers.": "Тест не вносит изменений в ваши серверы.",
   "There are no extensions in this folder.": "В этой папке нет расширений.",
   "These settings affect the application and its startup behavior.": "Эти настройки влияют на работу приложения и его поведение при запуске.",
@@ -1910,9 +1762,7 @@
   "This cannot be undone. Export first from the menu next to the chat search box if you want a copy.": "Это действие нельзя отменить. Если нужна копия, сначала экспортируйте её через меню рядом с полем поиска чатов.",
   "This cannot be undone. Your projects and their prompts are kept.": "Это действие нельзя отменить. Ваши проекты и их промпты сохранятся.",
   "This cannot be undone. Your projects and their prompts are kept; export first if you want a copy.": "Это действие нельзя отменить. Ваши проекты и их промпты сохранятся; если нужна копия — сначала экспортируйте.",
-
   "This configuration recommends %@ GB of VRAM.": "Для этой конфигурации рекомендуется %@ Гб видеопамяти (VRAM).",
-
   "This conversation has its own prompt.": "У этого чата есть собственный промпт.",
   "This conversation has its own prompt; click to edit it.": "У этого чата есть собственный промпт — нажмите, чтобы отредактировать его.",
   "This conversation's folder for the tools.": "Папка этого чата для инструментов.",
@@ -1920,49 +1770,39 @@
   "This conversation's project.": "Проект этого чата.",
   "This conversation's prompt": "Промпт этого чата",
   "This conversation's prompt…": "Промпт этого чата…",
-
   "This conversation's…": "Этот чат…",
-
   "This engine does not ship the check tool.": "В этом движке нет встроенного инструмента проверки.",
   "This is what the tools validated:": "Вот что подтвердили инструменты:",
   "This limit reserves more than half the context for a single response.": "Этот лимит резервирует более половины контекста под один ответ.",
   "This model can animate a still: it becomes the first frame.": "Эта модель может анимировать статичное изображение — оно станет первым кадром.",
   "This model does not declare optional accelerators.": "Модель не объявляет наличие опциональных ускорителей.",
-  "This model runs a fixed %@ steps: it ships its own noise schedule, and any other one spoils the image.": "Модель всегда выполняет %@ шагов: у неё свой встроенный график шума, и любой другой график испортит изображение.",
   "This model runs at CFG %@ and ignores the negative prompt. It needs a model with CFG above 1 (SD 1.5, Qwen-Image), or a higher CFG on your own model.": "Модель работает при CFG %@ и игнорирует негативный промпт. Требуется модель с CFG выше 1 (например, SD 1.5 или Qwen-Image) либо установите более высокий CFG для своей модели.",
   "This model was trained on square frames only (%@x%@): any other shape comes back with colour blotches however many steps you give it. That is the model's limit, not the app's.": "Модель обучалась только на квадратных кадрах (%@×%@): любые другие пропорции будут давать цветовые пятна, сколько бы шагов вы ни задали. Это ограничение самой модели, а не приложения.",
   "This model writes tool calls in the wrong shape; the engine stopped the answer and disabled tools for this model. Send the message again.": "Эта модель формирует вызовы инструментов в неверном формате; движок остановил ответ и отключил инструменты для этой модели. Отправьте сообщение ещё раз.",
-
   "This older result did not store its quant": "В этом старом результате не сохранён тип квантования",
-
   "This option needs the chat engine running.": "Для этой опции требуется, чтобы движок чата был запущен.",
   "This project has its own system prompt.": "У этого проекта есть собственный системный промпт.",
   "This prompt has no arguments.": "У этого промпта нет аргументов.",
   "This server runs on your machine with your permissions. Only add programs you trust.": "Сервер работает на вашем компьютере с вашими правами доступа. Добавляйте только те программы, которым доверяете.",
   "This server's maximum context. Follows Settings until you change it here.": "Максимальный контекст этого сервера. По умолчанию следует настройкам в разделе «Настройки», пока вы не измените его здесь.",
   "Threads for the CPU side (MoE experts, tokenization). Your machine has %@ threads; physical cores (%@) are usually optimal; more threads won't help if RAM bandwidth is the limit.": "Потоки для CPU‑части (эксперты MoE, токенизация). На вашем устройстве доступно %@ потоков; обычно оптимально использовать число, равное количеству физических ядер (%@); увеличение числа потоков не даст прироста, если узким местом является пропускная способность RAM.",
-
   "Threshold": "Пороговое значение",
   "Throughput": "Пропускная способность",
   "Time": "Время",
   "Timeout": "Превышение времени ожидания",
-
   "Title": "Заголовок",
   "Title (A-Z)": "Заголовок (A–Z)",
   "Title (optional)": "Заголовок (необязательно)",
   "Tokens already present in context.": "Токены, уже присутствующие в контексте.",
-
   "Tokens gained per step": "Выигрыш токенов за шаг",
   "Tokens to generate.": "Токены для генерации.",
   "Tokens used by history and the latest response. Past 70%, the app attempts to summarize older turns.": "Токены, использованные историей переписки и последним ответом. При заполнении более чем на 70% приложение попытается суммировать более старые ходы.",
   "Tool": "Инструмент",
   "Tool bridge for the engine web interface.": "Мост инструментов для веб‑интерфейса движка.",
   "Tool call %@": "Вызов инструмента %@",
-
   "Tool result limit": "Лимит ответа инструмента",
   "Tools": "Инструменты",
   "Tools and agents added to the engine from a folder.": "Инструменты и агенты, добавленные в движок из папки.",
-
   "Tools available to this conversation": "Инструменты, доступные для этого чата",
   "Tools can modify files or run commands; every sensitive operation requests permission.": "Инструменты могут изменять файлы или запускать команды; для каждой чувствительной операции запрашивается разрешение.",
   "Tools from other servers": "Инструменты с других серверов",
@@ -1971,10 +1811,8 @@
   "Top": "Вверху",
   "Top K": "Top K",
   "Top P": "Top P",
-
   "Top P, Min P, Top K, and seed.": "Top P, Min P, Top K и зерно.",
   "Top quality": "Лучшее качество",
-
   "ToshLLM %@ available... install it from Configuration → Home.": "ToshLLM версии %@ доступен… установите его в разделе «Конфигурация → Главная».",
   "ToshLLM %@ is available": "Доступна версия ToshLLM %@",
   "ToshLLM adjusts speech sensitivity and segmentation with the selected profile.": "ToshLLM настраивает чувствительность к речи и сегментацию в соответствии с выбранным профилем.",
@@ -1984,7 +1822,6 @@
   "ToshLLM version that produced this run": "Версия ToshLLM, использованная для этого запуска",
   "ToshLLM: server running": "ToshLLM: сервер запущен",
   "ToshLLM: server stopped": "ToshLLM: сервер остановлен",
-
   "ToshLLM: starting": "ToshLLM: запуск",
   "ToshLLM: the engine failed": "ToshLLM: движок завершился с ошибкой",
   "Total activity on the selected GPU, including other apps.": "Общая нагрузка на выбранную GPU, включая другие приложения.",
@@ -1997,7 +1834,6 @@
   "Transcribes locally with Whisper.cpp on the AMD GPU.": "Выполняет локальную транскрипцию с помощью Whisper.cpp на GPU от AMD.",
   "Transcript": "Расшифровка",
   "Transcript tools": "Работа с расшифровкой",
-
   "Translate to English": "Перевести на английский",
   "Translate with chat": "Перевести с помощью чата",
   "Translating batch %@ of %@…": "Выполняется перевод блока %@ из %@…",
@@ -2005,7 +1841,6 @@
   "Translation model": "Модель перевода",
   "Transport": "Транспорт",
   "Trending": "Популярные",
-
   "Try again": "Попробуйте ещё раз",
   "Tune your conversation": "Настройте свою беседу",
   "Turbo offers the best balance; Large v3 prioritizes accuracy.": "Turbo обеспечивает наилучший баланс; Large v3 делает упор на точность.",
@@ -2014,14 +1849,12 @@
   "Turn it off in Settings → Performance & Memory.": "Отключите его в разделе «Настройки → Производительность и память».",
   "Turn on": "Включить",
   "Turn on %@?": "Включить %@?",
-
   "Turn vision off": "Выключить зрение",
   "Turn vision on": "Включить зрение",
   "Turn vision on or off for this model": "Включите или отключите работу с изображениями для этой модели",
   "Turns this extension on or off": "Включает или отключает это расширение",
   "Two instances share a GPU: on AMD Macs this can hang the card.": "Два экземпляра используют одну GPU: на Mac с видеокартами AMD это может привести к зависанию видеокарты.",
   "Two results are required": "Требуются два результата",
-
   "Type": "Тип",
   "Type a prompt above to prepare several images.": "Введите промпт выше, чтобы подготовить несколько изображений.",
   "Type of the KV cache keys (-ctk). Quantizing them fits more context in the same memory.": "Тип ключей KV-кэша (-ctk). Их квантование позволяет уместить больше контекста в том же объёме памяти.",
@@ -2029,26 +1862,21 @@
   "Type your message…": "Введите ваше сообщение…",
   "Type your message… (Enter sends, Shift+Enter newline)": "Введите ваше сообщение… (нажатие Enter отправляет сообщение, Shift+Enter добавляет новую строку)",
   "Typeface": "Шрифт",
-
   "Typical P": "Typical P",
   "Typical sampling: keeps tokens with information near the average, trimming the too-predictable and too-rare. 1.0 disables it.": "Типичная выборка (typical sampling): сохраняет токены с информацией, близкой к среднему уровню, отсекая слишком предсказуемые и слишком редкие. Значение 1.0 отключает эту функцию.",
   "Unavailable": "Недоступно",
   "Unchecks every tool so you can pick only the ones you need": "Снимает отметки со всех инструментов, чтобы выбрать только нужные",
-
   "Undo": "Отменить",
   "Undoes the last subtitle edit.": "Отменяет последнее изменение субтитров.",
   "Unlimited": "Без ограничений",
   "Unpin": "Открепить",
   "Unpin project": "Открепить проект",
   "Unverified": "Не проверено",
-
   "Unverified vision. The vision button downloads the best-matching projector (mmproj), but compatibility isn't guaranteed. If vision fails, check that the mmproj matches this model.": "Неподтверждённая работа с изображениями. Кнопка «Зрение» скачивает наиболее подходящий проектор (mmproj), но совместимость не гарантируется. Если функция не работает, проверьте, что файл mmproj соответствует этой модели.",
-
   "Up to": "Вплоть до",
   "Update": "Обновить",
   "Update %@?": "Обновить %@?",
   "Update model": "Обновить модель",
-
   "Updates for this build are managed outside the app": "Обновления для этой сборки управляются вне приложения",
   "Updating…": "Обновление…",
   "Uploading…": "Отправка…",
@@ -2058,45 +1886,34 @@
   "Upscaling x4…": "Увеличение ×4…",
   "Upscaling…": "Увеличение…",
   "Uptime": "Время работы",
-
   "Uptime %@": "Работает уже %@",
   "Use": "Использовать",
   "Use %@ / %@": "Использовать %@ / %@",
   "Use extra arguments only when you know which llama.cpp option you need.": "Используйте дополнительные аргументы только в том случае, если точно знаете, какая опция llama.cpp вам нужна.",
-
   "Use mask": "Применять маску",
   "Use the bundled or an external engine.": "Используйте встроенный или внешний движок.",
   "Use the math tools without asking": "Использовать математические инструменты без запроса подтверждения",
   "Use the right kernel for your GPU.": "Используйте подходящее ядро для вашей GPU.",
-
   "Use this model on the main server; if it's running, you'll be asked to confirm a restart.": "Использовать эту модель на главном сервере; если сервер запущен, вас попросят подтвердить перезапуск.",
   "Used when neither the conversation nor its project has its own prompt.": "Используется, когда ни у беседы, ни у её проекта нет собственного промпта.",
   "Uses macOS built-in dictation without loading a model on the GPU.": "Использует встроенную в macOS функцию диктовки — без загрузки модели на GPU.",
   "Uses the model's official chat template (message format, tools). Keep it on unless a specific model misbehaves.": "Использует официальный шаблон чата модели (формат сообщений, инструменты). Оставляйте включённым, если только конкретная модель не работает некорректно.",
-
   "Using the AMD GPU kernel; Flash Attention is forced to 'on'.": "Используется ядро для GPU от AMD; Flash Attention принудительно включён.",
-
   "VAD reduces weak voices, but cannot isolate a main voice when background speech is also clearly audible.": "VAD (детектор активности голоса) ослабляет слабые голоса, но не может выделить основной голос, если фоновая речь тоже отчётливо слышна.",
-  "VAE (optional)": "VAE (необязательно)",
-  "VAE model name or path": "Имя или путь к модели VAE",
-  "Vision Projector": "Машинное зрение",
-  "Vision projector file (mmproj-*.gguf) for multimodal models like Qwen-Image. Allows the model to understand reference images.": "Файл зрения (mmproj-*.gguf) для мультимодальных моделей, таких как Qwen-Image. Позволяет модели понимать референсные изображения.",
+  "VAE": "VAE",
   "VRAM as Metal reports it, not the number on the box. It only adds up when you split a model across several GPUs; a model that is not split has to fit in one.\n\n%@": "Объём VRAM — такой, какой сообщает Metal, а не указанный на упаковке видеокарты. Суммирование объёмов имеет смысл только при распределении модели между несколькими GPU; неразделённая модель должна целиком помещаться в памяти одной видеокарты.\n\n%@",
   "VRAM in use (all GPUs).": "Используемая VRAM (по всем GPU).",
   "VRAM in use on %@.": "Используемая VRAM на %@.",
-
   "VRAM left free for the system and UI. The Dynamic MoE plan, router mode and DFlash in Auto keep it. Automatic leaves 8% of the card, between 768 and 1536 MB.": "Видеопамять, которая остаётся свободной для системы и интерфейса. Её учитывают план Dynamic MoE, режим маршрутизатора и DFlash в режиме «Автоматически». Автоматически оставляется 8% памяти карты, от 768 до 1536 МБ.",
   "VRAM limited": "Ограничено VRAM",
   "VRAM reserve: %@ MB": "Резерв VRAM: %@ МБ",
   "VRAM reserve: automatic": "Резерв VRAM: автоматически",
-
   "VRAM usage": "Использование VRAM",
   "VRAM-resident weights (recommended for eGPU)": "Веса, размещённые в VRAM (рекомендуется для eGPU)",
   "Valid JSON overrides the parameters above for each request.": "Корректный JSON переопределяет указанные выше параметры для каждого запроса.",
   "Valid keys override the parameters above for this request.": "Действительные ключи переопределяют указанные выше параметры для этого запроса.",
   "Verifiable benchmark": "Проверяемый бенчмарк",
   "Verified": "Проверено",
-
   "Verifying SHA-256…": "Проверка SHA-256…",
   "Verifying…": "Проверка…",
   "Version": "Версия",
@@ -2113,7 +1930,9 @@
   "View on GitHub": "Посмотреть на GitHub",
   "View release notes": "Что нового",
   "Vision": "Зрение",
+  "Vision Projector": "Машинное зрение",
   "Vision model": "Модель зрения",
+  "Vision projector file (mmproj-*.gguf) for multimodal models like Qwen-Image. Allows the model to understand reference images.": "Файл зрения (mmproj-*.gguf) для мультимодальных моделей, таких как Qwen-Image. Позволяет модели понимать референсные изображения.",
   "Vision projector: choose a file, let it auto-pair, or 'No vision' to run text-only and free the encoder's VRAM.": "Проектор для зрения: выберите файл, оставьте автоматический подбор или выберите «Без зрения», чтобы работать только с текстом и освободить VRAM энкодера.",
   "Vision · Multimodal": "Зрение · Мультимодальность",
   "Visual projector used for images": "Проектор для изображений",
@@ -2129,14 +1948,11 @@
   "Welcome to ToshLLM": "Добро пожаловать в ToshLLM",
   "What can I help with?": "Чем могу помочь?",
   "What is shared": "Что передаётся",
-
   "What must NOT appear. It only takes effect above CFG 1: at CFG 1 the engine does not compute that branch.": "То, что НЕ должно появляться. Действует только при CFG выше 1: при CFG = 1 движок не просчитывает эту ветвь.",
   "What the model can do": "Что умеет модель",
   "What the model wrote before calling the tool. It is not a result: what was computed is in each card.": "Что модель написала до вызова инструмента. Это не результат: вычисленные данные находятся в каждой карточке.",
   "What you paint is regenerated; the rest of the photo is kept.": "То, что вы закрасили, будет перегенерировано; остальная часть фото сохранится.",
-
   "When the conversation nears the context limit, older messages are summarized automatically so it can keep answering without losing the thread.": "Когда беседа приближается к лимиту контекста, старые сообщения автоматически суммируются — это позволяет продолжать отвечать, не теряя нить разговора.",
-
   "When the model was published on Hugging Face; if this file is a quantization, the date is the original model's. What it knows usually ends a few months earlier.": "Дата публикации модели на Hugging Face. Если этот файл — квантованная версия, указана дата оригинальной модели. Знания модели обычно актуальны на несколько месяцев раньше этой даты.",
   "When the prompt is rewritten/edited (coding assistants) or the reasoning is trimmed between turns, it reuses the cache by shifting it instead of reprocessing — much faster. It's an approximation: output stays coherent but can differ slightly from an exact recompute. Turn it off for identical, reproducible results.": "Если промпт перефразируется или редактируется (например, в ассистентах для программирования) либо сокращается рассуждение между ходами, система повторно использует кэш, смещая его вместо полной повторной обработки — это намного быстрее. Это приближённый метод: результат остаётся связным, но может немного отличаться от точного пересчёта. Отключите эту опцию, если нужны полностью идентичные и воспроизводимые результаты.",
   "When the server restarts.": "При перезапуске сервера.",
@@ -2153,7 +1969,6 @@
   "Whisper transcribes or translates directly to English; other languages use the local chat model without changing timestamps.": "Whisper транскрибирует или переводит напрямую на английский язык. Для других языков используется локальная чат-модель — при этом временные метки не меняются.",
   "Whisper's built-in translation always produces English.": "Встроенная функция перевода Whisper всегда выдаёт результат на английском языке.",
   "Whisper.cpp is transcribing on the GPU; click to cancel.": "Whisper.cpp выполняет транскрипцию на GPU — нажмите, чтобы отменить.",
-
   "Why this mode: %@": "Почему этот режим: %@",
   "Window": "Окно",
   "With a layer split it does nothing: the bridge speeds up the reduction that only exists when splitting by tensors.": "При разделении по слоям эта опция ничего не делает: мост ускоряет редукцию, которая выполняется только при разделении по тензорам.",
@@ -2163,7 +1978,6 @@
   "Won't fit": "Не поместится",
   "Won’t fit": "Не поместится",
   "Word padding": "Запас вокруг слов",
-
   "Working directory": "Рабочая директория",
   "Write code": "Написать код",
   "Write out the complete formula or equation.": "Запишите полную формулу или уравнение.",
@@ -2174,14 +1988,12 @@
   "You can drag the entire row into a project.": "Можно перетащить всю строку в проект.",
   "You haven't shared any benchmark yet. Your identity is created the first time you share.": "Вы ещё не делились никакими бенчмарками. Ваша идентификация создаётся при первой публикации результатов.",
   "Your content stays private": "Ваш контент остаётся приватным",
-
   "Your current environment.": "Ваша текущая среда.",
   "Your data stays on your machine.": "Ваши данные остаются на вашем компьютере.",
   "Your downloaded models and models folder are kept.": "Скачанные вами модели и папка с моделями сохраняются.",
   "Your local library": "Ваша локальная библиотека",
   "Your machine": "Ваш компьютер",
   "Your machine and AI status at a glance.": "Краткий обзор состояния вашего компьютера и ИИ.",
-  "Your own model. Set steps and CFG to match its card.":"Ваша модель. Установите steps и CFG для нее",
   "Your system": "Ваша система",
   "Zoom in": "Приблизить",
   "Zoom out": "Отдалить",
@@ -2197,39 +2009,35 @@
   "automatic": "автоматический",
   "based on %@ %@": "на основе %@ %@",
   "blurry, deformed, watermark, text…": "размытое, деформированное, с водяным знаком, с текстом…",
-
   "by car": "на машине",
-
   "connecting…": "подключение…",
   "context": "контекст",
   "current": "текущий",
   "en": "ru",
-
   "exact": "точный",
   "first resp.": "первый ответ",
   "from project": "из проекта",
   "in red, what it lacks to close: %@ %@": "красным выделено, чего не хватает для завершения: %@ %@",
   "in review": "на проверке",
   "inference engine": "движок выведения",
-
+  "iopaint": "iopaint",
   "is llama-server running?": "запущен ли llama-server?",
   "light updates": "лёгкие обновления",
+  "llama": "llama",
   "llama.cpp-compatible JSONL history exported successfully.": "история в формате JSONL, совместимом с llama.cpp, успешно экспортирована.",
   "local format": "локальный формат",
   "memory constrained": "память на пределе",
   "models": "модели",
-
   "none paired, pick one": "не сопоставлен, выберите",
   "or with crypto": "или криптовалютой",
-
   "published": "опубликовано",
   "q8_0 halves it at almost no cost": "q8_0 почти без потерь уменьшает размер вдвое",
   "rejected": "отклонено",
   "results": "результаты",
+  "sd-cli": "sd-cli",
   "server unavailable": "сервер недоступен",
   "sketch": "эскиз",
   "storage": "хранилище",
-
   "t/s · bars normalized per metric": "t/s · столбцы по каждой метрике",
   "text-only": "только текст",
   "unknown model": "неизвестная модель",

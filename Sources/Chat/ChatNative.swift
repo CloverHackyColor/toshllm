@@ -474,8 +474,15 @@ final class ChatStore: ObservableObject {
     }
 
     nonisolated static func contextReading(_ c: Conversation, toolTokens: Int) -> (tokens: Int, estimated: Bool) {
-        if let used = c.contextUsed, c.contextUsedAt == c.messages.count { return (used, false) }
+        if let used = current(c) { return (used, false) }
         return (contextEstimate(c) + toolTokens, true)
+    }
+
+    /// The server's count while no message came after it; a count of nothing is no count, as a conversation never
+    /// takes no tokens.
+    nonisolated private static func current(_ c: Conversation) -> Int? {
+        guard let used = c.contextUsed, used > 0, c.contextUsedAt == c.messages.count else { return nil }
+        return used
     }
 
     /// What the next request sends, as the app can estimate it: the summary and what it kept, and the messages
@@ -489,12 +496,10 @@ final class ChatStore: ObservableObject {
         return messages + summary
     }
 
-    /// The fill that decides when to summarize: the larger of the server's count and the estimate, so a turn that
-    /// reported nothing, such as an agent's answer by rules, never reads as an empty context.
+    /// The fill that decides when to summarize: the server's count while it is current, else the estimate, so a turn
+    /// that reported nothing, such as an agent's answer by rules, never reads as an empty context.
     nonisolated static func contextForDecisions(_ c: Conversation, toolTokens: Int = 0) -> Int {
-        let estimate = contextEstimate(c) + toolTokens
-        guard let used = c.contextUsed, c.contextUsedAt == c.messages.count else { return estimate }
-        return max(used, estimate)
+        current(c) ?? contextEstimate(c) + toolTokens
     }
 
     /// Tokens as the context meter shows them: tenths under ten thousand, so a small conversation is not "0k".

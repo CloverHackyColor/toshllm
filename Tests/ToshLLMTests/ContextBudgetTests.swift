@@ -46,8 +46,14 @@ final class ContextBudgetTests: XCTestCase {
         // an agent turn answered by rules reported 0 tokens for a conversation of some 30 thousand
         let c = conversation(turns(30, size: 2000), used: 0)
         XCTAssertGreaterThan(ChatStore.contextForDecisions(c), 29_000)
-        // and the server's count wins when it is larger than the estimate
+        // a current count of the engine's decides, larger or smaller than a guess from the text
         XCTAssertEqual(ChatStore.contextForDecisions(conversation(turns(1, size: 40), used: 5000)), 5000)
+        let long = turns(6, size: 4000)
+        XCTAssertGreaterThan(ChatStore.contextEstimate(conversation(long)), 6000)
+        XCTAssertEqual(ChatStore.contextForDecisions(conversation(long, used: 3500)), 3500)
+        // stale, it is a guess again
+        XCTAssertEqual(ChatStore.contextForDecisions(conversation(long, used: 3500, at: 2)),
+                       ChatStore.contextEstimate(conversation(long)))
     }
 
     func testImagesCountInTheEstimate() {

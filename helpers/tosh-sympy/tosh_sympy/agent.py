@@ -823,6 +823,10 @@ def run(arguments, emit=None, register=None):
             "cut_at_context" if full else "cut_at_limit", "length"
     if turn.left_out:
         content = content.rstrip() + "\n\n" + LEFT_OUT.get(turn.lang, LEFT_OUT["en"]).format(n=turn.left_out)
+        # what the whole conversation takes, more than the pass held: a client that summarizes knows it has to
+        whole = engine.count(dict({"messages": request["messages"] + [{"role": "assistant", "content": content}]},
+                                  **({"model": request["model"]} if request.get("model") else {})))
+        used = whole or used
     results = policy.ledger(turn.calls)
     return {
         "id": "chatcmpl-tosh-" + uuid.uuid4().hex,

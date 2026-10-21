@@ -733,7 +733,8 @@ def test_a_conversation_that_no_longer_fits_leaves_out_its_oldest_exchanges_and_
     assert "Question 9" in json.dumps(messages) and "Question 0" not in json.dumps(messages)
     content = reply["choices"][0]["message"]["content"]
     assert content.startswith("The last one.") and f"The {left} oldest messages" in content, content
-    assert reply["tosh"]["context"]["n_ctx"] == 1000 and reply["tosh"]["context"]["used"] == engine.tokens(sent) + 5
+    # what the whole conversation takes, which no longer fits: a client that summarizes knows it has to
+    assert reply["tosh"]["context"]["n_ctx"] == 1000 and reply["tosh"]["context"]["used"] > 1000, reply["tosh"]
 
 
 def test_a_conversation_that_fits_is_sent_whole_and_not_counted():

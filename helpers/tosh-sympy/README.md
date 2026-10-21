@@ -212,7 +212,7 @@ below changes meaning or goes away; new fields may appear.
 | `validated_results[]` | `tool`, `operation`, `result_kind`, `result` (the tool's own fields), `interpreted_input` |
 | `passes` | model passes the turn took |
 | `seconds` | wall time of the turn |
-| `context` | `used`: tokens of the last pass's prompt and answer, which is what the conversation takes of the context; `n_ctx`: the model's context; `left_out`: oldest messages of the conversation left out of this turn |
+| `context` | `used`: tokens the conversation takes with this answer, the whole of it even when the turn left out its oldest messages, which then is more than `n_ctx`; `n_ctx`: the model's context; `left_out`: oldest messages of the conversation left out of this turn |
 
 `usage` adds up every pass, so a client measures how full the context is by `context.used`, not by it.
 A conversation that no longer fits the context, with room left for the answer, loses its oldest

@@ -1636,6 +1636,7 @@
   "Stop server": "サーバーを停止",
   "Stop the server before benchmarking: they share VRAM.": "ベンチマークの前にサーバーを停止してください。VRAMを共有しています。",
   "Stop the server before checking: the test uses the whole GPU.": "確認の前にサーバーを停止してください。テストがGPU全体を使います。",
+  "Stop the server to change these: they apply when it starts.": "",
   "Stopped": "停止中",
   "Stops loading the model.": "モデルの読み込みを中止します。",
   "Stops the current runs.": "実行中のものを停止します。",

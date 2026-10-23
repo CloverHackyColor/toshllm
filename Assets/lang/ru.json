@@ -1654,6 +1654,7 @@
   "Stop server": "Остановить сервер",
   "Stop the server before benchmarking: they share VRAM.": "Остановите сервер перед запуском бенчмарка: они используют общую видеопамять (VRAM).",
   "Stop the server before checking: the test uses the whole GPU.": "Остановите сервер перед проверкой: тест задействует всю видеокарту.",
+  "Stop the server to change these: they apply when it starts.": "",
   "Stopped": "Остановлен",
   "Stops loading the model.": "Останавливает загрузку модели.",
   "Stops the current runs.": "Останавливает текущие запуски.",

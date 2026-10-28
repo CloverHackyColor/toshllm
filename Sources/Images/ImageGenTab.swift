@@ -1273,7 +1273,7 @@ struct ImageInstanceForm: View {
                     ForEach(offeredAspects) { a in
                         Text(a == .custom ? loc.t("Personalizado", "Custom") : a.rawValue).tag(a.rawValue)
                     }
-                }.labelsHidden().frame(width: 96)
+                }.labelsHidden().frame(width: 96, alignment: .trailing)
             }
             if cfg.aspectValue == .custom {
                 row(loc.t("Proporción W:H", "Ratio W:H"),
@@ -1288,7 +1288,7 @@ struct ImageInstanceForm: View {
                       "Long edge in pixels. The maximum adapts to the GPU's VRAM.")) {
                 Picker("", selection: $cfg.baseSize) {
                     ForEach(baseSizes, id: \.self) { Text("\($0) px").tag($0) }
-                }.labelsHidden().frame(width: 96)
+                }.labelsHidden().frame(width: 96, alignment: .trailing)
             }
             if !hardware.gpus.isEmpty {
                 row("GPU",
@@ -1299,7 +1299,7 @@ struct ImageInstanceForm: View {
                             ForEach(Array(hardware.gpus.enumerated()), id: \.offset) { i, g in
                                 Text(g.name).tag(i)
                             }
-                        }.labelsHidden().frame(width: 140)
+                        }.labelsHidden().frame(width: 140, alignment: .trailing)
                     } else {
                         // A single GPU: show which one, without a redundant picker.
                         Text(hardware.gpus[0].name)
@@ -1317,7 +1317,7 @@ struct ImageInstanceForm: View {
                         ForEach(Array(hardware.gpus.enumerated()), id: \.offset) { i, g in
                             if i != cfg.gpuIndex { Text(g.name).tag(i) }
                         }
-                    }.labelsHidden().frame(width: 140)
+                    }.labelsHidden().frame(width: 140, alignment: .trailing)
                     .onChange(of: cfg.gpuIndex) {
                         if cfg.auxGPUIndex == cfg.gpuIndex { cfg.auxGPUIndex = -1 }
                     }
@@ -1330,7 +1330,7 @@ struct ImageInstanceForm: View {
                     : loc.t("Este modelo va a %@ pasos fijos: trae su propio calendario de ruido y con otro la imagen sale mal.",
                             "This model runs a fixed %@ steps: it ships its own noise schedule, and any other one spoils the image.",
                             "\(model.steps(cfg.steps))")) {
-                Stepper(value: $cfg.steps, in: 4...30) { Text("\(model.steps(cfg.steps))").monospacedDigit() }.frame(width: 96)
+                Stepper(value: $cfg.steps, in: 4...30) { Text("\(model.steps(cfg.steps))").monospacedDigit() }.frame(width: 96, alignment: .trailing)
                     .disabled(!model.sigmas.isEmpty)
             }
             row(loc.t("Semilla", "Seed"),
@@ -1343,7 +1343,7 @@ struct ImageInstanceForm: View {
                       "JPG is far lighter; PNG is lossless.")) {
                 Picker("", selection: $cfg.format) {
                     ForEach(ImageFormat.allCases) { Text($0.rawValue.uppercased()).tag($0.rawValue) }
-                }.labelsHidden().frame(width: 96)
+                }.labelsHidden().frame(width: 96, alignment: .trailing)
             }
             row(loc.t("Modo rápido", "Fast mode"),
                 loc.t("Reutiliza pasos del muestreo en vez de recalcularlos. Más rápido, pero cambia el detalle de la imagen. En Qwen-Image 2.1 a 25 pasos, aproximadamente: cache-dit 1.46x, spectrum 1.91x, easycache 2.06x.",
@@ -1353,7 +1353,7 @@ struct ImageInstanceForm: View {
                         Text(fastModeLabel(mode)).tag(mode.rawValue)
                             .help(fastModeHelp(mode))
                     }
-                }.labelsHidden().frame(width: 150)
+                }.labelsHidden().frame(width: 150, alignment: .trailing)
             }
             row(loc.t("Descargar a CPU", "Offload to CPU"),
                 loc.t("Mantiene los pesos en RAM y los sube a VRAM por etapas. Más lento; solo si falta VRAM.",

@@ -8,13 +8,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Improved
 
 - **Images: a model sized for more VRAM than the card has can be installed and run.** The tab says how much VRAM the model was sized for and lets it run when the chosen size fits the card; it used to refuse the model outright. Reported by [Mic238](https://github.com/Mic238) in [#138](https://github.com/engeldlgado/toshllm/issues/138).
+- **Settings: every row has its icon and keeps its label in line with its control,** and Speech & Audio uses the same rows as the other tabs; in Audio each choice has its label above it, as in Images and Video.
 - **No text in the app is smaller than 10 points.** Badges, table headers, file names and progress labels were 9, under the size macOS treats as its minimum; the chat text still grows with ⌘+. Reported by [TomDev234](https://github.com/TomDev234) in [#141](https://github.com/engeldlgado/toshllm/issues/141).
+- **Screens keep their layout in a narrow window.** Benchmarks, Logs and About set their cards two by two instead of cutting titles or splitting a word, the benchmark buttons that do not fit show only their icon, and the system card puts its figures on two rows with the processor's short name. The recommended model's figures sit in one row and a library's Use button keeps one column.
 
 ### Fixed
 
-- **Logs: an engine crash shows as errors.** Its abort, backtrace and restart notice counted as information, so the error count read 0 after a crash; the backtrace now reads compact, the restart notice gives its reason once, the cards of a narrow window keep one row, and a wrapped line no longer leaves a gap above it.
 - **LLMs: LFM2 models no longer stop the engine with code 8.** Keeping a checkpoint or the prompt cache of an LFM2 model, which happens on almost every message, stopped the engine; they now answer and pick a conversation up from the cache. Reported by [mnerd](https://github.com/mnerd) in [#144](https://github.com/engeldlgado/toshllm/issues/144).
+- **Logs: an engine crash shows as errors.** Its abort, backtrace and restart notice counted as information, so the error count read 0 after a crash; the backtrace now reads compact, the restart notice gives its reason once, the cards of a narrow window keep one row, and a wrapped line no longer leaves a gap above it.
+- **Video: the resolution picker shows the size a run will use** instead of an empty box, and the side panel's controls line up on the right, as in Images.
 - **The web chat builds from source again with npm 10,** whose `npm ci` stopped on a package missing from the lock file. Reported by [Basten7](https://github.com/Basten7) in [#142](https://github.com/engeldlgado/toshllm/issues/142).
+- **Buttons and descriptions that were cut are whole again,** such as Attach file and Suggestions on an empty chat, the library's description and the About credits.
+- **The system card's cores and threads and a server's context in Logs are translated.**
 
 ## [0.87.29] - 2026-10-22
 

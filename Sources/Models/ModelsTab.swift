@@ -241,7 +241,7 @@ private struct FeaturedModelBanner: View {
                 Text(recommendation.model.detail(loc.isSpanish))
                     .font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(2)
                 AdaptiveTwoUp(threshold: 560, spacing: 10, alignment: .center) {
-                    metrics
+                    HStack(spacing: 10) { metrics }
                 } second: {
                     actions
                 }
@@ -557,7 +557,8 @@ private struct ModelCollectionHero: View {
                 Text(eyebrow.uppercased())
                     .font(.system(size: 10, weight: .bold)).tracking(1.2).foregroundStyle(Color.appAccent)
                 Text(title).font(.system(size: 19, weight: .semibold))
-                Text(detail).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
+                Text(detail).font(.system(size: 12)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 16)
             collectionStat(primaryValue, label: primaryLabel)
@@ -565,7 +566,7 @@ private struct ModelCollectionHero: View {
             collectionStat(secondaryValue, label: secondaryLabel)
             if let actionTitle, let action {
                 Button(actionTitle, systemImage: actionIcon, action: action)
-                    .glassButton().controlSize(.small)
+                    .glassButton().controlSize(.small).fixedSize()
             }
         }
         .padding(17)

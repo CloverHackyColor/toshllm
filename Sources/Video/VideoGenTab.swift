@@ -346,7 +346,7 @@ struct VideoControls: View {
                         .foregroundStyle(present ? .green : .secondary)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(component.label(loc.isSpanish)).font(.caption)
-                        Text(component.fileName).font(.system(size: 9, design: .monospaced))
+                        Text(component.fileName).font(.system(size: 10, design: .monospaced))
                             .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                     }
                     Spacer()

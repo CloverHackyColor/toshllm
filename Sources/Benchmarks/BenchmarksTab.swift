@@ -341,7 +341,7 @@ struct BenchmarksView: View {
     private var compactWorkloadFields: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(loc.t("CARGA", "WORKLOAD"))
-                .font(.system(size: 9, weight: .semibold)).tracking(0.6)
+                .font(.system(size: 10, weight: .semibold)).tracking(0.6)
                 .foregroundStyle(.tertiary)
             HStack(spacing: 8) {
                 compactNumberField("Prompt", value: $cfg.benchPP)
@@ -353,7 +353,7 @@ struct BenchmarksView: View {
 
     private func compactNumberField(_ label: String, value: Binding<Int>) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(label).font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1)
+            Text(label).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
             BenchmarkIntegerField(value: value)
                 .frame(height: 17)
                 .padding(.horizontal, 8).padding(.vertical, 6)
@@ -606,7 +606,7 @@ struct BenchmarksView: View {
                                       @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label.uppercased())
-                .font(.system(size: 9, weight: .semibold)).tracking(0.6)
+                .font(.system(size: 10, weight: .semibold)).tracking(0.6)
                 .foregroundStyle(.tertiary)
             content()
         }
@@ -624,7 +624,7 @@ struct BenchmarksView: View {
                 Text(title.uppercased())
                 Text(flag).foregroundStyle(.tertiary)
             }
-            .font(.system(size: 9, weight: .semibold)).tracking(0.5).foregroundStyle(.secondary)
+            .font(.system(size: 10, weight: .semibold)).tracking(0.5).foregroundStyle(.secondary)
             BenchmarkIntegerField(value: value, pointSize: 15)
                 .padding(.horizontal, 9).padding(.vertical, 7)
                 .background(WorkspaceStyle.surface, in: RoundedRectangle(cornerRadius: 8))
@@ -693,7 +693,7 @@ struct BenchmarksView: View {
                                 ProgressView(value: min(vram, 1))
                                     .tint(vram > 0.95 ? .orange : .pink)
                                 Text(vram, format: .percent.precision(.fractionLength(0)))
-                                    .font(.system(size: 9.5, design: .monospaced))
+                                    .font(.system(size: 10, design: .monospaced))
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -1354,7 +1354,7 @@ private struct BenchmarkResultTableHeader: View {
             .frame(minWidth: 300, maxWidth: .infinity, alignment: .leading)
             Text(loc.t("ACCIONES", "ACTIONS")).frame(width: 92, alignment: .trailing)
         }
-        .font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+        .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
         .padding(.horizontal, 10).padding(.vertical, 7)
     }
 }
@@ -1384,7 +1384,7 @@ private struct BenchmarkResultTableRow: View, Equatable {
                         if isBest { Image(systemName: "star.fill").font(.system(size: 9)).foregroundStyle(.yellow) }
                         if let fa = result.faLabel {
                             Label(fa, systemImage: "bolt.fill")
-                                .font(.system(size: 9, weight: .semibold))
+                                .font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(Color.appAccent)
                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                 .background(Color.appAccent.opacity(0.13), in: Capsule())
@@ -1392,7 +1392,7 @@ private struct BenchmarkResultTableRow: View, Equatable {
                         }
                         if let dmoe = result.dynamicMoeLabel {
                             Image(systemName: "memorychip")
-                                .font(.system(size: 9, weight: .semibold))
+                                .font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(Color.chartSecondary)
                                 .padding(.horizontal, 5).padding(.vertical, 2)
                                 .background(Color.chartSecondary.opacity(0.13), in: Capsule())
@@ -1419,10 +1419,10 @@ private struct BenchmarkResultTableRow: View, Equatable {
                 Text(result.gpu ?? loc.t("GPU predeterminada", "Default GPU"))
                     .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                 Text(workloadLine)
-                    .font(.system(size: 9.5, design: .monospaced))
+                    .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.secondary).lineLimit(1)
                 Text(storageAndVersionLine)
-                    .font(.system(size: 9.5, design: .monospaced))
+                    .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.tertiary).lineLimit(1)
             }
             .frame(width: 180, alignment: .leading)
@@ -1631,13 +1631,13 @@ private struct BenchHistoryRow: View, Equatable {
             // Fixed-width metric columns so values line up across rows.
             HStack(spacing: 18) {
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text("prompt").font(.system(size: 9)).foregroundStyle(.tertiary)
+                    Text("prompt").font(.system(size: 10)).foregroundStyle(.tertiary)
                     Text(String(format: "%.1f", r.pp))
                         .font(.system(.callout, design: .monospaced))
                 }
                 .frame(minWidth: 58, alignment: .trailing)
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text("gen").font(.system(size: 9)).foregroundStyle(.tertiary)
+                    Text("gen").font(.system(size: 10)).foregroundStyle(.tertiary)
                     Text(String(format: "%.1f", r.tg))
                         .font(.system(.callout, design: .monospaced).weight(.semibold))
                         .foregroundStyle(Color.appAccent)

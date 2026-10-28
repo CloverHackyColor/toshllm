@@ -1031,7 +1031,7 @@ struct ImageInstanceForm: View {
                 .foregroundStyle(present ? .green : .secondary)
             VStack(alignment: .leading, spacing: 1) {
                 Text(comp.label(loc.isSpanish)).font(.caption)
-                Text(comp.fileName).font(.system(size: 9, design: .monospaced))
+                Text(comp.fileName).font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Spacer()
@@ -2233,7 +2233,7 @@ struct ImageCanvas: View {
                         VStack(spacing: 3) {
                             AsyncThumbnail(url: entry.output)
                             Text(entry.source.lastPathComponent)
-                                .font(.system(size: 9)).lineLimit(1).truncationMode(.middle)
+                                .font(.system(size: 10)).lineLimit(1).truncationMode(.middle)
                                 .frame(width: 78)
                         }
                         .padding(4)

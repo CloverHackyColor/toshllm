@@ -325,7 +325,7 @@ private struct HeroMetric: View {
             Image(systemName: icon).foregroundStyle(color)
             VStack(alignment: .leading, spacing: 1) {
                 Text(value).font(.system(size: 11, weight: .semibold)).lineLimit(1)
-                Text(label).font(.system(size: 9)).foregroundStyle(.tertiary)
+                Text(label).font(.system(size: 10)).foregroundStyle(.tertiary)
             }
         }
         .padding(.horizontal, 10).padding(.vertical, 7)
@@ -511,7 +511,7 @@ private struct InspectorMetric: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(value, systemImage: icon).font(.system(size: 11, weight: .semibold)).lineLimit(1)
-            Text(label).font(.system(size: 9)).foregroundStyle(.tertiary)
+            Text(label).font(.system(size: 10)).foregroundStyle(.tertiary)
         }
         .padding(9).frame(maxWidth: .infinity, alignment: .leading)
         .background(WorkspaceStyle.inset, in: RoundedRectangle(cornerRadius: 8))
@@ -555,7 +555,7 @@ private struct ModelCollectionHero: View {
                 .background(Color.appAccent.opacity(0.13), in: RoundedRectangle(cornerRadius: 14))
             VStack(alignment: .leading, spacing: 5) {
                 Text(eyebrow.uppercased())
-                    .font(.system(size: 9, weight: .bold)).tracking(1.2).foregroundStyle(Color.appAccent)
+                    .font(.system(size: 10, weight: .bold)).tracking(1.2).foregroundStyle(Color.appAccent)
                 Text(title).font(.system(size: 19, weight: .semibold))
                 Text(detail).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
             }

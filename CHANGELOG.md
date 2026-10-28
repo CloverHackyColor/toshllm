@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Improved
 
 - **Images: a model sized for more VRAM than the card has can be installed and run.** The tab says how much VRAM the model was sized for and lets it run when the chosen size fits the card; it used to refuse the model outright. Reported by [Mic238](https://github.com/Mic238) in [#138](https://github.com/engeldlgado/toshllm/issues/138).
+- **No text in the app is smaller than 10 points.** Badges, table headers, file names and progress labels were 9, under the size macOS treats as its minimum; the chat text still grows with ⌘+. Reported by [TomDev234](https://github.com/TomDev234) in [#141](https://github.com/engeldlgado/toshllm/issues/141).
 
 ### Fixed
 

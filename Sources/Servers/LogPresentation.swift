@@ -66,6 +66,27 @@ enum LogPresentationParser {
         }
     }
 
+    /// Long names (IOKit constants, mangled symbols, paths) have no space to wrap at, and the
+    /// text system splits them with a hyphen the log does not have; give them break points instead.
+    /// For display only: search and copy keep the line as written.
+    static func softBreaks(_ message: String) -> String {
+        guard message.count >= 28 else { return message }
+        return message.split(separator: " ", omittingEmptySubsequences: false).map { token in
+            guard token.count >= 28 else { return String(token) }
+            var out = ""
+            var lowercaseRun = 0
+            for character in token {
+                // between words of a camel-case name, never after a single letter (kIOAccel)
+                if character.isUppercase, lowercaseRun >= 2 { out.append("\u{200B}") }
+                lowercaseRun = character.isLowercase ? lowercaseRun + 1 : 0
+                out.append(character)
+                // after separators, never after an opening bracket, which would hang at a line end
+                if ":/_.,=".contains(character) { out.append("\u{200B}") }
+            }
+            return out
+        }.joined(separator: " ")
+    }
+
     /// llama.cpp tags are a short word (srv, cmn, slot, spec); a name ending in a colon is the message.
     private static func isSourceTag(_ value: Substring) -> Bool {
         value.count <= 8 && value.allSatisfy { $0.isLetter }

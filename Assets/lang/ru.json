@@ -958,6 +958,7 @@
   "MCP server": "Сервер MCP",
   "MCP tools ask for permission just like local ones.": "Инструменты MCP запрашивают разрешение так же, как и локальные инструменты.",
   "MODEL": "МОДЕЛЬ",
+  "MODEL AND CONFIGURATION": "МОДЕЛЬ И КОНФИГУРАЦИЯ",
   "MTP prediction": "Предсказание по MTP",
   "MTP turns on automatically whenever the GGUF includes the head, for both dense and MoE models.": "MTP включается автоматически, если в GGUF‑файле есть голова MTP, — как для плотных моделей, так и для MoE‑моделей.",
   "Machine and configuration": "Оборудование и конфигурация",

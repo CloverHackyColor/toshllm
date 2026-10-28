@@ -52,4 +52,14 @@ final class LogPresentationTests: XCTestCase {
         XCTAssertEqual(parsed.first?.message, "    [0] AMD Radeon RX 6700 XT · 12 GB")
         XCTAssertEqual(parsed.first?.level, .info)
     }
+
+    func testLongNamesGetBreakPointsForDisplayOnly() {
+        let message = "error: Ignored (00000004:kIOAccelCommandBufferCallbackErrorSubmissionsIgnored)"
+        let shown = LogPresentationParser.softBreaks(message)
+
+        XCTAssertTrue(shown.contains(":\u{200B}kIOAccel"))
+        XCTAssertTrue(shown.contains("Accel\u{200B}Command"))
+        XCTAssertEqual(shown.replacingOccurrences(of: "\u{200B}", with: ""), message)
+        XCTAssertEqual(LogPresentationParser.softBreaks("slot launch_slot_: id 0 | task 0"), "slot launch_slot_: id 0 | task 0")
+    }
 }

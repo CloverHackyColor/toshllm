@@ -958,6 +958,7 @@
   "MCP server": "MCP 服务器",
   "MCP tools ask for permission just like local ones.": "MCP 工具与本地工具一样会征求许可。",
   "MODEL": "模型",
+  "MODEL AND CONFIGURATION": "模型与配置",
   "MTP prediction": "MTP 预测",
   "MTP turns on automatically whenever the GGUF includes the head, for both dense and MoE models.": "只要 GGUF 中带有 MTP 头，无论稠密模型还是 MoE 模型都会自动启用。",
   "Machine and configuration": "机器与配置",

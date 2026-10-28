@@ -38,6 +38,7 @@ struct BenchmarksView: View {
     @State private var outputDismissed = false
     @State private var configFieldsWide = true
     @State private var systemFactsWide = true
+    @State private var resultsCompact = false
 
     private var gpus: [GPUDevice] { hardware.gpus }
     private var busy: Bool { bench.running || bench.sweeping }
@@ -894,45 +895,59 @@ struct BenchmarksView: View {
 
     private var resultsCard: some View {
         let visible = Array(filteredResults.prefix(resultsLimit))
-        let maxPrompt = visible.map(\.pp).max() ?? 1
-        let maxGeneration = visible.map(\.tg).max() ?? 1
         return Card(title: loc.t("Resultados", "Results"), icon: "tablecells",
                     trailing: {
                         Text("\(visible.count) / \(filteredResults.count)")
                             .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                     }) {
-            // Narrower than its columns it scrolls sideways, so the table never asks the
-            // window for more width than it has.
-            ScrollView(.horizontal) {
-                VStack(spacing: 0) {
-                    BenchmarkResultTableHeader(loc: loc)
-                    Divider()
-                    ForEach(visible) { result in
-                        BenchmarkResultTableRow(result: result,
-                                                isBest: result.id == bench.history.max(by: { $0.tg < $1.tg })?.id,
-                                                maxPrompt: maxPrompt,
-                                                maxGeneration: maxGeneration,
-                                                loc: loc,
-                                                onSaveProfile: { promptSave(result) },
-                                                onApplyGlobal: { applyGlobal(result) },
-                                                onDelete: { bench.delete(result) })
-                        if result.id != visible.last?.id { Divider().opacity(0.45) }
+            // Narrower than its columns, each row stacks its details under the model instead of
+            // scrolling sideways, so the speeds and actions never sit past the edge.
+            Group {
+                if resultsCompact {
+                    resultsRows(visible, compact: true)
+                } else {
+                    ScrollView(.horizontal) {
+                        resultsRows(visible, compact: false)
+                            .containerRelativeFrame(.horizontal) { width, _ in max(width, Self.resultsTableMinWidth) }
                     }
-                    if visible.isEmpty {
-                        ContentUnavailableView.search(text: resultSearch)
-                            .frame(height: 120)
-                    }
-                    if visible.count < filteredResults.count {
-                        Divider().opacity(0.45)
-                        BenchmarkLoadMoreButton(remaining: filteredResults.count - visible.count,
-                                                loc: loc) {
-                            resultsLimit = min(resultsLimit + 20, filteredResults.count)
-                        }
-                    }
+                    .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
                 }
-                .containerRelativeFrame(.horizontal) { width, _ in max(width, Self.resultsTableMinWidth) }
             }
-            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+            .frame(maxWidth: .infinity)
+            .onGeometryChange(for: Bool.self) { $0.size.width < Self.resultsTableMinWidth } action: { resultsCompact = $0 }
+        }
+    }
+
+    private func resultsRows(_ visible: [BenchResult], compact: Bool) -> some View {
+        let maxPrompt = visible.map(\.pp).max() ?? 1
+        let maxGeneration = visible.map(\.tg).max() ?? 1
+        let bestID = bench.history.max(by: { $0.tg < $1.tg })?.id
+        return VStack(spacing: 0) {
+            BenchmarkResultTableHeader(loc: loc, compact: compact)
+            Divider()
+            ForEach(visible) { result in
+                BenchmarkResultTableRow(result: result,
+                                        isBest: result.id == bestID,
+                                        maxPrompt: maxPrompt,
+                                        maxGeneration: maxGeneration,
+                                        compact: compact,
+                                        loc: loc,
+                                        onSaveProfile: { promptSave(result) },
+                                        onApplyGlobal: { applyGlobal(result) },
+                                        onDelete: { bench.delete(result) })
+                if result.id != visible.last?.id { Divider().opacity(0.45) }
+            }
+            if visible.isEmpty {
+                ContentUnavailableView.search(text: resultSearch)
+                    .frame(height: 120)
+            }
+            if visible.count < filteredResults.count {
+                Divider().opacity(0.45)
+                BenchmarkLoadMoreButton(remaining: filteredResults.count - visible.count,
+                                        loc: loc) {
+                    resultsLimit = min(resultsLimit + 20, filteredResults.count)
+                }
+            }
         }
     }
 
@@ -1379,19 +1394,27 @@ private struct BenchmarkIntegerField: NSViewRepresentable {
 
 private struct BenchmarkResultTableHeader: View {
     let loc: Localizer
+    var compact = false
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(loc.t("MODELO", "MODEL")).frame(minWidth: 230, maxWidth: .infinity, alignment: .leading)
-            Text(loc.t("QUANT", "QUANT")).frame(width: 96, alignment: .leading)
-            Text(loc.t("CONFIGURACIÓN / GPU", "CONFIGURATION / GPU"))
-                .frame(width: 180, alignment: .leading)
+            if compact {
+                Text(loc.t("MODELO Y CONFIGURACIÓN", "MODEL AND CONFIGURATION"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text(loc.t("MODELO", "MODEL")).frame(minWidth: 230, maxWidth: .infinity, alignment: .leading)
+                Text(loc.t("QUANT", "QUANT")).frame(width: 96, alignment: .leading)
+                Text(loc.t("CONFIGURACIÓN / GPU", "CONFIGURATION / GPU"))
+                    .frame(width: 180, alignment: .leading)
+            }
             HStack(spacing: 14) {
                 Label("Prompt t/s", systemImage: "circle.fill").foregroundStyle(Color.chartSecondary)
                 Label(loc.t("Generación t/s", "Generation t/s"), systemImage: "circle.fill")
                     .foregroundStyle(Color.appAccent)
             }
-            .frame(minWidth: 300, maxWidth: .infinity, alignment: .leading)
+            .fixedSize()
+            .frame(minWidth: compact ? BenchmarkResultTableRow.compactMetricsWidth : 300,
+                   maxWidth: compact ? BenchmarkResultTableRow.compactMetricsWidth : .infinity, alignment: .leading)
             Text(loc.t("ACCIONES", "ACTIONS")).frame(width: 92, alignment: .trailing)
         }
         .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
@@ -1404,89 +1427,149 @@ private struct BenchmarkResultTableRow: View, Equatable {
     let isBest: Bool
     let maxPrompt: Double
     let maxGeneration: Double
+    var compact = false
     let loc: Localizer
     let onSaveProfile: () -> Void
     let onApplyGlobal: () -> Void
     let onDelete: () -> Void
 
+    static let compactMetricsWidth: CGFloat = 200
+
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.result.id == rhs.result.id && lhs.isBest == rhs.isBest
             && lhs.maxPrompt == rhs.maxPrompt && lhs.maxGeneration == rhs.maxGeneration
+            && lhs.compact == rhs.compact
     }
 
     var body: some View {
+        Group {
+            if compact { compactRow } else { wideRow }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 7)
+        .contentShape(Rectangle())
+    }
+
+    private var wideRow: some View {
         HStack(spacing: 12) {
             HStack(spacing: 9) {
                 ModelBrandIcon(name: result.shortModel, size: 28)
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 5) {
-                        Text(result.shortModel).font(.callout.weight(.semibold)).lineLimit(1)
-                        if isBest { Image(systemName: "star.fill").font(.system(size: 9)).foregroundStyle(.yellow) }
-                        if let fa = result.faLabel {
-                            Label(fa, systemImage: "bolt.fill")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(Color.appAccent)
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Color.appAccent.opacity(0.13), in: Capsule())
-                                .fixedSize()
-                        }
-                        if let dmoe = result.dynamicMoeLabel {
-                            Image(systemName: "memorychip")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(Color.chartSecondary)
-                                .padding(.horizontal, 5).padding(.vertical, 2)
-                                .background(Color.chartSecondary.opacity(0.13), in: Capsule())
-                                .help(loc.t("Medido con %@", "Measured with %@", dmoe))
-                        }
-                    }
-                    Text(result.date, format: .dateTime.day().month().hour().minute())
-                        .font(.caption2).foregroundStyle(.tertiary)
+                    titleLine
+                    dateLine
                 }
             }
             .frame(minWidth: 230, maxWidth: .infinity, alignment: .leading)
 
-            Text(result.quantization)
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .padding(.horizontal, 6).padding(.vertical, 3)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 5))
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(width: 96, alignment: .leading)
+            quantChip.frame(width: 96, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(engineLine)
                     .font(.caption.weight(.medium)).lineLimit(1)
-                Text(result.gpu ?? loc.t("GPU predeterminada", "Default GPU"))
+                Text(gpuLine)
                     .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                Text(workloadLine)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.secondary).lineLimit(1)
-                    .help(workloadLine)
-                Text(storageAndVersionLine)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.tertiary).lineLimit(1)
-                    .help(storageAndVersionLine)
+                workloadText
+                storageText
             }
             .frame(width: 180, alignment: .leading)
             .help(completeConfiguration)
 
-            VStack(spacing: 5) {
-                tableMetric(value: result.pp, maximum: maxPrompt, color: Color.chartSecondary)
-                tableMetric(value: result.tg, maximum: maxGeneration, color: Color.appAccent)
-            }
-            .frame(minWidth: 300, maxWidth: .infinity)
-
-            HStack(spacing: 4) {
-                if result.profile != nil {
-                    tableAction("square.and.arrow.down", loc.t("Guardar como perfil", "Save as profile"), onSaveProfile)
-                    tableAction("checkmark.circle", loc.t("Aplicar a Ajustes", "Apply to Settings"), onApplyGlobal)
-                }
-                tableAction("trash", loc.t("Eliminar", "Delete"), destructive: true, onDelete)
-            }
-            .frame(width: 92, alignment: .trailing)
+            metrics.frame(minWidth: 300, maxWidth: .infinity)
+            actions
         }
-        .padding(.horizontal, 10).padding(.vertical, 7)
-        .contentShape(Rectangle())
+    }
+
+    private var compactRow: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ModelBrandIcon(name: result.shortModel, size: 28)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    titleLine
+                    quantChip
+                }
+                dateLine
+                Text("\(engineLine) · \(gpuLine)")
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                workloadText
+                storageText
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .help(completeConfiguration)
+            metrics
+                .frame(width: Self.compactMetricsWidth)
+                .padding(.top, 8)
+            actions.padding(.top, 4)
+        }
+    }
+
+    private var titleLine: some View {
+        HStack(spacing: 5) {
+            Text(result.shortModel).font(.callout.weight(.semibold)).lineLimit(1)
+            if isBest { Image(systemName: "star.fill").font(.system(size: 9)).foregroundStyle(.yellow) }
+            if let fa = result.faLabel {
+                Label(fa, systemImage: "bolt.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Color.appAccent)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Color.appAccent.opacity(0.13), in: Capsule())
+                    .fixedSize()
+            }
+            if let dmoe = result.dynamicMoeLabel {
+                Image(systemName: "memorychip")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Color.chartSecondary)
+                    .padding(.horizontal, 5).padding(.vertical, 2)
+                    .background(Color.chartSecondary.opacity(0.13), in: Capsule())
+                    .help(loc.t("Medido con %@", "Measured with %@", dmoe))
+            }
+        }
+    }
+
+    private var dateLine: some View {
+        Text(result.date, format: .dateTime.day().month().hour().minute())
+            .font(.caption2).foregroundStyle(.tertiary)
+    }
+
+    private var quantChip: some View {
+        Text(result.quantization)
+            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+            .padding(.horizontal, 6).padding(.vertical, 3)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 5))
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var gpuLine: String { result.gpu ?? loc.t("GPU predeterminada", "Default GPU") }
+
+    private var workloadText: some View {
+        Text(workloadLine)
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundStyle(.secondary).lineLimit(1)
+            .help(workloadLine)
+    }
+
+    private var storageText: some View {
+        Text(storageAndVersionLine)
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundStyle(.tertiary).lineLimit(1)
+            .help(storageAndVersionLine)
+    }
+
+    private var metrics: some View {
+        VStack(spacing: 5) {
+            tableMetric(value: result.pp, maximum: maxPrompt, color: Color.chartSecondary)
+            tableMetric(value: result.tg, maximum: maxGeneration, color: Color.appAccent)
+        }
+    }
+
+    private var actions: some View {
+        HStack(spacing: 4) {
+            if result.profile != nil {
+                tableAction("square.and.arrow.down", loc.t("Guardar como perfil", "Save as profile"), onSaveProfile)
+                tableAction("checkmark.circle", loc.t("Aplicar a Ajustes", "Apply to Settings"), onApplyGlobal)
+            }
+            tableAction("trash", loc.t("Eliminar", "Delete"), destructive: true, onDelete)
+        }
+        .frame(width: 92, alignment: .trailing)
     }
 
     private var engineLine: String {
@@ -1525,8 +1608,7 @@ private struct BenchmarkResultTableRow: View, Equatable {
     }
 
     private var completeConfiguration: String {
-        [engineLine, result.gpu ?? loc.t("GPU predeterminada", "Default GPU"),
-         workloadLine, storageAndVersionLine].joined(separator: "\n")
+        [engineLine, gpuLine, workloadLine, storageAndVersionLine].joined(separator: "\n")
     }
 
     private func tableMetric(value: Double, maximum: Double, color: Color) -> some View {

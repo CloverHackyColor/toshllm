@@ -958,6 +958,7 @@
   "MCP server": "Server MCP",
   "MCP tools ask for permission just like local ones.": "Gli strumenti MCP chiedono il permesso proprio come quelli locali.",
   "MODEL": "MODELLO",
+  "MODEL AND CONFIGURATION": "MODELLO E CONFIGURAZIONE",
   "MTP prediction": "Previsione MTP",
   "MTP turns on automatically whenever the GGUF includes the head, for both dense and MoE models.": "MTP si attiva automaticamente quando il GGUF include la testa, sia per i modelli densi che per quelli MoE.",
   "Machine and configuration": "Macchina e configurazione",

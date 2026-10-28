@@ -958,6 +958,7 @@
   "MCP server": "",
   "MCP tools ask for permission just like local ones.": "",
   "MODEL": "",
+  "MODEL AND CONFIGURATION": "",
   "MTP prediction": "",
   "MTP turns on automatically whenever the GGUF includes the head, for both dense and MoE models.": "",
   "Machine and configuration": "",

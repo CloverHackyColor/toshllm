@@ -506,7 +506,8 @@ private struct PresentedLogRow: View {
             Text(line.source).lineLimit(1).truncationMode(.tail)
                 .frame(width: 90, alignment: .leading).foregroundStyle(.secondary)
             Divider()
-            Text(line.message).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
+            Text(LogPresentationParser.softBreaks(line.message))
+                .frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
         }
         .font(.system(.caption, design: .monospaced))
         .padding(.horizontal, 14).padding(.vertical, 6)

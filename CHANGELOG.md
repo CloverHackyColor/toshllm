@@ -3,6 +3,12 @@
 All notable changes to ToshLLM are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Fixed
+
+- **LLMs: LFM2 models no longer stop the engine with code 8.** Keeping a checkpoint or the prompt cache of an LFM2 model, which happens on almost every message, stopped the engine; they now answer and pick a conversation up from the cache. Reported by [mnerd](https://github.com/mnerd) in [#144](https://github.com/engeldlgado/toshllm/issues/144).
+
 ## [0.87.29] - 2026-10-22
 
 ### Fixed

@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Fixed
 
 - **LLMs: LFM2 models no longer stop the engine with code 8.** Keeping a checkpoint or the prompt cache of an LFM2 model, which happens on almost every message, stopped the engine; they now answer and pick a conversation up from the cache. Reported by [mnerd](https://github.com/mnerd) in [#144](https://github.com/engeldlgado/toshllm/issues/144).
+- **The web chat builds from source again with npm 10,** whose `npm ci` stopped on a package missing from the lock file. Reported by [Basten7](https://github.com/Basten7) in [#142](https://github.com/engeldlgado/toshllm/issues/142).
 
 ## [0.87.29] - 2026-10-22
 

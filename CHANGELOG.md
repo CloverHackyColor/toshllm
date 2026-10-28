@@ -18,6 +18,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **LLMs: Gemma 2 runs its attention on the GPU with flash attention on, so it no longer slows down with a quantized KV cache on Radeon RX 6000 cards.** Its attention went to the CPU in every layer, which the app does whenever the KV cache is quantized: on an RX 6700 XT gemma-2 2B goes from 51 to 142 t/s and gemma-2 9B from 20 to 54.
 - **LLMs: LFM2 models no longer stop the engine with code 8.** Keeping a checkpoint or the prompt cache of an LFM2 model, which happens on almost every message, stopped the engine; they now answer and pick a conversation up from the cache. Reported by [mnerd](https://github.com/mnerd) in [#144](https://github.com/engeldlgado/toshllm/issues/144).
 - **Logs: an engine crash shows as errors.** Its abort, backtrace and restart notice counted as information, so the error count read 0 after a crash; the backtrace now reads compact, the restart notice gives its reason once, the cards of a narrow window keep one row, and a wrapped line no longer leaves a gap above it; a long name such as an IOKit error wraps at its parts instead of a hyphen the log does not have.
 - **Video: the resolution picker shows the size a run will use** instead of an empty box, and the side panel's controls line up on the right, as in Images.

@@ -1,5 +1,5 @@
 diff --git a/ggml/src/ggml-metal/ggml-metal-device.cpp b/ggml/src/ggml-metal/ggml-metal-device.cpp
-index 13ddeb6dc..902ae9565 100644
+index 13ddeb6dc..aa92cc22a 100644
 --- a/ggml/src/ggml-metal/ggml-metal-device.cpp
 +++ b/ggml/src/ggml-metal/ggml-metal-device.cpp
 @@ -1964,10 +1964,22 @@ ggml_metal_pipeline_with_params ggml_metal_library_get_pipeline_mul_mv(ggml_meta
@@ -42,17 +42,18 @@ index 13ddeb6dc..902ae9565 100644
                  snprintf(sweep_sfx, sizeof(sweep_sfx), "_L%dr%d", atoi(sln), nr0);
                  suffix = sweep_sfx;
                  w64 = simd_width == 64;
-@@ -2045,10 +2061,17 @@ ggml_metal_pipeline_with_params ggml_metal_library_get_pipeline_mul_mv(ggml_meta
+@@ -2045,10 +2061,18 @@ ggml_metal_pipeline_with_params ggml_metal_library_get_pipeline_mul_mv(ggml_meta
      res.nr0  = nr0;
      res.nr1  = nr1;
      res.nsg  = nsg;
      res.smem = smem;
  
-+    // a grid kernel stages its table once per threadgroup, which pays to amortize from 2 KB up;
-+    // 640 threadgroups still fill the largest cards it runs on. TOSH_MV_NTG overrides, 0 is no cap
++    // a grid kernel stages its table once per threadgroup, which measured worth amortizing from
++    // 2 KB up except on iq2_xxs; 640 threadgroups still fill the largest cards it runs on.
++    // TOSH_MV_NTG overrides, 0 is no cap
 +    if (strncmp(suffix, "_v2", 3) == 0 && smem > 0) {
 +        static const int ntg_env = TOSH_ENV("TOSH_MV_NTG") ? atoi(TOSH_ENV("TOSH_MV_NTG")) : -1;
-+        res.ntg = ntg_env >= 0 ? ntg_env : (smem >= 2048 ? 640 : 0);
++        res.ntg = ntg_env >= 0 ? ntg_env : (smem >= 2048 && tsrc0 != GGML_TYPE_IQ2_XXS ? 640 : 0);
 +    }
 +
      return res;

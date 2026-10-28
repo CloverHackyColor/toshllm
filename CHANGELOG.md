@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Improved
+
+- **Images: a model sized for more VRAM than the card has can be installed and run.** The tab says how much VRAM the model was sized for and lets it run when the chosen size fits the card; it used to refuse the model outright. Reported by [Mic238](https://github.com/Mic238) in [#138](https://github.com/engeldlgado/toshllm/issues/138).
+
 ### Fixed
 
 - **LLMs: LFM2 models no longer stop the engine with code 8.** Keeping a checkpoint or the prompt cache of an LFM2 model, which happens on almost every message, stopped the engine; they now answer and pick a conversation up from the cache. Reported by [mnerd](https://github.com/mnerd) in [#144](https://github.com/engeldlgado/toshllm/issues/144).

@@ -375,7 +375,7 @@ struct ImageControls: View {
     }
 
     /// An instance can run: model installed, an (own or inherited) prompt, and
-    /// a frame that fits its GPU(s).
+    /// a frame that fits its GPU(s). The model's VRAM class only warns.
     private func runnable(_ c: ImageInstanceConfig) -> Bool {
         let model = c.resolvedModel(for: hardware)
         let v = ImageControls.vram(of: c.gpuIndex)
@@ -383,7 +383,7 @@ struct ImageControls: View {
         let (w, h) = c.dimensions
         return ImageGenerator.installed(model, in: models)
             && !pool.effectivePrompt(for: c).isEmpty
-            && model.fitsGPU(mainVRAM: v, auxVRAM: aux.map { ImageControls.vram(of: $0) })
+            && model.auxHolds(aux.map { ImageControls.vram(of: $0) })
             && ImageGenLimits.fits(width: w, height: h, vramGB: v,
                                    residentGB: model.residentGB, attnVRAMSq: model.attnVRAMSq)
     }
@@ -928,11 +928,8 @@ struct ImageInstanceForm: View {
         VStack(alignment: .leading, spacing: 14) {
             modelPicker
             if cfg.isCustom { customSetup }
-            if !cfg.isCustom && !modelFitsGPU {
-                Label(loc.t("Necesita %@ GB de VRAM; no corre en esta GPU.", "Needs %@ GB of VRAM; it won't run on this GPU.", "\(Int(model.minVRAMGB))"),
-                      systemImage: "xmark.octagon.fill")
-                    .font(.caption2).foregroundStyle(.red)
-            } else if !cfg.isCustom && !installed {
+            if !cfg.isCustom && !modelFitsGPU { vramClassNote }
+            if !cfg.isCustom && !installed {
                 installBox
             } else {
                 Text(loc.t("Descripción", "Prompt")).font(.headline)
@@ -967,7 +964,7 @@ struct ImageInstanceForm: View {
             Text(loc.t("Modelo", "Model")).font(.caption).foregroundStyle(.secondary)
             Picker("", selection: $cfg.modelID) {
                 ForEach(ImageGenCatalog.models) { m in
-                    let fits = targetVRAM >= m.minVRAMGB
+                    let fits = m.fitsVRAMClass(targetVRAM)
                     Text(fits ? m.name : "\(m.name) · \(Int(m.minVRAMGB)) GB+").tag(m.id)
                 }
                 Divider()
@@ -1375,6 +1372,15 @@ struct ImageInstanceForm: View {
             .font(.caption).foregroundStyle(.yellow)
             .padding(10).frame(maxWidth: .infinity, alignment: .leading)
             .background(.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    /// The catalog class keeps headroom; what blocks a run is the frame estimate.
+    private var vramClassNote: some View {
+        Label(loc.t("Pensado para %@ GB de VRAM; esta GPU tiene %@ GB. Puede ir justo: si se cuelga o falla, baja el tamaño.",
+                    "Sized for %@ GB of VRAM; this GPU has %@ GB. It may be tight: if it freezes or fails, lower the size.",
+                    "\(Int(model.minVRAMGB))", "\(Int(targetVRAM.rounded()))"),
+              systemImage: "exclamationmark.triangle")
+            .font(.caption).foregroundStyle(.orange)
     }
 
     /// A square at a large base can exceed VRAM even when the engine is ready.

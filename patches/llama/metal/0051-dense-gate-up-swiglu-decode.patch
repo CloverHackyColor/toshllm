@@ -84,7 +84,7 @@ index 1806555c9..2e8e998b6 100644
  struct ggml_metal_pipeline_with_params ggml_metal_library_get_pipeline_top_k_radix       (ggml_metal_library_t lib, const struct ggml_tensor * op);
  struct ggml_metal_pipeline_with_params ggml_metal_library_get_pipeline_top_k_merge       (ggml_metal_library_t lib, const struct ggml_tensor * op);
 diff --git a/ggml/src/ggml-metal/ggml-metal-ops.cpp b/ggml/src/ggml-metal/ggml-metal-ops.cpp
-index 5a3daa3e4..5ea0176d1 100644
+index 5a3daa3e4..35b70f00c 100644
 --- a/ggml/src/ggml-metal/ggml-metal-ops.cpp
 +++ b/ggml/src/ggml-metal/ggml-metal-ops.cpp
 @@ -3466,13 +3466,13 @@ static bool ggml_metal_ranges_overlap(const ggml_tensor * a, const ggml_tensor *
@@ -104,17 +104,18 @@ index 5a3daa3e4..5ea0176d1 100644
      if (disabled || !ctx->use_fusion() || idx + 2 >= ctx->n_nodes()) {
          return 0;
      }
-@@ -3493,27 +3493,36 @@ static int ggml_metal_op_mul_mat_swiglu(ggml_metal_op_t ctx, int idx) {
+@@ -3493,27 +3493,37 @@ static int ggml_metal_op_mul_mat_swiglu(ggml_metal_op_t ctx, int idx) {
      }
  
      const ggml_cgraph * gf = ctx->graph();
      const ggml_tensor * x  = gate->src[1];
  
-+    // the dense kernels copy the 32-lane standalone mat-vecs; q4_K only where those run two groups
-+    // of two rows, since small matrices take a four-row kernel there
++    // the dense kernels copy the 32-lane standalone mat-vecs (q4_K only where those run two groups of
++    // two rows); measured on discrete cards only, so unified memory keeps the separate ones
 +    static const bool dense_disabled = TOSH_ENV("TOSH_DENSE_SWIGLU_FUSION_DISABLE") != nullptr;
 +    const ggml_type wt = gate->src[0]->type;
-+    const bool dense = !dense_disabled && ggml_metal_device_get_props(ctx->dev)->simd_width == 32 &&
++    const ggml_metal_device_props * props = ggml_metal_device_get_props(ctx->dev);
++    const bool dense = !dense_disabled && props->simd_width == 32 && !props->has_unified_memory &&
 +        (wt == GGML_TYPE_Q4_0 || wt == GGML_TYPE_Q5_K || wt == GGML_TYPE_Q8_0 ||
 +         (wt == GGML_TYPE_Q4_K && gate->src[0]->ne[0] > 2048 && gate->src[0]->ne[1] > 2048));
 +
@@ -144,7 +145,7 @@ index 5a3daa3e4..5ea0176d1 100644
  
      ggml_metal_kargs_mul_mv args = {
          /*.ne00 =*/ (int32_t) w->ne[0],
-@@ -3545,11 +3554,16 @@ static int ggml_metal_op_mul_mat_swiglu(ggml_metal_op_t ctx, int idx) {
+@@ -3545,11 +3555,16 @@ static int ggml_metal_op_mul_mat_swiglu(ggml_metal_op_t ctx, int idx) {
      ggml_metal_encoder_set_buffer  (enc, ggml_metal_get_buffer_id(x),            3);
      ggml_metal_encoder_set_buffer  (enc, ggml_metal_get_buffer_id(glu),          4);
  
@@ -163,20 +164,18 @@ index 5a3daa3e4..5ea0176d1 100644
  
  int ggml_metal_op_mul_mat(ggml_metal_op_t ctx, int idx) {
 diff --git a/ggml/src/ggml-metal/kernels/mul_mv.metal b/ggml/src/ggml-metal/kernels/mul_mv.metal
-index aec19e5dd..277fd753e 100644
+index aec19e5dd..26823d0b9 100644
 --- a/ggml/src/ggml-metal/kernels/mul_mv.metal
 +++ b/ggml/src/ggml-metal/kernels/mul_mv.metal
-@@ -10079,5 +10079,475 @@ template [[host_name("kernel_mul_mv_id_iq4_nl_f32")]]  kernel kernel_mul_mv_id_t
+@@ -10079,5 +10079,473 @@ template [[host_name("kernel_mul_mv_id_iq4_nl_f32")]]  kernel kernel_mul_mv_id_t
  template [[host_name("kernel_mul_mv_id_iq4_xs_f32")]]  kernel kernel_mul_mv_id_t kernel_mul_mv_id<mmv_fn<kernel_mul_mv_iq4_xs_f32_impl <N_R0_IQ4_XS>>>;
  template [[host_name("kernel_mul_mv_id_tq2_0_f32")]]   kernel kernel_mul_mv_id_t kernel_mul_mv_id<mmv_fn<kernel_mul_mv_tq2_0_f32_impl  <N_R0_TQ2_0>>>;
  template [[host_name("kernel_mul_mv_ext_q3_K_hdr_f32_r1_5_nr0_2")]] kernel mul_mv_ext_q4x4_f32_t kernel_mul_mv_ext_qK_hdr_f32_disp<5, 2, block_q3_K>;
  template [[host_name("kernel_mul_mv_ext_q3_K_hdr_f32_r1_5_nr0_4")]] kernel mul_mv_ext_q4x4_f32_t kernel_mul_mv_ext_qK_hdr_f32_disp<5, 4, block_q3_K>;
  
 +
-+// Dense gate and up mat-vecs of one token followed by their swiglu, in one dispatch. A simdgroup
-+// takes half the standalone kernel's rows from each matrix, so it reads as much as it did alone and
-+// as many groups stay in flight as the two dispatches had. The sums run in the standalone order, so
-+// gate and up come out as they would on their own.
++// gate and up mat-vecs of one token and their swiglu in one dispatch; each simdgroup takes half the
++// standalone rows from each matrix, so as many groups stay in flight as the two dispatches had
 +template<short nr0>
 +void kernel_mul_mv_q4_K_swiglu_f32_impl(
 +        constant ggml_metal_kargs_mul_mv & args,

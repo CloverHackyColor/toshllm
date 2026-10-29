@@ -20,10 +20,10 @@ index d7b00f286..e49737a39 100644
              // starts paying for these, and below it every type loses (128 costs 4 to 19%)
              case GGML_TYPE_Q8_0:
 diff --git a/ggml/src/ggml-metal/kernels/dequantize.h b/ggml/src/ggml-metal/kernels/dequantize.h
-index a888c478f..95e70eda7 100644
+index a888c478f..06006e7a7 100644
 --- a/ggml/src/ggml-metal/kernels/dequantize.h
 +++ b/ggml/src/ggml-metal/kernels/dequantize.h
-@@ -695,10 +695,192 @@ void dequantize_lo(device const block_q4_K * xb, short il, bool lo, thread type4
+@@ -695,10 +695,222 @@ void dequantize_lo(device const block_q4_K * xb, short il, bool lo, thread type4
  template <typename type4x4>
  void dequantize_lo(device const block_q5_K * xb, short il, bool lo, thread type4x4 & reg) {
      dequantize_q5_K_impl<true>(xb, il, lo, reg);
@@ -36,7 +36,8 @@ index a888c478f..95e70eda7 100644
 +constexpr bool has_dequantize_words() {
 +    return is_same<block_q, block_q8_0>::value || is_same<block_q, block_q4_0>::value ||
 +           is_same<block_q, block_q4_1>::value || is_same<block_q, block_q2_K>::value ||
-+           is_same<block_q, block_q5_0>::value || is_same<block_q, block_q5_1>::value;
++           is_same<block_q, block_q5_0>::value || is_same<block_q, block_q5_1>::value ||
++           is_same<block_q, block_mxfp4>::value;
 +}
 +
 +// 16 bytes on a 4-byte boundary
@@ -206,6 +207,35 @@ index a888c478f..95e70eda7 100644
 +        const ushort qv = word_half(qw, i);
 +        reg_f[i/2][2*(i%2) + 0] = dl  * (qv & mask)  - ml;
 +        reg_f[i/2][2*(i%2) + 1] = dl2 * (qv & mask1) - ml;
++    }
++
++    reg = (type4x4) reg_f;
++}
++
++// 17-byte blocks start on any byte, so five words from the boundary below cover one. The fifth
++// can reach 3 bytes past the block, which stays inside the tensor's padded allocation.
++template <typename type4x4>
++void dequantize_words(device const block_mxfp4 * xb, short il, thread type4x4 & reg) {
++    const uint s = (uint) ((ulong) xb & 3);
++    device const uint * q = (device const uint *) ((device const uint8_t *) xb - s);
++    const uint q0 = q[0], q1 = q[1], q2 = q[2], q3 = q[3], q4 = q[4];
++
++    // 64-bit shifts, since s == 3 moves a whole word
++    const uint sh = 8*s + 8;
++    const uint4 w = uint4(uint(as_type<ulong>(uint2(q0, q1)) >> sh), uint(as_type<ulong>(uint2(q1, q2)) >> sh),
++                          uint(as_type<ulong>(uint2(q2, q3)) >> sh), uint(as_type<ulong>(uint2(q3, q4)) >> sh));
++
++    const float d = e8m0_to_fp32(uint8_t(q0 >> 8*s));
++    const uint shr = 4*il;
++
++    float4x4 reg_f;
++
++    for (int i = 0; i < 4; ++i) {
++        const uint x = w[i] >> shr;
++        reg_f[i][0] = d * kvalues_mxfp4_f[(x      ) & 0x0F];
++        reg_f[i][1] = d * kvalues_mxfp4_f[(x >>  8) & 0x0F];
++        reg_f[i][2] = d * kvalues_mxfp4_f[(x >> 16) & 0x0F];
++        reg_f[i][3] = d * kvalues_mxfp4_f[(x >> 24) & 0x0F];
 +    }
 +
 +    reg = (type4x4) reg_f;

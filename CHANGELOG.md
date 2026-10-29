@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **The web chat has four more colour themes, Sepia, Ocean, Forest and Lavender,** next to System, Light and Dark; a theme shows as soon as it is picked and stays with Save settings. Contributed by [Basten7](https://github.com/Basten7) in [#142](https://github.com/engeldlgado/toshllm/issues/142).
+
 ### Improved
 
 - **LLMs: Q4_0, Q4_K_M, Q5_K_M and Q8_0 models generate up to 4% more tokens per second on Radeon RX 6000 cards.** The gate and up projections and their activation run as one step while generating, with identical output. On an RX 6700 XT: Qwen3-4B Q5_K_M 87.6 to 91.1 t/s, Qwen3-4B Q8_0 69.5 to 71.3, Qwen3-8B Q4_K_M 63.7 to 65.0 and Llama 2 7B Q4_0 77.9 to 79.2.

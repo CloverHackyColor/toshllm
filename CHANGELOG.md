@@ -3,6 +3,12 @@
 All notable changes to ToshLLM are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Improved
+
+- **LLMs: Q5_1, Q5_0, Q8_0, Q4_1, Q2_K and Q4_0 models read prompts up to 15% faster on Radeon RX 6000 cards, with identical output.** On an RX 6700 XT Qwen3-4B Q5_1 goes from 1426 to 1645 tokens a second, Q5_0 from 1452 to 1601, Q4_1 from 1640 to 1694 and Q8_0 from 1642 to 1663, Llama 2 7B Q8_0 from 945 to 990, and gemma-4-26B-A4B, whose experts are partly Q5_1, from 569 to 582; generation is unchanged.
+
 ## [0.87.30] - 2026-10-28
 
 ### Added

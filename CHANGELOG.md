@@ -9,6 +9,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 - **LLMs: Q5_1, Q5_0, Q8_0, Q4_1, Q2_K and Q4_0 models read prompts up to 15% faster on Radeon RX 6000 cards, with identical output.** On an RX 6700 XT Qwen3-4B Q5_1 goes from 1426 to 1645 tokens a second, Q5_0 from 1452 to 1601, Q4_1 from 1640 to 1694 and Q8_0 from 1642 to 1663, Llama 2 7B Q8_0 from 945 to 990, and gemma-4-26B-A4B, whose experts are partly Q5_1, from 569 to 582; generation is unchanged.
 - **LLMs: MXFP4 models read prompts up to 15% faster on Radeon RX 6000 cards, with identical output.** On an RX 6700 XT Ornith 1.5 9B goes from 782 to 864 tokens a second, Mellum2 12B from 2073 to 2185 and gpt-oss 20b, fully on the GPU, from 1313 to 1514; generation is unchanged.
+- **LLMs: MXFP4 mixture-of-experts models read short prompts up to three times faster on Radeon RX 6000 cards.** On an RX 6700 XT gpt-oss 20b, fully on the GPU, reads a 128-token prompt at 964 tokens a second instead of 304, and gemma-4-26B-A4B MXFP4 at 177 instead of 148.
 
 ## [0.87.30] - 2026-10-28
 

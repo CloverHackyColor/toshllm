@@ -14,6 +14,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **LLMs: gpt-oss generates 3% faster, and dense MXFP4 models 1% faster, on Radeon RX 6000 cards.** On an RX 6700 XT gpt-oss 20b, fully on the GPU, goes from 106.4 to 109.6 tokens a second and Ornith 1.5 9B from 65.0 to 65.7.
 - **LLMs: Qwen3.6-35B-A3B generates 3% faster with Dynamic MoE on Radeon RX 6000 cards, with identical output.** On an RX 6700 XT it goes from 55.5 to 57.2 tokens a second.
 
+### Fixed
+
+- **LLMs: Qwen3.8-Flash-Next and other models with a gated shared expert load again with TensorMesh,** where 0.87.30 stopped the engine as soon as it generated its first token.
+
 ## [0.87.30] - 2026-10-28
 
 ### Added

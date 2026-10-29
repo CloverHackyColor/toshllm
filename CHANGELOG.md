@@ -11,6 +11,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **LLMs: MXFP4 models read prompts up to 15% faster on Radeon RX 6000 cards, with identical output.** On an RX 6700 XT Ornith 1.5 9B goes from 782 to 864 tokens a second, Mellum2 12B from 2073 to 2185 and gpt-oss 20b, fully on the GPU, from 1313 to 1514; generation is unchanged.
 - **LLMs: MXFP4 mixture-of-experts models read short prompts up to three times faster on Radeon RX 6000 cards.** On an RX 6700 XT gpt-oss 20b, fully on the GPU, reads a 128-token prompt at 964 tokens a second instead of 304, and gemma-4-26B-A4B MXFP4 at 177 instead of 148.
 - **LLMs: BF16 models read prompts up to 34% faster on Radeon RX 6000 cards.** On an RX 6700 XT Qwen3 0.6B BF16 goes from 6910 to 9263 tokens a second, within 3% of the same model in F16; generation is unchanged.
+- **LLMs: gpt-oss generates 3% faster, and dense MXFP4 models 1% faster, on Radeon RX 6000 cards.** On an RX 6700 XT gpt-oss 20b, fully on the GPU, goes from 106.4 to 109.6 tokens a second and Ornith 1.5 9B from 65.0 to 65.7.
 
 ## [0.87.30] - 2026-10-28
 

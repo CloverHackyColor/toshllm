@@ -17,6 +17,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Fixed
 
 - **LLMs: Qwen3.8-Flash-Next and other models with a gated shared expert load again with TensorMesh,** where 0.87.30 stopped the engine as soon as it generated its first token.
+- **LLMs: a model with an MTP head starts without it when there is no room for the head, instead of the engine stopping with "failed to create MTP context".**
 
 ## [0.87.30] - 2026-10-28
 

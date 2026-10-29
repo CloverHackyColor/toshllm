@@ -14,6 +14,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **LLMs: gpt-oss generates 3% faster, and dense MXFP4 models 1% faster, on Radeon RX 6000 cards.** On an RX 6700 XT gpt-oss 20b, fully on the GPU, goes from 106.4 to 109.6 tokens a second and Ornith 1.5 9B from 65.0 to 65.7.
 - **LLMs: Qwen3.6-35B-A3B generates 3% faster with Dynamic MoE on Radeon RX 6000 cards, with identical output.** On an RX 6700 XT it goes from 55.5 to 57.2 tokens a second.
 - **LLMs: mixture-of-experts models with small Q4_K experts, such as Qwen3.6-35B-A3B, generate 1% faster and read short prompts 6% faster on Radeon RX 6000 cards, with identical output.** On an RX 6700 XT Qwen3.6-35B-A3B with Dynamic MoE goes from 59.6 to 60.4 tokens a second, and from 150 to 159 on a short prompt.
+- **LLMs: Q8_0 mixture-of-experts models with small experts generate 4% faster on Radeon RX 6000 cards, with identical output.** On an RX 6700 XT Granite 3.1 3B-A800M Q8_0 goes from 175.1 to 182.6 tokens a second.
 - **LLMs: with Dynamic MoE on Radeon RX 6000 cards, a model whose MTP head would take too much of the VRAM left for experts starts without it, and generates faster.** On an RX 6700 XT Qwen3.6-35B-A3B goes from 58.2 to 60.9 tokens a second once its experts are cached.
 
 ### Fixed

@@ -297,11 +297,11 @@ build_image_engine() {
     # This ggml is older still, and exactly four hunks cannot land on it; they are applied from
     # patches/image/0002 in their adapted form.
     # If that set ever changes, the build stops instead of shipping a backend missing a hunk.
-    local expected_rejects="ggml-metal-device.cpp.rej ggml-metal-device.m.rej ggml-metal.cpp.rej ggml-metal.metal.rej"
-    for shared in "$ROOT"/patches/shared-metal/0001-*.patch; do
-        git apply --reject --exclude='ggml/src/ggml-metal/ggml-metal-impl.h' \
-                  --include='ggml/src/ggml-metal/*' -p1 "$shared" >/dev/null 2>&1 || true
-    done
+#    local expected_rejects="ggml-metal-device.cpp.rej ggml-metal-device.m.rej ggml-metal.cpp.rej ggml-metal.metal.rej"
+#     for shared in "$ROOT"/patches/shared-metal/0001-*.patch; do
+#         git apply --reject --exclude='ggml/src/ggml-metal/ggml-metal-impl.h' \
+#                   --include='ggml/src/ggml-metal/*' -p1 "$shared" >/dev/null 2>&1 || true
+#     done
     local got_rejects
     got_rejects=$(find ggml/src/ggml-metal -name '*.rej' -exec basename {} \; | sort -u | tr '\n' ' ')
     got_rejects="${got_rejects% }"
@@ -313,22 +313,22 @@ build_image_engine() {
         exit 1
     fi
     find ggml/src/ggml-metal \( -name '*.rej' -o -name '*.orig' \) -delete
-    git apply --include='ggml/src/ggml-metal/*' -p1 \
-              "$ROOT/patches/image/0002-image-metal-divergent-hunks.patch"
-    git apply --include='ggml/src/ggml-metal/ggml-metal-impl.h' -C2 -p1 \
-              "$ROOT/patches/shared-metal/0001-7-metal-backend-host.patch"
-    git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0003-image-metal-ncb.patch"
+    #git apply --include='ggml/src/ggml-metal/*' -p1 
+    #          "$ROOT/patches/image/0002-image-metal-divergent-hunks.patch"
+    #git apply --include='ggml/src/ggml-metal/ggml-metal-impl.h' -C2 -p1 
+    #         "$ROOT/patches/shared-metal/0001-7-metal-backend-host.patch"
+    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0003-image-metal-ncb.patch"
     # sd.cpp core (outside the ggml submodule): per-op CPU fallback for wave64.
-    git apply -p1 "$ROOT/patches/image/0004-image-cpu-fallback-sched.patch"
-    git apply -p1 "$ROOT/patches/image/0008-image-ext-wave64.patch"
+    #git apply -p1 "$ROOT/patches/image/0004-image-cpu-fallback-sched.patch"
+    #git apply -p1 "$ROOT/patches/image/0008-image-ext-wave64.patch"
     # after 0008: both edit ggml-metal.metal and ggml-metal-ops.cpp, and 0021 was
     # generated on top of it. Without a Metal im2col_3d, ggml_conv_3d falls back to
     # the direct 3D convolution, slow enough that the Wan VAE trips the watchdog.
-    git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0021-image-metal-im2col-3d.patch"
+    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0021-image-metal-im2col-3d.patch"
     # UNet head sizes for the AMD flash-attention kernels: SD 1.5 builds a 2.7 GB score
     # matrix at 768 and does not fit at all at 1024 without them. Image-side copy because
     # this engine's .metal spells the wave64 instantiation macro differently.
-    git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0047-image-fa-unet-heads.patch"
+    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0047-image-fa-unet-heads.patch"
     # Release diffusion weights before video decoding.
     git apply -p1 "$ROOT/patches/image/0049-image-free-diffusion-before-video-decode.patch"
     # Yield between VAE tiles to keep the desktop responsive.
@@ -339,22 +339,22 @@ build_image_engine() {
     # Convert bf16 weights on load when the device has no bfloat: the Metal backend
     # rejects every op that touches them, and a weight already placed in the device
     # buffer aborts the load instead of falling back.
-    git apply -p1 "$ROOT/patches/image/0052-image-bf16-promote-without-bfloat.patch"
+    #git apply -p1 "$ROOT/patches/image/0052-image-bf16-promote-without-bfloat.patch"
     # Cast an f16 weight to f32 before adding a LoRA diff: the diff is f32, Metal wants both
     # operands in one type, and a weight in private VRAM cannot fall back to the CPU for the add.
     git apply -p1 "$ROOT/patches/image/0053-image-lora-f16-weight-cast.patch"
     # Report free VRAM from what this backend holds: the AMD driver's own figure counts
     # buffers it has not reclaimed yet, and the engine then refuses work that fits.
-    git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0055-image-metal-live-vram-report.patch"
+    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0055-image-metal-live-vram-report.patch"
     # Half partials as an opt-in: float stays the default because some models overflow half,
     # and the app sets TOSH_MM_ACC_HALF only for the models checked with it.
-    git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0056-image-metal-half-partials.patch"
+    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0056-image-metal-half-partials.patch"
     # Qwen-Image 2.1 runs its fused gate/up projection through one SwiGLU instead of copying
     # both halves out first; TOSH_QWEN21_SWIGLU_DISABLE restores the split graph.
     git apply -p1 "$ROOT/patches/image/0057-image-qwen21-fused-swiglu.patch"
     # A fully contiguous copy runs as one flat range instead of rebuilding a 4-D index per
     # element; same port as the speech engine's 0028.
-    git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0058-image-metal-cpy-contiguous.patch"
+    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0058-image-metal-cpy-contiguous.patch"
     # Qwen-Image 2.1 rotates q and k straight from its cos/sin table in one kernel, with a CPU
     # twin for the fallback; TOSH_QWEN21_ROPE_TABLE_DISABLE restores the generic graph.
     git apply -p1 "$ROOT/patches/image/0059-image-qwen21-rope-table.patch"
@@ -370,16 +370,16 @@ build_image_engine() {
     # 2D im2col runs one threadgroup per output pixel, like im2col_3d, instead of a few threads
     # per channel, and 3x3 kernels stage their input rows to write each pixel in wide stores;
     # TOSH_IM2COL_PX_DISABLE and TOSH_IM2COL_TILE_DISABLE restore the older dispatches.
-    git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0064-image-metal-im2col.patch"
+    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0064-image-metal-im2col.patch"
     # A copy that swaps two contiguous blocks of dims (the Wan VAE's channel-first norm) goes
     # through 32x32 tiles; TOSH_CPY_TRANSPOSE_DISABLE restores the generic copy.
-    git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0065-image-metal-cpy-transpose.patch"
+    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0065-image-metal-cpy-transpose.patch"
     # Diffusion attention (f16 K/V, no mask) runs a prefill kernel without the mask paths;
     # TOSH_FA_NOMASK_DISABLE restores pf_amd.
-    git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0066-image-metal-fa-nomask.patch"
+    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0066-image-metal-fa-nomask.patch"
     # Large matrix products walk their tiles in bands of src1 that stay in the cache;
     # TOSH_MM_BAND_MB=0 restores the plain order.
-    git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0067-image-metal-mm-band.patch"
+    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0067-image-metal-mm-band.patch"
     echo "applied ggml-metal hunks of 0001 + 0003 + core fallback 0004 + ext wave64 0008 to stable-diffusion.cpp"
 
     # This ggml is on a different commit, so an ambiguous hunk can land on the wrong

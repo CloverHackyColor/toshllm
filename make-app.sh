@@ -163,13 +163,37 @@ cp Assets/model-icons/*.webp Assets/model-icons/sources.json "$APP/Contents/Reso
 # Image generation engine (stable-diffusion.cpp; optional)
 IMAGE_STATIC="vendor/stable-diffusion.cpp/build-static/bin"
 if [ -x "$IMAGE_STATIC/sd-cli" ]; then
-    if [ ! -f "$IMAGE_STATIC/default.metallib" ]; then
-        echo "ERROR: image-engine default.metallib is required; rebuild the engines" >&2
+    # Проверяем наличие папки kernels с metallib файлами (новая схема)
+    # или старого default.metallib (для обратной совместимости)
+    image_kernels="$IMAGE_STATIC/kernels"
+    image_metallib="$IMAGE_STATIC/default.metallib"
+    
+    if [ -d "$image_kernels" ] && [ -n "$(ls $image_kernels/*.metallib 2>/dev/null)" ]; then
+        echo "image-engine: using precompiled kernels directory ($(ls $image_kernels/*.metallib | wc -l | tr -d ' ') libraries)"
+    elif [ -f "$image_metallib" ]; then
+        echo "image-engine: using legacy default.metallib"
+    else
+        echo "ERROR: image-engine precompiled shaders not found; rebuild the engines" >&2
+        echo "  Expected either:" >&2
+        echo "    - $image_kernels/*.metallib (new scheme)" >&2
+        echo "    - $image_metallib (legacy)" >&2
         exit 1
     fi
+    
     mkdir -p "$APP/Contents/Resources/bin-image"
     cp "$IMAGE_STATIC/sd-cli" "$APP/Contents/Resources/bin-image/"
-    cp "$IMAGE_STATIC/default.metallib" "$APP/Contents/Resources/bin-image/"
+    
+    # Копируем либо папку kernels (новая схема), либо default.metallib (старая)
+    if [ -d "$image_kernels" ]; then
+        # Новая схема: копируем всю папку kernels
+        cp -R "$image_kernels" "$APP/Contents/Resources/bin-image/kernels"
+        echo "bundled image-engine kernels ($(ls $image_kernels/*.metallib | wc -l | tr -d ' ') libraries)"
+    elif [ -f "$image_metallib" ]; then
+        # Старая схема: копируем один файл
+        cp "$image_metallib" "$APP/Contents/Resources/bin-image/default.metallib"
+        echo "bundled image-engine default.metallib (legacy)"
+    fi
+    
     echo "bundled image generation engine"
 fi
 
@@ -288,8 +312,8 @@ for exe in "$APP/Contents/Resources/bin/"* "$APP/Contents/Resources/bin-image/"*
 done
 
 [ -x "$APP/Contents/Resources/bin/llama-server" ] && codesign --force -s - "$APP/Contents/Resources/bin/"*(.)
-[ -x "$APP/Contents/Resources/bin-image/sd-cli" ] && codesign --force -s - "$APP/Contents/Resources/bin-image/"*
-[ -x "$APP/Contents/Resources/bin-audio/whisper-cli" ] && codesign --force -s - "$APP/Contents/Resources/bin-audio/"*
+[ -x "$APP/Contents/Resources/bin-image/sd-cli" ] && codesign --force -s - "$APP/Contents/Resources/bin-image/"*(.)
+[ -x "$APP/Contents/Resources/bin-audio/whisper-cli" ] && codesign --force -s - "$APP/Contents/Resources/bin-audio/"*(.)
 if [ -x "$APP/Contents/Resources/tosh-sympy/python/bin/python3" ]; then
     # NumPy and SciPy are made of extension modules and libraries: each is a Mach-O that needs its own signature
     codesign --force -s - "$APP/Contents/Resources/tosh-sympy/"**/*.(so|dylib)(.N) \

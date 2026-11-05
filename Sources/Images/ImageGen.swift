@@ -1194,55 +1194,10 @@ final class ImageGenerator: ObservableObject {
             return  // ВАЖНО: прерываем выполнение, чтобы не идти дальше к sd-cli
         }
 
-        // Each component maps to its own sd-cli flag (a full checkpoint via --model,
-        // or a diffusion model plus its VAE and text encoders).
+        // Model components are the single source of model-file arguments.
         var args: [String] = []
         for comp in model.components {
             args += [comp.flag, models.componentPath(comp).path]
-        }
-
-        if engine == .sdcli {
-            if sdcliMode == .checkpoint {
-                args.append("--model")
-                args.append(resolvePath(modelName))
-            } else if sdcliMode == .diffusion {
-                args.append("--diffusion-model")
-                args.append(resolvePath(modelName))
-
-                if !vaeModelName.isEmpty {
-                    args.append("--vae")
-                    args.append(resolvePath(vaeModelName))
-                }
-                if !textEncoderLLMPath.isEmpty {
-                    args.append("--llm")  // Или "--text-encoder", в зависимости от версии sd-cli
-                    args.append(resolvePath(textEncoderLLMPath))
-                }
-                if !textEncoderT5Path.isEmpty {
-                    args.append("--t5xxl")
-                    args.append(resolvePath(textEncoderT5Path))
-                }
-                if !textEncoderCLIPPath.isEmpty {
-                    args.append("--clip_l")
-                    args.append(resolvePath(textEncoderCLIPPath))
-                }
-                if !visionProjectorPath.isEmpty {
-                    args.append("--llm_vision")
-                    args.append(resolvePath(visionProjectorPath))
-                }
-            }
-        } else if engine == .llama {
-            // TODO: Если для Qwen-Image/llama нужен особый флаг или другой бинарник, добавьте его здесь.
-            // Пока можно использовать логику diffusion, так как Qwen-Image в sd-cli работает через те же флаги.
-            args.append("--diffusion-model")
-            args.append(resolvePath(modelName))
-            if !textEncoderLLMPath.isEmpty {
-                args.append("--llm")
-                args.append(resolvePath(textEncoderLLMPath))
-            }
-            if !visionProjectorPath.isEmpty {
-                args.append("--llm_vision")
-                args.append(resolvePath(visionProjectorPath))
-            }
         }
 
         // --- ДОБАВЛЯЕМ CONTROL ДЛЯ FLEX.2 ---

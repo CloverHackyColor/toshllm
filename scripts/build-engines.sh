@@ -13,7 +13,7 @@ ROOT="$PWD"
 
 LLAMA_COMMIT="${LLAMA_COMMIT:-d81235049384534c167caea52b85a694f6103d14}"   # llama.cpp commit validated against the patches
 WHISPER_COMMIT="${WHISPER_COMMIT:-371b5a7561823ab2bb32142d2751e35e7534727b}" # whisper.cpp v1.9.3
-SD_COMMIT="${SD_COMMIT:-2f88688}"         # stable-diffusion.cpp commit validated for image gen
+SD_COMMIT="${SD_COMMIT:-tosh-amd}"         # stable-diffusion.cpp commit validated for image gen
 ARCH="${ARCH:-$(uname -m)}"
 DEPLOYMENT_TARGET="14.0"        # same floor as the app (Package.swift)
 if [ "$ARCH" = "universal" ]; then
@@ -270,134 +270,40 @@ build_whisper_engine() {
 # 0001 series and nothing else; the llama half has no counterpart here.
 build_image_engine() {
     local vendor="vendor/stable-diffusion.cpp"
-    # `git clone --recursive` stalls on the ggml submodule fetch on flaky links;
-    # clone the main repo, then init the submodule separately, both abort-and-retry
-    # on a stalled transfer instead of hanging.
+    # Используем ваш форк с интегрированной поддержкой AMD/FLUX3
+    local SD_REPO="${SD_REPO:-https://github.com/CloverHackyColor/stable-diffusion.cpp}"
+    # Укажите здесь имя вашей ветки, в которую вы вносили изменения (например, tosh-amd или tosh-amd-flux3)
+    local SD_COMMIT="${SD_COMMIT:-tosh-amd}"
+
     if [ ! -d "$vendor/.git" ]; then
+        echo "Cloning CloverHackyColor/stable-diffusion.cpp fork..."
         retry_git env GIT_HTTP_LOW_SPEED_LIMIT=2000 GIT_HTTP_LOW_SPEED_TIME=30 \
-            git clone https://github.com/leejet/stable-diffusion.cpp "$vendor"
+            git clone --recursive "$SD_REPO" "$vendor"
     fi
+    
     cd "$vendor"
+    
+    echo "Fetching latest changes from fork..."
     retry_git git fetch origin
-    # the previous build left the patches in both working trees; a bump that moves the
-    # submodule cannot check the new commit out over them, so revert before switching
+    
+    # Очищаем любые артефакты от предыдущих попыток применения патчей
     git -C ggml checkout -- . 2>/dev/null || true
     git checkout -- . 2>/dev/null || true
+    
+    echo "Checking out $SD_COMMIT..."
     git checkout -qf "$SD_COMMIT"
+    
     git submodule sync --recursive
     retry_git env GIT_HTTP_LOW_SPEED_LIMIT=2000 GIT_HTTP_LOW_SPEED_TIME=30 \
         git submodule update --init --recursive
-    git checkout -- . 2>/dev/null || true
-    git -C ggml checkout -- . 2>/dev/null || true
 
-    # impl.h needs -C2: this engine's decode N_R0/N_SG block differs from llama.cpp's, so a -U5
-    # hunk finds no match. Safe only because every define it edits is unique, asserted below.
-    # The 0001-* series in patches/shared-metal is the Metal backend for the engines pinned
-    # before upstream split ggml-metal.metal into kernels/, and is applied here **unchanged**.
-    # This ggml is older still, and exactly four hunks cannot land on it; they are applied from
-    # patches/image/0002 in their adapted form.
-    # If that set ever changes, the build stops instead of shipping a backend missing a hunk.
-#    local expected_rejects="ggml-metal-device.cpp.rej ggml-metal-device.m.rej ggml-metal.cpp.rej ggml-metal.metal.rej"
-#     for shared in "$ROOT"/patches/shared-metal/0001-*.patch; do
-#         git apply --reject --exclude='ggml/src/ggml-metal/ggml-metal-impl.h' \
-#                   --include='ggml/src/ggml-metal/*' -p1 "$shared" >/dev/null 2>&1 || true
-#     done
-    local got_rejects
-    got_rejects=$(find ggml/src/ggml-metal -name '*.rej' -exec basename {} \; | sort -u | tr '\n' ' ')
-    got_rejects="${got_rejects% }"
-    if [ "$got_rejects" != "$expected_rejects" ]; then
-        echo "ERROR: the shared Metal series no longer diverges where patches/image/0002 expects." >&2
-        echo "  expected rejects: $expected_rejects" >&2
-        echo "  got:              $got_rejects" >&2
-        echo "  inspect the .rej files, then update patches/image/0002-image-metal-divergent-hunks.patch" >&2
-        exit 1
-    fi
-    find ggml/src/ggml-metal \( -name '*.rej' -o -name '*.orig' \) -delete
-    #git apply --include='ggml/src/ggml-metal/*' -p1 
-    #          "$ROOT/patches/image/0002-image-metal-divergent-hunks.patch"
-    #git apply --include='ggml/src/ggml-metal/ggml-metal-impl.h' -C2 -p1 
-    #         "$ROOT/patches/shared-metal/0001-7-metal-backend-host.patch"
-    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0003-image-metal-ncb.patch"
-    # sd.cpp core (outside the ggml submodule): per-op CPU fallback for wave64.
-    #git apply -p1 "$ROOT/patches/image/0004-image-cpu-fallback-sched.patch"
-    #git apply -p1 "$ROOT/patches/image/0008-image-ext-wave64.patch"
-    # after 0008: both edit ggml-metal.metal and ggml-metal-ops.cpp, and 0021 was
-    # generated on top of it. Without a Metal im2col_3d, ggml_conv_3d falls back to
-    # the direct 3D convolution, slow enough that the Wan VAE trips the watchdog.
-    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0021-image-metal-im2col-3d.patch"
-    # UNet head sizes for the AMD flash-attention kernels: SD 1.5 builds a 2.7 GB score
-    # matrix at 768 and does not fit at all at 1024 without them. Image-side copy because
-    # this engine's .metal spells the wave64 instantiation macro differently.
-    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0047-image-fa-unet-heads.patch"
-    # Release diffusion weights before video decoding.
-    git apply -p1 "$ROOT/patches/image/0049-image-free-diffusion-before-video-decode.patch"
-    # Yield between VAE tiles to keep the desktop responsive.
-    git apply -p1 "$ROOT/patches/image/0050-image-vae-tile-yield.patch"
-    # Read tensors with pread: stdio refills 4 KiB at a time and the load ran at a tenth
-    # of what the disk gives.
-    git apply -p1 "$ROOT/patches/image/0051-image-loader-pread.patch"
-    # Convert bf16 weights on load when the device has no bfloat: the Metal backend
-    # rejects every op that touches them, and a weight already placed in the device
-    # buffer aborts the load instead of falling back.
-    #git apply -p1 "$ROOT/patches/image/0052-image-bf16-promote-without-bfloat.patch"
-    # Cast an f16 weight to f32 before adding a LoRA diff: the diff is f32, Metal wants both
-    # operands in one type, and a weight in private VRAM cannot fall back to the CPU for the add.
-    git apply -p1 "$ROOT/patches/image/0053-image-lora-f16-weight-cast.patch"
-    # Report free VRAM from what this backend holds: the AMD driver's own figure counts
-    # buffers it has not reclaimed yet, and the engine then refuses work that fits.
-    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0055-image-metal-live-vram-report.patch"
-    # Half partials as an opt-in: float stays the default because some models overflow half,
-    # and the app sets TOSH_MM_ACC_HALF only for the models checked with it.
-    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0056-image-metal-half-partials.patch"
-    # Qwen-Image 2.1 runs its fused gate/up projection through one SwiGLU instead of copying
-    # both halves out first; TOSH_QWEN21_SWIGLU_DISABLE restores the split graph.
-    git apply -p1 "$ROOT/patches/image/0057-image-qwen21-fused-swiglu.patch"
-    # A fully contiguous copy runs as one flat range instead of rebuilding a 4-D index per
-    # element; same port as the speech engine's 0028.
-    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0058-image-metal-cpy-contiguous.patch"
-    # Qwen-Image 2.1 rotates q and k straight from its cos/sin table in one kernel, with a CPU
-    # twin for the fallback; TOSH_QWEN21_ROPE_TABLE_DISABLE restores the generic graph.
-    git apply -p1 "$ROOT/patches/image/0059-image-qwen21-rope-table.patch"
-    # The cached prefix and the new keys meet in F16, the type flash attention reads.
-    git apply -p1 "$ROOT/patches/image/0060-image-qwen21-prefix-f16.patch"
-    # The down projection takes its input in F16, which its tile loader rounds to anyway.
-    git apply -p1 "$ROOT/patches/image/0061-image-qwen21-down-f16.patch"
-    # The q/k/v, output and gate/up projections take F16 inputs too, and the modulation skips
-    # a whole-tensor slice copy when there is no cached prefix.
-    git apply -p1 "$ROOT/patches/image/0062-image-qwen21-f16-inputs.patch"
-    # Flash attention reads Qwen-Image 2.1's F16 values through a permuted view instead of a copy.
-    git apply -p1 "$ROOT/patches/image/0063-image-qwen21-v-view.patch"
-    # 2D im2col runs one threadgroup per output pixel, like im2col_3d, instead of a few threads
-    # per channel, and 3x3 kernels stage their input rows to write each pixel in wide stores;
-    # TOSH_IM2COL_PX_DISABLE and TOSH_IM2COL_TILE_DISABLE restore the older dispatches.
-    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0064-image-metal-im2col.patch"
-    # A copy that swaps two contiguous blocks of dims (the Wan VAE's channel-first norm) goes
-    # through 32x32 tiles; TOSH_CPY_TRANSPOSE_DISABLE restores the generic copy.
-    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0065-image-metal-cpy-transpose.patch"
-    # Diffusion attention (f16 K/V, no mask) runs a prefill kernel without the mask paths;
-    # TOSH_FA_NOMASK_DISABLE restores pf_amd.
-    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0066-image-metal-fa-nomask.patch"
-    # Large matrix products walk their tiles in bands of src1 that stay in the cache;
-    # TOSH_MM_BAND_MB=0 restores the plain order.
-    #git apply --include='ggml/src/ggml-metal/*' -p1 "$ROOT/patches/image/0067-image-metal-mm-band.patch"
-    echo "applied ggml-metal hunks of 0001 + 0003 + core fallback 0004 + ext wave64 0008 to stable-diffusion.cpp"
-
-    # This ggml is on a different commit, so an ambiguous hunk can land on the wrong
-    # function and still exit 0. Patch context is -U5 to avoid it; assert it anyway.
-    local metal="ggml/src/ggml-metal/ggml-metal.metal"
-    if ! awk '/^kernel void kernel_cumsum_blk\(/,/\{$/' "$metal" | grep -q 'sgptg\[\[threads_per_simdgroup\]\]'; then
-        echo "ERROR: patch 0001 landed wrong in $metal (kernel_cumsum_blk lost its sgptg parameter)" >&2
-        exit 1
-    fi
-    # the reduced-context pass above must still land the fields the AMD kernels read
-    local impl="ggml/src/ggml-metal/ggml-metal-impl.h"
-    if ! awk '/ggml_metal_kargs_flash_attn_ext_vec;/{exit} {print}' "$impl" | grep -q 'int32_t  has_mask;'; then
-        echo "ERROR: patch 0001 landed wrong in $impl (flash_attn_ext_vec lost has_mask)" >&2
-        exit 1
-    fi
+    # ВНИМАНИЕ: Здесь НЕТ команд git apply и НЕТ проверок awk.
+    # Все необходимые изменения уже интегрированы непосредственно в код вашего форка.
 
     local isa=("${ISA_FLAGS[@]}")
     reset_stale_cmake_cache build-static
+    
+    echo "Configuring stable-diffusion.cpp..."
     cmake -B build-static \
         -DCMAKE_BUILD_TYPE=Release \
         -DSD_METAL=ON \
@@ -406,27 +312,32 @@ build_image_engine() {
         "${isa[@]}" \
         -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET" \
-        -DCMAKE_CXX_FLAGS="-Wno-unused-const-variable -Wno-unused-function" \
-				-DCMAKE_C_FLAGS="-Wno-unused-const-variable -Wno-unused-function"
+        -DCMAKE_CXX_FLAGS="-DTOSH_VERSION=$TOSH_VERSION -Wno-unused-const-variable -Wno-unused-function" \
+        -DCMAKE_C_FLAGS="-Wno-unused-const-variable -Wno-unused-function"
+    
+    echo "Building sd-cli..."
     cmake --build build-static --config Release -j "$(sysctl -n hw.ncpu)" -t sd-cli
 
+    # Precompile Metal shaders for faster first load
     local merged="build-static/ggml/src/ggml-metal/autogenerated/ggml-metal-embed.metal"
     if [ "$METAL_PRECOMPILE" = 1 ] && [ -f "$merged" ]; then
-        if resolve_metal_toolchain && "$METAL_COMPILER" -O3 -Wno-unused-const-variable -Wno-unused-function  -mmacosx-version-min=14.0 -std=metal3.1 \
-                -DGGML_METAL_EMBED_LIBRARY -DGGML_METAL_HAS_BF16 \
-                -I ggml/src -I ggml/src/ggml-metal \
-                -c "$merged" -o build-static/bin/ggml-metal.air &&
-           "$METALLIB_COMPILER" build-static/bin/ggml-metal.air \
-                -o build-static/bin/default.metallib; then
+        echo "Precompiling Metal shaders for image engine..."
+        if resolve_metal_toolchain && "$METAL_COMPILER" -O3 -Wno-unused-const-variable -Wno-unused-function \
+            -mmacosx-version-min=14.0 -std=metal3.1 \
+            -DGGML_METAL_EMBED_LIBRARY -DGGML_METAL_HAS_BF16 \
+            -I ggml/src -I ggml/src/ggml-metal \
+            -c "$merged" -o build-static/bin/ggml-metal.air &&
+            "$METALLIB_COMPILER" build-static/bin/ggml-metal.air \
+            -o build-static/bin/default.metallib; then
             rm -f build-static/bin/ggml-metal.air
             echo "precompiled default.metallib for image engine"
         else
             rm -f build-static/bin/ggml-metal.air build-static/bin/default.metallib
-            # Embedded source remains available for runtime compilation.
             echo "WARNING: image metallib precompile failed — using embedded source" >&2
             METAL_PRECOMPILE=0
         fi
     fi
+    
     echo "image engine ready at $PWD/build-static/bin (arch: $ARCH)"
     cd "$ROOT"
 }

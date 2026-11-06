@@ -13,7 +13,7 @@ ROOT="$PWD"
 
 LLAMA_COMMIT="${LLAMA_COMMIT:-d81235049384534c167caea52b85a694f6103d14}"   # llama.cpp commit validated against the patches
 WHISPER_COMMIT="${WHISPER_COMMIT:-371b5a7561823ab2bb32142d2751e35e7534727b}" # whisper.cpp v1.9.3
-SD_COMMIT="${SD_COMMIT:-tosh-amd}"         # stable-diffusion.cpp commit validated for image gen
+SD_COMMIT="${SD_COMMIT:-master}"         # stable-diffusion.cpp commit validated for image gen
 ARCH="${ARCH:-$(uname -m)}"
 DEPLOYMENT_TARGET="14.0"        # same floor as the app (Package.swift)
 if [ "$ARCH" = "universal" ]; then
@@ -287,8 +287,8 @@ build_image_engine() {
     local vendor="vendor/stable-diffusion.cpp"
     # Используем ваш форк с интегрированной поддержкой AMD/FLUX3
     local SD_REPO="${SD_REPO:-https://github.com/CloverHackyColor/stable-diffusion.cpp}"
-    # Укажите здесь имя вашей ветки, в которую вы вносили изменения (например, tosh-amd или tosh-amd-flux3)
-    local SD_COMMIT="${SD_COMMIT:-tosh-amd}"
+    # Укажите здесь имя вашей ветки, в которую вы вносили изменения 
+    local SD_COMMIT="${SD_COMMIT:-master}"
 
     if [ ! -d "$vendor/.git" ]; then
         echo "Cloning CloverHackyColor/stable-diffusion.cpp fork..."

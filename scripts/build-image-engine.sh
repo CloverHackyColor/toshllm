@@ -13,7 +13,7 @@ ROOT="$PWD"
 
 # Use the CloverHackyColor fork with AMD/FLUX3 support
 SD_REPO="${SD_REPO:-https://github.com/CloverHackyColor/stable-diffusion.cpp}"
-SD_COMMIT="${SD_COMMIT:-tosh-amd}"  # Your branch with integrated patches
+SD_COMMIT="${SD_COMMIT:-master}"  # Your branch with integrated patches
 
 ARCH="${ARCH:-$(uname -m)}"
 DEPLOYMENT_TARGET="14.0"

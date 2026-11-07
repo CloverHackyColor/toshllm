@@ -12,8 +12,12 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 
 # Use the CloverHackyColor fork with AMD/FLUX3 support
-SD_REPO="${SD_REPO:-https://github.com/CloverHackyColor/stable-diffusion.cpp}"
-SD_COMMIT="${SD_COMMIT:-master}"  # Your branch with integrated patches
+#SD_REPO="${SD_REPO:-https://github.com/CloverHackyColor/stable-diffusion.cpp}"
+#SD_COMMIT="${SD_COMMIT:-master}"  # Your branch with integrated patches
+
+# Use the original leejet repository with the commit validated against patches
+SD_REPO="${SD_REPO:-https://github.com/leejet/stable-diffusion.cpp}"
+SD_COMMIT="${SD_COMMIT:-2f88688}"  # Validated commit for image engine patches
 
 ARCH="${ARCH:-$(uname -m)}"
 DEPLOYMENT_TARGET="14.0"
@@ -124,20 +128,46 @@ cd "$vendor"
 echo "Fetching latest changes from fork..."
 retry_git git fetch origin
 
-# Clean up any previous patches
-git -C ggml checkout -- . 2>/dev/null || true
-git checkout -- . 2>/dev/null || true
-
-# Switch to the branch with integrated AMD/FLUX3 support
 echo "Checking out $SD_COMMIT..."
 git checkout -qf "$SD_COMMIT"
+git reset --hard "$SD_COMMIT"
 
-# Update submodules
+# Remove untracked files from previous patch attempts.
+# Do not use -x: build-static is ignored and may survive.
+git clean -qfd 2>/dev/null || true
+
+# IMPORTANT:
+# Do NOT use --remote here. We need the exact ggml commit recorded by this SD commit.
 git submodule sync --recursive
 retry_git env GIT_HTTP_LOW_SPEED_LIMIT=2000 GIT_HTTP_LOW_SPEED_TIME=30 \
-    git submodule update --init --recursive
+    git submodule update --init --recursive --force
 
-# NO git apply commands here! All patches are already integrated into the fork.
+# Clean submodules too. Patch-created files can remain there otherwise.
+git submodule foreach --recursive 'git reset --hard; git clean -fd'
+
+echo "stable-diffusion.cpp commit:"
+git log --oneline -1
+
+echo "ggml submodule commit:"
+git -C ggml log --oneline -1
+
+echo "Applying image engine patches..."
+for patch in "$ROOT"/patches/image/*.patch(N); do
+    [ -f "$patch" ] || continue
+
+    if git apply --check "$patch" >/tmp/sd-image-patch-check.log 2>&1; then
+        git apply "$patch"
+        echo "✅ applied ${patch#$ROOT/patches/}"
+    elif git apply --reverse --check "$patch" >/dev/null 2>&1; then
+        echo "ℹ️  already applied ${patch#$ROOT/patches/}"
+    else
+        echo "❌ failed ${patch#$ROOT/patches/}"
+        cat /tmp/sd-image-patch-check.log
+        echo
+        echo "Patch series is not compatible with this checkout. Stop."
+        exit 1
+    fi
+done
 
 # Configure and build
 local isa=("${ISA_FLAGS[@]}")

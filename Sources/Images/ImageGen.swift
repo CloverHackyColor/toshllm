@@ -1587,7 +1587,8 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
         fastMode = (try? c.decode(String.self, forKey: .fastMode)) ?? ImageFastMode.off.rawValue
 
         // Читаем НОВЫЕ поля (их может не быть в старых JSON)
-        engine = (try? c.decode(ImageEngine.self, forKey: .engine)) ?? .sdcli
+        let decodedEngine = try? c.decode(ImageEngine.self, forKey: .engine)
+        engine = decodedEngine ?? .sdcli
         sdcliMode = (try? c.decode(SDCLIMode.self, forKey: .sdcliMode)) ?? .checkpoint
         modelName = (try? c.decode(String.self, forKey: .modelName)) ?? ""
         vaeModelName = (try? c.decode(String.self, forKey: .vaeModelName)) ?? ""
@@ -1614,19 +1615,20 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
             textEncoderLLMPath = customTextEncoderPath
         }
 
-        // Применяем миграцию из старых полей inpaintEngine
-        let oldEngine = inpaintEngine
-        if oldEngine == .iopaint {
-            engine = .iopaint
-            if modelName.isEmpty {
-                modelName = "big-lama"
+        // Legacy keys are also written for compatibility, but must not override
+        // the newer engine selection when both formats are present.
+        if decodedEngine == nil, c.contains(.inpaintEngine) {
+            switch inpaintEngine {
+            case .iopaint:
+                engine = .iopaint
+                if modelName.isEmpty { modelName = "big-lama" }
+            case .sdcliCheckpoint:
+                engine = .sdcli
+                sdcliMode = .checkpoint
+            case .sdcliDiffusion, .sdcliDual, .sdcliControl:
+                engine = .sdcli
+                sdcliMode = .diffusion
             }
-        } else if oldEngine == .sdcliDiffusion {
-            engine = .sdcli
-            sdcliMode = .diffusion
-        } else if oldEngine == .sdcliCheckpoint {
-            engine = .sdcli
-            sdcliMode = .checkpoint
         }
 
         // Миграция путей энкодеров
@@ -1635,6 +1637,10 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
         }
         if textEncoderT5Path.isEmpty && !t5EncoderPath.isEmpty {
             textEncoderT5Path = t5EncoderPath
+        }
+
+        if modelID != ImageGenCatalog.customID {
+            engine = .sdcli
         }
     }
 

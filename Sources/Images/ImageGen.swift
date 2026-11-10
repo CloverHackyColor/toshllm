@@ -1006,6 +1006,7 @@ final class ImageGenerator: ObservableObject {
         format: ImageFormat, offloadToCPU: Bool, gpuIndex: Int,
         auxGPUIndex: Int = -1,
         initImagePath: String = "", maskPath: String = "",
+        outputDirectory: String = "",
         strength: Double = 0.75,
         cfgScale: Double = 7.0,
 
@@ -1044,7 +1045,25 @@ final class ImageGenerator: ObservableObject {
         lastSeed = seed
         lastWidth = width
         lastHeight = height
-        let outputDir = URL(fileURLWithPath: initImagePath).deletingLastPathComponent()
+        let modelsDir = ServerSettings.modelsDirectory.appendingPathComponent(
+            "imagen", isDirectory: true
+        )
+        let outputDir: URL
+        if !outputDirectory.isEmpty {
+            outputDir = URL(fileURLWithPath: outputDirectory, isDirectory: true)
+        } else if !initImagePath.isEmpty {
+            outputDir = URL(fileURLWithPath: initImagePath).deletingLastPathComponent()
+        } else {
+            outputDir = modelsDir
+        }
+        do {
+            try FileManager.default.createDirectory(
+                at: outputDir, withIntermediateDirectories: true)
+        } catch {
+            state = .failed("OUTPUT_DIR: \(error.localizedDescription)")
+            self.onFinish?()
+            return
+        }
 
         // Timestamp plus a short token: a batch fired in the same second (one run
         // per instance) would otherwise share a name and overwrite a single file.
@@ -1054,15 +1073,13 @@ final class ImageGenerator: ObservableObject {
         let out = outputDir.appendingPathComponent(
             "toshllm_\(fmt.string(from: Date()))_\(token).\(format.ext)")
 
-        let modelsDir = ServerSettings.modelsDirectory.appendingPathComponent(
-            "imagen", isDirectory: true
-        ).path
+        let modelsPath = modelsDir.path
 
         // Вспомогательная функция для резолвинга путей (если пользователь ввел только имя файла, а не полный путь)
         func resolvePath(_ path: String) -> String {
             if path.isEmpty { return "" }
             if path.hasPrefix("/") { return path }  // Уже полный путь
-            return (modelsDir as NSString).appendingPathComponent(path)
+            return (modelsPath as NSString).appendingPathComponent(path)
         }
 
         // --- ВЕТКА IOPAINT (LaMa) ---
@@ -1071,12 +1088,8 @@ final class ImageGenerator: ObservableObject {
                 state = .failed("IOPaint no encontrado. Ejecuta: pip install iopaint")
                 return
             }
-            let fmt = DateFormatter()
-            fmt.dateFormat = "yyyy-MM-dd_HH.mm.ss"
-            let token = String(UUID().uuidString.prefix(4)).lowercased()
-            // iopaint run ожидает, что --output будет ПАПКой, а не файлом [[2]].
-            let outputDir = URL(fileURLWithPath: initImagePath).deletingLastPathComponent()
-            let expectedOutputName = "toshllm_\(fmt.string(from: Date()))_\(token).\(format.ext)"
+            // iopaint run ожидает, что --output будет ПАПКОй, а не файлом [[2]].
+            let expectedOutputName = out.lastPathComponent
             let expectedOutputURL = outputDir.appendingPathComponent(expectedOutputName)
 
             let args = [
@@ -1484,6 +1497,7 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
     /// Ignored at CFG 1: the sampler never runs the unconditional branch there.
     var negativePrompt = ""
     var initImagePath = ""
+    var outputDirectory = ""
     /// Reference images for the models that edit from them (Qwen-Image 2.1).
     var referenceImagePaths: [String] = []
     /// Inpainting mask for the init image: white repaints, black keeps.
@@ -1571,6 +1585,7 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
         prompt = (try? c.decode(String.self, forKey: .prompt)) ?? ""
         negativePrompt = (try? c.decode(String.self, forKey: .negativePrompt)) ?? ""
         initImagePath = (try? c.decode(String.self, forKey: .initImagePath)) ?? ""
+        outputDirectory = (try? c.decode(String.self, forKey: .outputDirectory)) ?? ""
         referenceImagePaths = (try? c.decode([String].self, forKey: .referenceImagePaths)) ?? []
         maskPath = (try? c.decode(String.self, forKey: .maskPath)) ?? ""
         strength = (try? c.decode(Double.self, forKey: .strength)) ?? 0.6
@@ -1912,7 +1927,8 @@ final class ImageGenPool: ObservableObject {
                 width: w, height: h, steps: c.steps, seed: job.seed, format: .png,
                 offloadToCPU: c.offloadCPU, gpuIndex: c.gpuIndex, auxGPUIndex: aux ?? -1,
                 initImagePath: job.initImagePath ?? c.initImagePath,
-                maskPath: c.maskPath, strength: c.strength,
+                maskPath: c.maskPath, outputDirectory: c.outputDirectory,
+                strength: c.strength,
 
                 // --- ПЕРЕДАЧА НОВЫХ ПАРАМЕТРОВ ---
                 engine: c.engine,
@@ -1942,16 +1958,32 @@ final class ImageGenPool: ObservableObject {
     /// user asked to produce, not accumulated output.
     nonisolated static func cleanupOutputsIfEnabled() {
         guard UserDefaults.standard.bool(forKey: SettingsKeys.imagenCleanupOnClose) else { return }
-        let dir = ServerSettings.modelsDirectory.appendingPathComponent("imagen", isDirectory: true)
-        let files =
-            (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil))
-            ?? []
-        for f in files {
-            let name = f.deletingPathExtension().lastPathComponent
-            guard name.hasPrefix("toshllm_"), !name.contains("-x2"), !name.contains("-x4") else {
-                continue
+        let defaultDirectory = ServerSettings.modelsDirectory.appendingPathComponent(
+            "imagen", isDirectory: true)
+        let configuredDirectories: [URL]
+        if let data = UserDefaults.standard.data(forKey: SettingsKeys.imagenInstances),
+            let configs = try? JSONDecoder().decode([ImageInstanceConfig].self, from: data)
+        {
+            configuredDirectories = configs.compactMap {
+                $0.outputDirectory.isEmpty
+                    ? nil : URL(fileURLWithPath: $0.outputDirectory, isDirectory: true)
             }
-            try? FileManager.default.removeItem(at: f)
+        } else {
+            configuredDirectories = []
+        }
+        let directories = Set([defaultDirectory] + configuredDirectories)
+        for directory in directories {
+            let files =
+                (try? FileManager.default.contentsOfDirectory(
+                    at: directory, includingPropertiesForKeys: nil)) ?? []
+            for file in files {
+                let name = file.deletingPathExtension().lastPathComponent
+                guard name.hasPrefix("toshllm_"), !name.contains("-x2"), !name.contains("-x4")
+                else {
+                    continue
+                }
+                try? FileManager.default.removeItem(at: file)
+            }
         }
     }
 

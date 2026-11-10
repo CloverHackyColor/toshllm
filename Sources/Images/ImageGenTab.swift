@@ -560,6 +560,7 @@ struct ImageControls: View {
                         gpuIndex: c.gpuIndex,
                         auxGPUIndex: c.auxGPU(gpuCount: hardware.gpus.count) ?? -1,
                         initImagePath: c.initImagePath, maskPath: c.maskPath,
+                        outputDirectory: c.outputDirectory,
                         strength: c.strength,
 
                         // --- ОБНОВЛЕННЫЕ ПАРАМЕТРЫ КАСТОМНОЙ МОДЕЛИ ---
@@ -1706,6 +1707,7 @@ struct ImageInstanceForm: View {
 
     private var img2imgSection: some View {
         VStack(alignment: .leading, spacing: 6) {
+            folderPickRow(loc.t("Carpeta de salida", "Output folder"), path: $cfg.outputDirectory)
             filePickRow(
                 loc.t("Imagen inicial (img2img)", "Init image (img2img)"),
                 path: $cfg.initImagePath, types: ["png", "jpg", "jpeg", "webp"])
@@ -2125,6 +2127,53 @@ struct ImageInstanceForm: View {
         }
     }
 
+    private func folderPickRow(_ title: String, path: Binding<String>) -> some View {
+        HStack(spacing: 6) {
+            Text(title).font(.caption)
+            Spacer(minLength: 6)
+            Button(
+                path.wrappedValue.isEmpty
+                    ? loc.t("Predeterminada", "Default")
+                    : URL(fileURLWithPath: path.wrappedValue).lastPathComponent
+            ) {
+                let panel = NSOpenPanel()
+                panel.canChooseDirectories = true
+                panel.canChooseFiles = false
+                panel.allowsMultipleSelection = false
+                panel.prompt = loc.t("Elegir", "Choose")
+                let startDirectory = path.wrappedValue.isEmpty
+                    ? ServerSettings.modelsDirectory.appendingPathComponent(
+                        "imagen", isDirectory: true)
+                    : URL(fileURLWithPath: path.wrappedValue, isDirectory: true)
+                if FileManager.default.fileExists(atPath: startDirectory.path) {
+                    panel.directoryURL = startDirectory
+                }
+                if panel.runModal() == .OK, let url = panel.url {
+                    path.wrappedValue = url.path
+                }
+            }
+            .font(.caption).lineLimit(1).truncationMode(.middle).frame(
+                maxWidth: 150, alignment: .trailing)
+            .help(
+                path.wrappedValue.isEmpty
+                    ? loc.t(
+                        "Usa la carpeta del modelo; si hay una imagen inicial, se guarda junto a ella.",
+                        "Uses the model's imagen folder; with an init image, saves beside it.")
+                    : path.wrappedValue
+            )
+            if !path.wrappedValue.isEmpty {
+                Button {
+                    path.wrappedValue = ""
+                } label: {
+                    Label(loc.t("Quitar", "Clear"), systemImage: "xmark.circle")
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(GlassIconButtonStyle())
+                .iconHelp(loc.t("Usar la carpeta predeterminada", "Use the default folder"))
+            }
+        }
+    }
+
     private func pickFile(
         types: [String], startDirectory: URL? = nil, onPick: @escaping (String) -> Void
     ) {
@@ -2169,6 +2218,11 @@ private func imageFailureText(_ raw: String, _ loc: Localizer) -> String {
         return loc.t(
             "Falta una imagen de referencia (se movió o se borró). Quítala o vuelve a elegirla.",
             "A reference image is missing (moved or deleted). Remove it or pick it again.")
+    case let message where message.hasPrefix("OUTPUT_DIR: "):
+        return loc.t(
+            "No se pudo crear la carpeta de salida: %@",
+            "Could not create the output folder: %@",
+            String(message.dropFirst("OUTPUT_DIR: ".count)))
     default:
         return loc.t("La generación falló (%@).", "Generation failed (%@).", "\(raw)")
     }

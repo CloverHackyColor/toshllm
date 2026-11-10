@@ -1986,17 +1986,6 @@ struct ImageInstanceForm: View {
                     width: 96)
             }
             row(
-                loc.t("Formato", "Format"),
-                loc.t(
-                    "JPG pesa mucho menos; PNG es sin pérdida.",
-                    "JPG is far lighter; PNG is lossless.")
-            ) {
-                Picker("", selection: $cfg.format) {
-                    ForEach(ImageFormat.allCases) { Text($0.rawValue.uppercased()).tag($0.rawValue) }
-                }.labelsHidden().frame(width: 96, alignment: .trailing)
-
-            }
-            row(
                 loc.t("Modo rápido", "Fast mode"),
                 loc.t(
                     "Reutiliza pasos del muestreo en vez de recalcularlos. Más rápido, pero cambia el detalle de la imagen. En Qwen-Image 2.1 a 25 pasos, aproximadamente: cache-dit 1.46x, spectrum 1.91x, easycache 2.06x.",
@@ -2868,7 +2857,7 @@ struct ImageCanvas: View {
     @ViewBuilder private func singleCanvas(_ cfg: ImageInstanceConfig) -> some View {
         let gen = pool.generator(for: cfg.id)
         if let img = gen.resultImage, !gen.isBusy {
-            resultCanvas(img, gen: gen, format: cfg.formatValue)
+            resultCanvas(img, gen: gen, format: .png)
         } else if gen.isBusy {
             progressCanvas(gen)
         } else {
@@ -3053,8 +3042,8 @@ struct ImageCanvas: View {
     private func instanceTile(_ cfg: ImageInstanceConfig, grid: Bool) -> some View {
         ImageInstanceRow(
             gen: pool.generator(for: cfg.id), title: tileTitle(cfg),
-            dims: cfg.dimensions, format: cfg.formatValue, grid: grid,
-            onSave: { saveAs($0, format: cfg.formatValue) })
+            dims: cfg.dimensions, format: .png, grid: grid,
+            onSave: { saveAs($0, format: .png) })
     }
 
     /// Instance number, model and GPU; seed and size live in the tile's metadata line.

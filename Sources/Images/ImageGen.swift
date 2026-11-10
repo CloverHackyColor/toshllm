@@ -1499,7 +1499,6 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
     var auxGPUIndex = -1
     var steps = 8
     var seed = -1
-    var format = ImageFormat.png.rawValue
     var offloadCPU = false
     var fastMode = ImageFastMode.off.rawValue
 
@@ -1582,7 +1581,6 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
         auxGPUIndex = (try? c.decode(Int.self, forKey: .auxGPUIndex)) ?? -1
         steps = (try? c.decode(Int.self, forKey: .steps)) ?? 8
         seed = (try? c.decode(Int.self, forKey: .seed)) ?? -1
-        format = (try? c.decode(String.self, forKey: .format)) ?? ImageFormat.png.rawValue
         offloadCPU = (try? c.decode(Bool.self, forKey: .offloadCPU)) ?? false
         fastMode = (try? c.decode(String.self, forKey: .fastMode)) ?? ImageFastMode.off.rawValue
 
@@ -1672,7 +1670,6 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
     }
 
     var aspectValue: ImageAspect { ImageAspect(rawValue: aspect) ?? .square }
-    var formatValue: ImageFormat { ImageFormat(rawValue: format) ?? .png }
     var fastModeValue: ImageFastMode { ImageFastMode(rawValue: fastMode) ?? .off }
     var dimensions: (Int, Int) {
         aspectValue == .custom
@@ -1762,7 +1759,6 @@ final class ImageGenPool: ObservableObject {
         c.gpuIndex = int(SettingsKeys.imagenGPU, 0)
         c.steps = int(SettingsKeys.imagenSteps, 8)
         c.seed = int(SettingsKeys.imagenSeed, -1)
-        c.format = d.string(forKey: SettingsKeys.imagenFormat) ?? ImageFormat.png.rawValue
         c.offloadCPU = d.bool(forKey: SettingsKeys.imagenOffloadCPU)
         return c
     }

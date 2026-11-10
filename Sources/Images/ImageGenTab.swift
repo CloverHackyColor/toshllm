@@ -506,7 +506,7 @@ struct ImageControls: View {
         .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
     }
 
-    /// An instance can run: model installed, an (own or inherited) prompt, and
+    /// An instance can run: its engine is ready, it has a prompt, and
     /// a frame that fits its GPU(s). The model's VRAM class only warns.
     private func runnable(_ c: ImageInstanceConfig) -> Bool {
         let model = c.resolvedModel(for: hardware)
@@ -514,9 +514,11 @@ struct ImageControls: View {
         let aux = c.auxGPU(gpuCount: hardware.gpus.count)
         let (w, h) = c.dimensions
 
-        // 1. Проверка установки модели: для кастомных проверяем существование файла, для каталожных - через ModelStore
+        // IOPaint uses its built-in LaMa model; other engines need a selected model.
         let isModelReady: Bool
-        if c.isCustom {
+        if c.engine == .iopaint {
+            isModelReady = true
+        } else if c.isCustom {
             // Проверяем, что основной файл модели существует на диске
             isModelReady =
                 !c.modelName.isEmpty && FileManager.default.fileExists(atPath: c.modelName)
@@ -1408,32 +1410,30 @@ struct ImageInstanceForm: View {
                 .pickerStyle(.menu)
             }
 
-            // 3. Имя или путь к модели
             let modelsDir = ServerSettings.modelsDirectory
                 .appendingPathComponent("imagen", isDirectory: true)
-            filePickRow(
-                loc.t("Nombre del modelo", "Model name"),
-                path: $cfg.modelName, types: ["gguf", "safetensors", "pth"],
-                startDirectory: modelsDir
-            )
-            .help(
-                loc.t(
-                    "Introduzca el nombre del archivo del modelo. El archivo debe estar en la carpeta imagen",
-                    "Enter the model file name. The file must be in the imagen folder."
-                ))
-
-            // Подсказка о расположении файлов
-            Text(
-                loc.t(
-                    "Los archivos de modelo deben ubicarse en: %@",
-                    "Model files should be located in: %@",
-                    ServerSettings.modelsDirectory.appendingPathComponent(
-                        "imagen", isDirectory: true
-                    ).path
+            if cfg.engine != .iopaint {
+                filePickRow(
+                    loc.t("Nombre del modelo", "Model name"),
+                    path: $cfg.modelName, types: ["gguf", "safetensors", "pth"],
+                    startDirectory: modelsDir
                 )
-            )
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
+                .help(
+                    loc.t(
+                        "Introduzca el nombre del archivo del modelo. El archivo debe estar en la carpeta imagen",
+                        "Enter the model file name. The file must be in the imagen folder."
+                    ))
+
+                Text(
+                    loc.t(
+                        "Los archivos de modelo deben ubicarse en: %@",
+                        "Model files should be located in: %@",
+                        modelsDir.path
+                    )
+                )
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            }
 
             // 4. Имя или путь к VAE модели (только для типа diffusion)
             if cfg.engine == .sdcli && cfg.sdcliMode == .diffusion {

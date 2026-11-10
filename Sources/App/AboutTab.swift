@@ -15,7 +15,7 @@ enum AppInfo {
     static let developerName = "Engelbert Delgado"
     static let developerHandle = "engeldlgado"
     static let githubURL = "https://github.com/engeldlgado"
-    static let repositoryURL = "https://github.com/engeldlgado/toshllm"
+    static let repositoryURL = "https://github.com/CloverHackyColor/toshllm"
     static let issuesURL = repositoryURL + "/issues"
     static let featureRequestURL = repositoryURL + "/issues/new?template=feature_request.yml"
     static let discussionsURL = repositoryURL + "/discussions"

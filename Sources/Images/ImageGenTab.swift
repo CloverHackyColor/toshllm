@@ -1458,6 +1458,17 @@ struct ImageInstanceForm: View {
                         startDirectory: modelsDir.appendingPathComponent(
                             "text_encoders", isDirectory: true)
                     )
+                    .onChange(of: cfg.textEncoderLLMPath) { _, path in
+                        if let projector = ServerSettings.mmprojPath(forModel: path) {
+                            cfg.visionProjectorPath = projector
+                        }
+                    }
+                    .onAppear {
+                        if cfg.visionProjectorPath.isEmpty,
+                           let projector = ServerSettings.mmprojPath(forModel: cfg.textEncoderLLMPath) {
+                            cfg.visionProjectorPath = projector
+                        }
+                    }
                     .help(
                         loc.t(
                             "Modelo LLM para Flex.2 o SD 3.x/Flux. Proporciona comprensión semántica avanzada.",

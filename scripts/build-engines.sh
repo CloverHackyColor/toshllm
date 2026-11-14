@@ -11,6 +11,8 @@ set -e
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 
+LLAMA_REPO="${LLAMA_REPO:-https://github.com/ggml-org/llama.cpp.git}"
+LLAMA_APPLY_PATCHES="${LLAMA_APPLY_PATCHES:-1}"
 LLAMA_COMMIT="${LLAMA_COMMIT:-d81235049384534c167caea52b85a694f6103d14}"   # llama.cpp commit validated against the patches
 WHISPER_COMMIT="${WHISPER_COMMIT:-371b5a7561823ab2bb32142d2751e35e7534727b}" # whisper.cpp v1.9.3
 SD_COMMIT="${SD_COMMIT:-2f88688}"         # stable-diffusion.cpp commit validated for image gen
@@ -146,20 +148,25 @@ build_engine() {
     local patches=("$@")
 
     if [ ! -d "$vendor/.git" ]; then
-        retry_git git clone --filter=blob:none https://github.com/ggml-org/llama.cpp "$vendor"
+        retry_git git clone --filter=blob:none "$LLAMA_REPO" "$vendor"
     fi
     cd "$vendor"
+    git remote set-url origin "$LLAMA_REPO"
+    git reset --hard
+    git clean -qfd
+
     retry_git git fetch origin "$fetch_ref" 2>/dev/null || retry_git git fetch origin
     git checkout -qf "$ref"
-    git checkout -- . 2>/dev/null || true
-    # files a patch creates are untracked, so the checkout above leaves them behind
-    # and the next apply fails; build dirs are gitignored and survive this
-    git clean -qfd 2>/dev/null || true
 
-    for patch in "${patches[@]}"; do
-        git apply "$patch"
-        echo "applied ${patch#$ROOT/patches/}"
-    done
+    if [ "$LLAMA_APPLY_PATCHES" = "1" ]; then
+        for patch in "${patches[@]}"; do
+            git apply "$patch"
+            echo "applied ${patch#$ROOT/patches/}"
+        done
+    elif [ "$LLAMA_APPLY_PATCHES" != "0" ]; then
+        echo "ERROR: LLAMA_APPLY_PATCHES must be 0 or 1" >&2
+        return 1
+    fi
 
     reset_stale_cmake_cache build-static
     cmake -B build-static "${CMAKE_FLAGS[@]}"

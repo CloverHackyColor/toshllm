@@ -1,9 +1,8 @@
 #!/bin/zsh
 # Builds all ToshLLM inference engines:
-#   1. Official llama.cpp + the existing ToshLLM patches
+#   1. CloverHackyColor/llama.cpp, branch tosh (all ToshLLM patches committed)
 #   2. Official whisper.cpp + the existing ToshLLM patches
-#   3. CloverHackyColor/stable-diffusion.cpp + its pinned GGML submodule,
-#      already maintained with ToshLLM changes in their own Git repositories.
+#   3. CloverHackyColor/stable-diffusion.cpp + its pinned GGML submodule
 #
 # The original scripts/build-engines.sh is intentionally left unchanged.
 #
@@ -24,6 +23,11 @@ SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+LLAMA_REPO="${LLAMA_REPO:-https://github.com/CloverHackyColor/llama.cpp.git}"
+LLAMA_COMMIT="${LLAMA_COMMIT:-origin/tosh}"
+#real commit is be4b36402d18b2c195b6119123114c6bd65ecc1b
+LLAMA_APPLY_PATCHES=0
+
 SD_REPO="${SD_REPO:-https://github.com/CloverHackyColor/stable-diffusion.cpp.git}"
 # Track the fork's master by default. For a fully reproducible build, set SD_COMMIT
 # to a specific commit SHA (recommended for releases).
@@ -32,6 +36,8 @@ GGML_REPO="${GGML_REPO:-https://github.com/CloverHackyColor/ggml.git}"
 ARCH="${ARCH:-$(uname -m)}"
 DEPLOYMENT_TARGET="14.0"
 
+export SD_REPO SD_COMMIT GGML_REPO ARCH
+export LLAMA_REPO LLAMA_COMMIT LLAMA_APPLY_PATCHES
 export SD_REPO SD_COMMIT GGML_REPO ARCH
 
 # Match build-engines.sh: retry networked Git operations on transient failures.

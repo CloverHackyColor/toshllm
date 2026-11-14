@@ -1223,7 +1223,7 @@ final class ImageGenerator: ObservableObject {
 
         // 5. Аргументы для Reference Images (Qwen-Image 2.1)
         for refPath in referenceImagePaths where !refPath.isEmpty {
-            args.append("--reference-image")
+            args.append("-r")  // Аргумент для указания reference image также как --ref-image
             args.append(resolvePath(refPath))
         }
 

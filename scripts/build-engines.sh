@@ -124,6 +124,8 @@ CMAKE_FLAGS=(
     # The server binds to localhost only; skip OpenSSL so static cross-builds
     # don't pick up host-arch Homebrew libraries on CI runners.
     -DLLAMA_OPENSSL=OFF
+    -DCMAKE_CXX_FLAGS="-Wno-unused-const-variable -Wno-unused-function -Wno-deprecated-literal-operator" 
+    -DCMAKE_C_FLAGS="-Wno-unused-const-variable -Wno-unused-function" 
 )
 
 # pin every ISA flag in both variants: with GGML_NATIVE=OFF ggml's defaults follow the build
@@ -246,6 +248,8 @@ build_whisper_engine() {
         -DGGML_METAL_EMBED_LIBRARY=ON \
         -DGGML_NATIVE=OFF \
         "${isa[@]}" \
+        -DCMAKE_CXX_FLAGS="-Wno-unused-const-variable -Wno-unused-function -Wno-deprecated-literal-operator" \
+        -DCMAKE_C_FLAGS="-Wno-unused-const-variable -Wno-unused-function" \
         -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET"
     cmake --build build-static --config Release -j "$(sysctl -n hw.ncpu)" -t whisper-cli whisper-server
@@ -409,6 +413,8 @@ build_image_engine() {
         -DGGML_METAL_EMBED_LIBRARY=ON \
         -DGGML_NATIVE=OFF \
         "${isa[@]}" \
+        -DCMAKE_CXX_FLAGS="-Wno-unused-const-variable -Wno-unused-function -Wno-deprecated-literal-operator" \
+        -DCMAKE_C_FLAGS="-Wno-unused-const-variable -Wno-unused-function" \
         -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET"
     cmake --build build-static --config Release -j "$(sysctl -n hw.ncpu)" -t sd-cli

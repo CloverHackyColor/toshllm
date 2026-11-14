@@ -152,6 +152,8 @@ build_image_engine() {
         -DGGML_METAL_EMBED_LIBRARY=ON \
         -DGGML_NATIVE=OFF \
         "${isa[@]}" \
+        -DCMAKE_CXX_FLAGS="-Wno-unused-const-variable -Wno-unused-function -Wno-deprecated-literal-operator" \
+        -DCMAKE_C_FLAGS="-Wno-unused-const-variable -Wno-unused-function" \
         -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET"
     cmake --build build-static --config Release -j "$(sysctl -n hw.ncpu)" -t sd-cli

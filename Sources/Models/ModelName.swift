@@ -441,23 +441,6 @@ struct ModelName {
             }
         }
  
-        let chosen = primary ?? byFile
-
-        var title = chosen.title
-        if chosen.sizeToken.isEmpty && !byFile.sizeToken.isEmpty {
-            title = "\(title) \(byFile.sizeToken)"
-        } else if byFile.sizeToken.contains("-A"), !chosen.sizeToken.contains("-A") {
-            if !chosen.sizeToken.isEmpty {
-                let suffix = " \(chosen.sizeToken)"
-                if title.hasSuffix(suffix) {
-                    title = String(title.dropLast(suffix.count))
-                }
-            }
-            if !title.hasSuffix(byFile.sizeToken) {
-                title = "\(title) \(byFile.sizeToken)"
-            }
-
-        }
         var badges: [String] = []
         for badge in byFile.badges + chosen.badges where !badges.contains(badge) {
             badges.append(badge)

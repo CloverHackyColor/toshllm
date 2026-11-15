@@ -800,9 +800,9 @@ private struct VideoPlaybackView: View {
         }
         .task(id: result.id) {
             let urls = result.frameURLs
-            let decoded = await Task.detached(priority: .userInitiated) {
-                urls.compactMap(VideoGenerator.displayFrame)
-            }.value
+            let decoded: [NSImage] = await Task.detached(priority: .userInitiated) {
+                () -> [NSImage] in
+                urls.compactMap { VideoGenerator.displayFrame($0) }            }.value
             guard !Task.isCancelled else { return }
             playbackFrames = decoded
             frameIndex = 0

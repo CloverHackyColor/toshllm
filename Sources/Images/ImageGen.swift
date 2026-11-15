@@ -586,12 +586,19 @@ enum ImageGenCatalog {
     /// Sentinel id for the user's own model (files picked from disk).
     static let customID = "__custom__"
 
+    static func visionProjector(forTextEncoder path: String, in modelsDirectory: URL) -> String? {
+        guard !path.isEmpty else { return nil }
+        let modelPath = path.hasPrefix("/")
+            ? path
+            : modelsDirectory.appendingPathComponent(path).path
+        return ServerSettings.mmprojPath(forModel: modelPath)
+    }
+
     /// Build a model from user-picked files: a checkpoint (or diffusion model) and
     /// an optional VAE. Passed as a full checkpoint via --model, which covers most
     /// community SD/SDXL finetunes; minVRAMGB 0 so it's never blocked.
     static func custom(
         modelPath: String, vaePath: String, textEncoderPath: String = "",
-        visionProjectorPath: String = "",
         isDiffusion: Bool = false, steps: Int, cfg: Double
     ) -> ImageGenModel {
         func gb(_ p: String) -> Double {
@@ -613,12 +620,6 @@ enum ImageGenCatalog {
                 ImageGenComponent(
                     kind: .textEncoder, urlString: "",
                     fileName: textEncoderPath, sizeGB: gb(textEncoderPath)))
-        }
-        if !visionProjectorPath.isEmpty {
-            comps.append(
-                ImageGenComponent(
-                    kind: .llmVision, urlString: "",
-                    fileName: visionProjectorPath, sizeGB: gb(visionProjectorPath)))
         }
         // Assume the SD/SDXL UNet family (the common custom case) for the VRAM cap.
         return ImageGenModel(
@@ -1018,7 +1019,6 @@ final class ImageGenerator: ObservableObject {
         textEncoderLLMPath: String = "",
         textEncoderT5Path: String = "",
         textEncoderCLIPPath: String = "",
-        visionProjectorPath: String = "",
         // -----------------------------------------------
 
         //   inpaintEngine: InpaintEngine = .iopaint,  // <-- ДОБАВЛЕНО
@@ -1211,6 +1211,11 @@ final class ImageGenerator: ObservableObject {
         var args: [String] = []
         for comp in model.components {
             args += [comp.flag, models.componentPath(comp).path]
+        }
+        if !model.components.contains(where: { $0.kind == .llmVision }),
+           let projector = ImageGenCatalog.visionProjector(
+               forTextEncoder: textEncoderLLMPath, in: modelsDir) {
+            args += ["--llm_vision", projector]
         }
 
         // --- ДОБАВЛЯЕМ CONTROL ДЛЯ FLEX.2 ---
@@ -1530,7 +1535,6 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
     var textEncoderLLMPath: String = ""  // Путь к LLM энкодеру
     var textEncoderT5Path: String = ""  // Путь к T5 энкодеру
     var textEncoderCLIPPath: String = ""  // Путь к CLIP энкодеру
-    var visionProjectorPath: String = ""  // Путь к Vision Projector (для моделей, которые его используют)
 
     // --- КОНВЕРТЕР ДЛЯ МИГРАЦИИ ---
     // Вычисляемое свойство, которое конвертирует старые значения в новые при чтении
@@ -1608,7 +1612,6 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
         textEncoderLLMPath = (try? c.decode(String.self, forKey: .textEncoderLLMPath)) ?? ""
         textEncoderT5Path = (try? c.decode(String.self, forKey: .textEncoderT5Path)) ?? ""
         textEncoderCLIPPath = (try? c.decode(String.self, forKey: .textEncoderCLIPPath)) ?? ""
-        visionProjectorPath = (try? c.decode(String.self, forKey: .visionProjectorPath)) ?? ""
         // Читаем СТАРЫЕ поля (для миграции)
         inpaintEngine = (try? c.decode(InpaintEngine.self, forKey: .inpaintEngine)) ?? .iopaint
         textEncoderPath = (try? c.decode(String.self, forKey: .textEncoderPath)) ?? ""
@@ -1664,7 +1667,6 @@ struct ImageInstanceConfig: Codable, Identifiable, Equatable {
                 modelPath: modelName,  // Можно добавить логику конкатенации с ServerSettings.modelsDirectory, если modelName - это только имя файла
                 vaePath: vaeModelName,
                 textEncoderPath: textEncoderLLMPath,
-                visionProjectorPath: visionProjectorPath,
                 isDiffusion: engine == .sdcli && sdcliMode == .diffusion,
                 steps: steps,
                 cfg: customCfg
@@ -1938,7 +1940,6 @@ final class ImageGenPool: ObservableObject {
                 textEncoderLLMPath: c.textEncoderLLMPath,
                 textEncoderT5Path: c.textEncoderT5Path,
                 textEncoderCLIPPath: c.textEncoderCLIPPath,
-                visionProjectorPath: c.visionProjectorPath,
                 // ---------------------------------
                 // --- НОВЫЕ ПАРАМЕТРЫ ---
                 //    inpaintEngine: c.inpaintEngine,

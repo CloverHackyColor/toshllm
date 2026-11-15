@@ -400,6 +400,20 @@ final class ModelDetectionTests: XCTestCase {
                      "Two compatible same-family projectors must remain a manual choice")
     }
 
+    func testImageGenerationFindsProjectorBesideTextEncoder() throws {
+        let dir = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let encoder = dir.appendingPathComponent("Qwen3-VL-8B-Instruct-Q4_K_M.gguf")
+        let projector = dir.appendingPathComponent("Qwen3-VL-8B-Instruct-Q4_K_M-mmproj.gguf")
+        try writeGGUF(to: encoder)
+        try writeGGUF(to: projector)
+
+        XCTAssertEqual(
+            ImageGenCatalog.visionProjector(forTextEncoder: encoder.lastPathComponent, in: dir)
+                .map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path },
+            projector.resolvingSymlinksInPath().path)
+    }
+
     func testDecimalActiveParameterNameLooksMoE() {
         XCTAssertTrue(ModelName.looksMoE("Model-30B-A3.5B-Q4_K_M.gguf"))
     }

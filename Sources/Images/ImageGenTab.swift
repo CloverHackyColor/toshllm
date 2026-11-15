@@ -573,7 +573,6 @@ struct ImageControls: View {
                         textEncoderLLMPath: c.textEncoderLLMPath,
                         textEncoderT5Path: c.textEncoderT5Path,
                         textEncoderCLIPPath: c.textEncoderCLIPPath,
-                        visionProjectorPath: c.visionProjectorPath,
                         // ----------------------------------------------
 
                         controlImagePath: c.controlImagePath,
@@ -1396,7 +1395,6 @@ struct ImageInstanceForm: View {
                     cfg.textEncoderLLMPath = ""
                     cfg.textEncoderT5Path = ""
                     cfg.textEncoderCLIPPath = ""
-                    cfg.visionProjectorPath = ""
                     cfg.referenceImagePaths = []
                 }
             }
@@ -1458,17 +1456,6 @@ struct ImageInstanceForm: View {
                         startDirectory: modelsDir.appendingPathComponent(
                             "text_encoders", isDirectory: true)
                     )
-                    .onChange(of: cfg.textEncoderLLMPath) { _, path in
-                        if let projector = ServerSettings.mmprojPath(forModel: path) {
-                            cfg.visionProjectorPath = projector
-                        }
-                    }
-                    .onAppear {
-                        if cfg.visionProjectorPath.isEmpty,
-                           let projector = ServerSettings.mmprojPath(forModel: cfg.textEncoderLLMPath) {
-                            cfg.visionProjectorPath = projector
-                        }
-                    }
                     .help(
                         loc.t(
                             "Modelo LLM para Flex.2 o SD 3.x/Flux. Proporciona comprensión semántica avanzada.",
@@ -1496,31 +1483,6 @@ struct ImageInstanceForm: View {
                             "Modelo CLIP para guiar la generación. Requerido para todos los modelos sd-cli.",
                             "CLIP model to guide generation. Required for all sd-cli models."
                         ))
-                }
-
-                // --- НОВЫЙ БЛОК: Визуальный проектор ---
-                filePickRow(
-                    loc.t("Proyector de Visión", "Vision Projector"),
-                    path: $cfg.visionProjectorPath, types: ["gguf", "safetensors", "pth"],
-                    startDirectory: modelsDir
-                )
-                .help(
-                    loc.t(
-                        "Archivo de proyector de visión (mmproj -*.gguf) para modelos multimodales como Qwen-Image. Permite que el modelo entienda las imágenes de referencia.",
-                        "Vision projector file (mmproj-*.gguf) for multimodal models like Qwen-Image. Allows the model to understand reference images."
-                    ))
-
-                if cfg.engine == .llama || cfg.modelName.localizedCaseInsensitiveContains("qwen") {
-                    if cfg.visionProjectorPath.isEmpty {
-                        InfoLabel(
-                            text: loc.t(
-                                "Para Qwen-Image con imágenes de referencia se requiere un proyector de visión (mmproj).",
-                                "Qwen-Image with reference images requires a vision projector (mmproj)."
-                            ),
-                            systemImage: "exclamationmark.triangle",
-                            color: Color(red: 0.5, green: 0.7, blue: 0.3)
-                        )
-                    }
                 }
 
                 // Внутри вашего customSetup, после выбора энкодеров:

@@ -174,15 +174,6 @@ build_engine() {
         return 1
     fi
 
-    # Fork headers introduced MoE cache and backend-sampler fields, but this
-    # implementation initializer was left on the previous layout.
-    if [ "$LLAMA_APPLY_PATCHES" = "0" ] && [ -f "$ROOT/patches/llama/train/0072-context-default-params.patch" ]; then
-        if git apply --check "$ROOT/patches/llama/train/0072-context-default-params.patch" 2>/dev/null; then
-            git apply "$ROOT/patches/llama/train/0072-context-default-params.patch"
-            echo "applied patches/llama/train/0072-context-default-params.patch"
-        fi
-    fi
-
     reset_stale_cmake_cache build-static
     rm -rf build-static/tools/ui
     cmake -B build-static "${CMAKE_FLAGS[@]}"

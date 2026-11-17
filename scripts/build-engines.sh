@@ -124,6 +124,10 @@ CMAKE_FLAGS=(
     # The server binds to localhost only; skip OpenSSL so static cross-builds
     # don't pick up host-arch Homebrew libraries on CI runners.
     -DLLAMA_OPENSSL=OFF
+    # ToshLLM ships the llama.cpp server without the Web UI. Do not build,
+    # download, or reuse generated UI assets.
+    -DLLAMA_BUILD_UI=OFF
+    -DLLAMA_USE_PREBUILT_UI=OFF
     -DCMAKE_CXX_FLAGS="-Wno-unused-const-variable -Wno-unused-function -Wno-deprecated-literal-operator" 
     -DCMAKE_C_FLAGS="-Wno-unused-const-variable -Wno-unused-function" 
 )
@@ -170,7 +174,17 @@ build_engine() {
         return 1
     fi
 
+    # Fork headers introduced MoE cache and backend-sampler fields, but this
+    # implementation initializer was left on the previous layout.
+    if [ "$LLAMA_APPLY_PATCHES" = "0" ] && [ -f "$ROOT/patches/llama/train/0072-context-default-params.patch" ]; then
+        if git apply --check "$ROOT/patches/llama/train/0072-context-default-params.patch" 2>/dev/null; then
+            git apply "$ROOT/patches/llama/train/0072-context-default-params.patch"
+            echo "applied patches/llama/train/0072-context-default-params.patch"
+        fi
+    fi
+
     reset_stale_cmake_cache build-static
+    rm -rf build-static/tools/ui
     cmake -B build-static "${CMAKE_FLAGS[@]}"
     cmake --build build-static --config Release -j "$(sysctl -n hw.ncpu)" -t llama-server llama-bench llama-perplexity test-backend-ops
 
